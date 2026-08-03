@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, Building2, Loader2, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { showToast } from '@/components/ui/Toast';
@@ -82,12 +82,12 @@ function LoginFormContent() {
       {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Email input field */}
-        <div className="pt-6"> {/* Tambahkan padding-top agar label punya ruang untuk melayang */}
+        <div className="pt-6">
           <div className="relative">
             <input
               id="email"
               type="email"
-              placeholder=" " /* PENTING: Harus spasi kosong (" ") agar deteksi CSS berfungsi */
+              placeholder=" "
               className="peer w-full bg-transparent border-b border-white/60 focus:border-white text-white py-2 px-0 text-2xl focus:outline-none transition-colors"
               {...register('email')}
             />
@@ -109,7 +109,7 @@ function LoginFormContent() {
             <input
               id="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder=" " /* PENTING: Harus spasi kosong (" ") */
+              placeholder=" "
               className="peer w-full bg-transparent border-b border-white/60 focus:border-white text-white py-2 px-0 pr-10 text-2xl focus:outline-none transition-colors"
               {...register('password')}
             />
@@ -235,7 +235,6 @@ function LoginFormContent() {
 
 export default function LoginPage() {
   return (
-    // 1. Ubah container utama menggunakan min-h-screen & flex-col
     <div className="relative min-h-screen w-full bg-linear-to-br from-blue-600 via-blue-600 to-indigo-700 overflow-x-hidden flex flex-col">
 
       {/* Decorative Blur Blobs */}
@@ -243,11 +242,9 @@ export default function LoginPage() {
       <div className="absolute top-1/2 -right-20 -translate-y-1/2 w-32 h-32 rounded-full bg-linear-to-tr from-[#3388FF] to-[#0D00FF] blur-md pointer-events-none" />
       <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-linear-to-tr from-[#3388FF] to-[#0D00FF] blur-md pointer-events-none" />
 
-      {/* 2. HEADER LOGO (Mengikuti alur normal, bukan absolute) */}
       <div className="w-full p-6 sm:p-10 lg:px-16 lg:pt-16 flex justify-center z-50 relative">
         <div className="w-full max-w-7xl">
           <div className="flex items-center gap-3">
-            {/* Ukuran logo sedikit disesuaikan untuk mobile */}
             <div className="w-10 h-10 lg:w-14 lg:h-14">
               <Image src="/makromedia-logo.png" alt="Logo" width={100} height={100} />
             </div>
@@ -258,12 +255,9 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* 3. MAIN CONTENT (Menggunakan flex-1 agar otomatis mengisi ruang dan menengahkan di desktop) */}
       <div className="flex-1 w-full p-6 sm:p-10 lg:p-16 flex justify-center items-center z-10 relative">
-        {/* Tambahkan gap yang pas antara teks dan form pada mobile (gap-8), dan jarak lebar di Desktop (lg:gap-16) */}
         <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center justify-center">
 
-          {/* LEFT COLUMN: Welcome Text */}
           <div className="flex flex-col h-full">
             <div className="max-w-lg">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-white tracking-tight uppercase mb-3 lg:mb-4 leading-none">
@@ -276,7 +270,6 @@ export default function LoginPage() {
 
           </div>
 
-          {/* RIGHT COLUMN: LOGIN FORM */}
           <div className="w-full bg-white/5 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-white/10 lg:bg-transparent lg:p-0 lg:border-none mt-2 lg:mt-0">
             <Suspense
               fallback={
