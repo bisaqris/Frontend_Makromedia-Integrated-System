@@ -44,7 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
 
   useEffect(() => {
     onClose?.();
-  }, [pathname]);
+  }, [pathname, onClose]);
 
   const getRoleMenuStructure = (userRole: Role | null): { standaloneItems: MenuItem[]; sections: MenuSection[] } => {
     const standaloneItems: MenuItem[] = [

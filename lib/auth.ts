@@ -26,7 +26,7 @@ export function getUser(): User | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as User;
-  } catch (err) {
+  } catch {
     return null;
   }
 }

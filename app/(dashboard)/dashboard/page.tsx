@@ -140,7 +140,7 @@ export default function DashboardPage() {
         if (response.data && Array.isArray(response.data)) {
           setProjects(response.data);
         }
-      } catch (err) {
+      } catch {
         setProjects(DUMMY_PROJECTS);
       } finally {
         setIsLoading(false);

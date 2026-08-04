@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { User, Role } from '@/types/user';
 import { getToken, getUser, setToken as saveToken, setUser as saveUser, clearAuth } from '@/lib/auth';
 import { hasAccess as checkHasAccess } from '@/lib/roles';
@@ -20,20 +20,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUserState] = useState<User | null>(null);
-  const [token, setTokenState] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    const cachedToken = getToken();
-    const cachedUser = getUser();
-
-    if (cachedToken && cachedUser) {
-      setTokenState(cachedToken);
-      setUserState(cachedUser);
-    }
-    setIsLoading(false);
-  }, []);
+  const [token, setTokenState] = useState<string | null>(() => getToken());
+  const [user, setUserState] = useState<User | null>(() => getUser());
+  const [isLoading] = useState<boolean>(false);
 
   const login = useCallback((newToken: string, newUser: User) => {
     saveToken(newToken);

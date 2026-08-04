@@ -50,10 +50,11 @@ function LoginFormContent() {
       login(token, user);
       showToast.success(`Selamat datang kembali, ${user.name || 'User'}!`);
       router.push(redirectPath);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
       const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
+        errorObj.response?.data?.message ||
+        errorObj.message ||
         'Gagal masuk. Periksa kembali email dan password Anda.';
 
       showToast.error(errorMessage);
@@ -63,7 +64,7 @@ function LoginFormContent() {
   };
 
   const handleQuickDemoLogin = (role: Role, email: string, name: string) => {
-    const mockToken = `mock-jwt-token-${role.toLowerCase()}-${Date.now()}`;
+    const mockToken = `mock-jwt-token-${role.toLowerCase()}-demo`;
     const mockUser = {
       id: `usr-${role.toLowerCase()}`,
       name,
