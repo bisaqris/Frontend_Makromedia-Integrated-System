@@ -211,18 +211,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
             </div>
           ))}
         </div>
-
-        <div className="p-3 border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200/80">
-            <Shield className="w-4 h-4 text-primary shrink-0" />
-            <div className="flex flex-col truncate">
-              <span className="text-[11px] font-semibold text-slate-800 truncate">
-                {user?.name || 'Pengguna'}
-              </span>
-              <span className="text-[10px] text-accent font-medium truncate">{role || 'GUEST'}</span>
-            </div>
-          </div>
-        </div>
       </aside>
     </>
   );
