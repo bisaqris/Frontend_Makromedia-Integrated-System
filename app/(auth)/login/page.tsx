@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { showToast } from '@/components/ui/Toast';
 import { Role } from '@/types/user';
+import { mockUserByRole } from '@/lib/mock/users.mock';
 import Image from 'next/image';
 
 const loginSchema = z.object({
@@ -50,11 +51,11 @@ function LoginFormContent() {
       login(token, user);
       showToast.success(`Selamat datang kembali, ${user.name || 'User'}!`);
       router.push(redirectPath);
-    } catch (err: any) {
-      console.error('Login error:', err);
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
       const errorMessage =
-        err.response?.data?.message ||
-        err.message ||
+        errorObj.response?.data?.message ||
+        errorObj.message ||
         'Gagal masuk. Periksa kembali email dan password Anda.';
 
       showToast.error(errorMessage);
@@ -63,25 +64,17 @@ function LoginFormContent() {
     }
   };
 
-  const handleQuickDemoLogin = (role: Role, email: string, name: string) => {
-    const mockToken = `mock-jwt-token-${role.toLowerCase()}-${Date.now()}`;
-    const mockUser = {
-      id: `usr-${role.toLowerCase()}`,
-      name,
-      email,
-      role,
-      department: 'CV. Makromedia Visual',
-    };
+  const handleQuickDemoLogin = (role: Role) => {
+    const mockToken = `mock-jwt-token-${role.toLowerCase()}-demo`;
+    const mockUser = mockUserByRole[role];
     login(mockToken, mockUser);
-    showToast.success(`Masuk sebagai ${name} (${role})`);
+    showToast.success(`Masuk sebagai ${mockUser.name} (${role})`);
     router.push(redirectPath);
   };
 
   return (
     <div className="w-full">
-      {/* Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Email input field */}
         <div className="pt-6">
           <div className="relative">
             <input
@@ -103,7 +96,6 @@ function LoginFormContent() {
           )}
         </div>
 
-        {/* Password input field */}
         <div className="pt-6">
           <div className="relative">
             <input
@@ -132,7 +124,6 @@ function LoginFormContent() {
             <p className="text-sm text-red-200 font-medium mt-1.5">{errors.password.message}</p>
           )}
 
-          {/* Forgot Password link */}
           <div className="text-right mt-3">
             <a
               href="#forgot-password"
@@ -147,7 +138,6 @@ function LoginFormContent() {
           </div>
         </div>
 
-        {/* Submit button */}
         <div className="pt-8">
           <button
             type="submit"
@@ -166,7 +156,6 @@ function LoginFormContent() {
         </div>
       </form>
 
-      {/* Demo Quick Logins for Testing Roles */}
       <div className="mt-10 pt-6 border-t border-white/15">
         <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wider text-center mb-3">
           Quick Demo Login (Role Tester)
@@ -175,9 +164,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'direktur@makromedia.co.id');
+              setValue('email', mockUserByRole.DIREKTUR.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('DIREKTUR', 'direktur@makromedia.co.id', 'Pak Pakuwon (Direktur)');
+              handleQuickDemoLogin('DIREKTUR');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -186,9 +175,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'finance@makromedia.co.id');
+              setValue('email', mockUserByRole.FINANCE.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('FINANCE', 'finance@makromedia.co.id', 'Ibu Ratna (Finance)');
+              handleQuickDemoLogin('FINANCE');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -197,9 +186,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'sales@makromedia.co.id');
+              setValue('email', mockUserByRole.SALES.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('SALES', 'sales@makromedia.co.id', 'Budi Sales (Sales)');
+              handleQuickDemoLogin('SALES');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -208,9 +197,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'pm@makromedia.co.id');
+              setValue('email', mockUserByRole.PROJECT_MANAGER.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('PROJECT_MANAGER', 'pm@makromedia.co.id', 'Andi PM (Project Manager)');
+              handleQuickDemoLogin('PROJECT_MANAGER');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -219,9 +208,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'produksi@makromedia.co.id');
+              setValue('email', mockUserByRole.PRODUKSI.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('PRODUKSI', 'produksi@makromedia.co.id', 'Tim Lapangan (Produksi)');
+              handleQuickDemoLogin('PRODUKSI');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -236,8 +225,6 @@ function LoginFormContent() {
 export default function LoginPage() {
   return (
     <div className="relative min-h-screen w-full bg-linear-to-br from-blue-600 via-blue-600 to-indigo-700 overflow-x-hidden flex flex-col">
-
-      {/* Decorative Blur Blobs */}
       <div className="absolute -top-24 -left-24 w-120 h-120 rounded-full bg-linear-to-tr from-[#3388FF] to-[#0D00FF] blur-md pointer-events-none" />
       <div className="absolute top-1/2 -right-20 -translate-y-1/2 w-32 h-32 rounded-full bg-linear-to-tr from-[#3388FF] to-[#0D00FF] blur-md pointer-events-none" />
       <div className="absolute -bottom-24 left-1/3 w-80 h-80 rounded-full bg-linear-to-tr from-[#3388FF] to-[#0D00FF] blur-md pointer-events-none" />
@@ -257,7 +244,6 @@ export default function LoginPage() {
 
       <div className="flex-1 w-full p-6 sm:p-10 lg:p-16 flex justify-center items-center z-10 relative">
         <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center justify-center">
-
           <div className="flex flex-col h-full">
             <div className="max-w-lg">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-white tracking-tight uppercase mb-3 lg:mb-4 leading-none">
@@ -267,7 +253,6 @@ export default function LoginPage() {
                 Please sign in to access your dashboard and manage everything in one place.
               </p>
             </div>
-
           </div>
 
           <div className="w-full bg-white/5 backdrop-blur-xs p-6 sm:p-8 rounded-2xl border border-white/10 lg:bg-transparent lg:p-0 lg:border-none mt-2 lg:mt-0">
@@ -282,7 +267,6 @@ export default function LoginPage() {
               <LoginFormContent />
             </Suspense>
           </div>
-
         </div>
       </div>
     </div>

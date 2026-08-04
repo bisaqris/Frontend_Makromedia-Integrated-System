@@ -51,13 +51,11 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-200"
         onClick={onClose}
       />
 
-      {/* Modal dialog box */}
       <div
         className={twMerge(
           clsx(
@@ -66,7 +64,6 @@ export const Modal: React.FC<ModalProps> = ({
           )
         )}
       >
-        {/* Header */}
         {title && (
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
@@ -82,10 +79,8 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
 
-        {/* Content */}
         <div className="p-6 text-sm text-slate-700 max-h-[75vh] overflow-y-auto">{children}</div>
 
-        {/* Footer */}
         {footer && (
           <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
             {footer}
