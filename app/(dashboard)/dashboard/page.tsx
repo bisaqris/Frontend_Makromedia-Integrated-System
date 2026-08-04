@@ -6,6 +6,8 @@ import { CalendarView } from '@/components/shared/CalendarView';
 import Select from '@/components/ui/Select';
 import { apiClient } from '@/lib/apiClient';
 import { Project, ProjectCategory } from '@/types/project';
+import { mockProjects } from '@/lib/mock/projects.mock';
+import { mockDashboardCategories } from '@/lib/mock/dashboard.mock';
 import {
   DollarSign,
   CheckCircle2,
@@ -27,84 +29,6 @@ const formatRupiah = (value: number) => {
   }).format(value);
 };
 
-const DUMMY_PROJECTS: Project[] = [
-  {
-    id: 'proj-1',
-    code: 'PRJ-2026-001',
-    name: 'Peluncuran Produk Innovate Tech 2026',
-    category: 'Event',
-    clientId: 'cli-1',
-    clientName: 'PT Innovate Indonesia',
-    status: 'IN_PROGRESS',
-    startDate: '2026-05-04',
-    endDate: '2026-05-08',
-    budget: 350000000,
-    totalPaid: 250000000,
-    restOfBill: 100000000,
-    totalCost: 180000000,
-  },
-  {
-    id: 'proj-2',
-    code: 'PRJ-2026-002',
-    name: 'Company Profile & Video Direksi',
-    category: 'Corporate Video',
-    clientId: 'cli-2',
-    clientName: 'Bank Nusantara',
-    status: 'IN_PROGRESS',
-    startDate: '2026-05-10',
-    endDate: '2026-05-15',
-    budget: 250000000,
-    totalPaid: 200000000,
-    restOfBill: 50000000,
-    totalCost: 120000000,
-  },
-  {
-    id: 'proj-3',
-    code: 'PRJ-2026-003',
-    name: 'Film Pendek Dokumenter Makromedia',
-    category: 'Film Production',
-    clientId: 'cli-3',
-    clientName: 'Yayasan Seni Visual',
-    status: 'QUOTATION_APPROVED',
-    startDate: '2026-05-18',
-    endDate: '2026-05-24',
-    budget: 400000000,
-    totalPaid: 200000000,
-    restOfBill: 200000000,
-    totalCost: 210000000,
-  },
-  {
-    id: 'proj-4',
-    code: 'PRJ-2026-004',
-    name: 'Campaign Media Sosial Ramadan & Idul Fitri',
-    category: 'Content Video/Marketing',
-    clientId: 'cli-4',
-    clientName: 'Brand Retail Utama',
-    status: 'IN_PROGRESS',
-    startDate: '2026-05-12',
-    endDate: '2026-05-20',
-    budget: 150000000,
-    totalPaid: 100000000,
-    restOfBill: 50000000,
-    totalCost: 70000000,
-  },
-  {
-    id: 'proj-5',
-    code: 'PRJ-2026-005',
-    name: 'Cinematic Wedding Film & Live Stream',
-    category: 'Wedding',
-    clientId: 'cli-5',
-    clientName: 'Keluarga Henderson',
-    status: 'COMPLETED',
-    startDate: '2026-05-27',
-    endDate: '2026-05-29',
-    budget: 100000000,
-    totalPaid: 100000000,
-    restOfBill: 0,
-    totalCost: 40000000,
-  },
-];
-
 const MONTH_OPTIONS = [
   { value: '0', label: 'Januari' },
   { value: '1', label: 'Februari' },
@@ -123,7 +47,7 @@ const MONTH_OPTIONS = [
 export default function DashboardPage() {
   const { role } = useAuth();
   const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 4, 1));
-  const [projects, setProjects] = useState<Project[]>(DUMMY_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -141,7 +65,7 @@ export default function DashboardPage() {
           setProjects(response.data);
         }
       } catch {
-        setProjects(DUMMY_PROJECTS);
+        setProjects(mockProjects);
       } finally {
         setIsLoading(false);
       }
@@ -165,13 +89,7 @@ export default function DashboardPage() {
   }, [projects]);
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<ProjectCategory, number> = {
-      Event: 10,
-      'Corporate Video': 4,
-      'Film Production': 2,
-      'Content Video/Marketing': 6,
-      Wedding: 3,
-    };
+    const counts: Record<ProjectCategory, number> = { ...mockDashboardCategories };
 
     projects.forEach((p) => {
       if (p.category && counts[p.category] !== undefined) {

@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { showToast } from '@/components/ui/Toast';
 import { Role } from '@/types/user';
+import { mockUserByRole } from '@/lib/mock/users.mock';
 import Image from 'next/image';
 
 const loginSchema = z.object({
@@ -63,17 +64,11 @@ function LoginFormContent() {
     }
   };
 
-  const handleQuickDemoLogin = (role: Role, email: string, name: string) => {
+  const handleQuickDemoLogin = (role: Role) => {
     const mockToken = `mock-jwt-token-${role.toLowerCase()}-demo`;
-    const mockUser = {
-      id: `usr-${role.toLowerCase()}`,
-      name,
-      email,
-      role,
-      department: 'CV. Makromedia Visual',
-    };
+    const mockUser = mockUserByRole[role];
     login(mockToken, mockUser);
-    showToast.success(`Masuk sebagai ${name} (${role})`);
+    showToast.success(`Masuk sebagai ${mockUser.name} (${role})`);
     router.push(redirectPath);
   };
 
@@ -169,9 +164,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'direktur@makromedia.co.id');
+              setValue('email', mockUserByRole.DIREKTUR.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('DIREKTUR', 'direktur@makromedia.co.id', 'Pak Pakuwon (Direktur)');
+              handleQuickDemoLogin('DIREKTUR');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -180,9 +175,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'finance@makromedia.co.id');
+              setValue('email', mockUserByRole.FINANCE.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('FINANCE', 'finance@makromedia.co.id', 'Ibu Ratna (Finance)');
+              handleQuickDemoLogin('FINANCE');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -191,9 +186,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'sales@makromedia.co.id');
+              setValue('email', mockUserByRole.SALES.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('SALES', 'sales@makromedia.co.id', 'Budi Sales (Sales)');
+              handleQuickDemoLogin('SALES');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -202,9 +197,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'pm@makromedia.co.id');
+              setValue('email', mockUserByRole.PROJECT_MANAGER.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('PROJECT_MANAGER', 'pm@makromedia.co.id', 'Andi PM (Project Manager)');
+              handleQuickDemoLogin('PROJECT_MANAGER');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
@@ -213,9 +208,9 @@ function LoginFormContent() {
           <button
             type="button"
             onClick={() => {
-              setValue('email', 'produksi@makromedia.co.id');
+              setValue('email', mockUserByRole.PRODUKSI.email);
               setValue('password', 'password123');
-              handleQuickDemoLogin('PRODUKSI', 'produksi@makromedia.co.id', 'Tim Lapangan (Produksi)');
+              handleQuickDemoLogin('PRODUKSI');
             }}
             className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
           >
