@@ -3,13 +3,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User as UserIcon, LogOut, ChevronDown, Bell } from 'lucide-react';
+import { User as UserIcon, LogOut, ChevronDown, Bell, Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ROLE_LABELS } from '@/lib/roles';
 import Badge from '@/components/ui/Badge';
 import { showToast } from '@/components/ui/Toast';
 
-export const Topbar: React.FC = () => {
+export interface TopbarProps {
+  onToggleSidebar?: () => void;
+}
+
+export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   const router = useRouter();
   const { user, role, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -49,38 +53,47 @@ export const Topbar: React.FC = () => {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200/80 sticky top-0 z-20 px-6 flex items-center justify-between">
-      {/* Title / Search / Quick Context */}
+    <header className="h-16 bg-white border-b border-slate-200/80 sticky top-0 z-30 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <h1 className="text-sm font-semibold text-slate-700 hidden sm:block">
-          Makromedia Integrated System
-        </h1>
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          className="p-2 rounded-xl text-slate-600 hover:bg-slate-100 lg:hidden focus:outline-hidden cursor-pointer"
+          title="Buka Menu"
+        >
+          <Menu className="w-5 h-5 text-slate-700" />
+        </button>
+
+        <div className="flex flex-col">
+          <h1 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight leading-tight truncate max-w-45 sm:max-w-none">
+            Dashboard
+          </h1>
+          <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
+            Calendar Project
+          </p>
+        </div>
       </div>
 
-      {/* Right Controls: Notifications & User Dropdown */}
-      <div className="flex items-center gap-4">
-        {/* Notification Icon */}
+      <div className="flex items-center gap-2 sm:gap-4">
         <button
           type="button"
           onClick={() => showToast.info('Tidak ada notifikasi baru.')}
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors relative"
+          className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors relative cursor-pointer"
           title="Notifikasi"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="w-4.5 h-4.5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
         </button>
 
         <div className="h-4 w-px bg-slate-200" />
 
-        {/* User Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-100/80 transition-colors focus:outline-hidden"
+            className="flex items-center gap-2 sm:gap-3 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100/80 transition-colors focus:outline-hidden cursor-pointer"
           >
-            {/* User Avatar */}
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden shrink-0">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
               ) : (
@@ -88,9 +101,8 @@ export const Topbar: React.FC = () => {
               )}
             </div>
 
-            {/* Name & Role */}
-            <div className="hidden md:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-900 leading-tight">
+            <div className="hidden sm:flex flex-col text-left">
+              <span className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
                 {user?.name || 'Pengguna'}
               </span>
               <div className="mt-0.5">
@@ -100,10 +112,9 @@ export const Topbar: React.FC = () => {
               </div>
             </div>
 
-            <ChevronDown className="w-4 h-4 text-slate-400" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
-          {/* Dropdown Menu */}
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
               <div className="px-4 py-2 border-b border-slate-100">
@@ -125,7 +136,7 @@ export const Topbar: React.FC = () => {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors text-left"
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors text-left cursor-pointer"
               >
                 <LogOut className="w-4 h-4 text-red-500" />
                 <span>Keluar (Logout)</span>

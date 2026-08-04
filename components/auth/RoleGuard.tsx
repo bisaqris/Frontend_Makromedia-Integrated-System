@@ -44,7 +44,6 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
       return null;
     }
 
-    // Default: 'message' mode
     return (
       <div className="flex flex-col items-center justify-center min-h-75 p-8 text-center bg-white rounded-xl border border-slate-200 shadow-xs max-w-md mx-auto my-8">
         <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4 text-red-500">

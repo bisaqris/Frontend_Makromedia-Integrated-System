@@ -16,9 +16,6 @@ export const ROLE_LABELS: Record<Role, string> = {
   DIREKTUR: 'Direktur / Management',
 };
 
-/**
-  * Method untuk cek apakah role user ada dalam role yg diijinkan
-  */
 export function hasAccess(userRole: Role | null | undefined, allowedRoles: Role[]): boolean {
   if (!userRole) return false;
   if (allowedRoles.length === 0) return true;

@@ -25,7 +25,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Synchronize auth state on client mount
     const cachedToken = getToken();
     const cachedUser = getUser();
 

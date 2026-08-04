@@ -7,6 +7,13 @@ export type ProjectStatus =
   | 'COMPLETED'
   | 'CANCELLED';
 
+export type ProjectCategory =
+  | 'Event'
+  | 'Corporate Video'
+  | 'Film Production'
+  | 'Content Video/Marketing'
+  | 'Wedding';
+
 export interface ProjectCostItem {
   id: string;
   projectId: string;
@@ -22,6 +29,7 @@ export interface Project {
   id: string;
   code: string;
   name: string;
+  category?: ProjectCategory;
   clientId: string;
   clientName?: string;
   projectManagerId?: string;
@@ -30,6 +38,10 @@ export interface Project {
   startDate?: string;
   endDate?: string;
   budget?: number;
+  totalPaid?: number;
+  restOfBill?: number;
+  totalCost?: number;
+  color?: string;
   costItems?: ProjectCostItem[];
   description?: string;
   createdAt?: string;

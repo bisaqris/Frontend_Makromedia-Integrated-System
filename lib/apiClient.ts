@@ -11,7 +11,6 @@ export const apiClient = axios.create({
   timeout: 30000,
 });
 
-// Request interceptor: add Bearer token
 apiClient.interceptors.request.use(
   (config) => {
     const token = getToken();
@@ -25,7 +24,6 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response interceptor: handle 401 Unauthorized
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
