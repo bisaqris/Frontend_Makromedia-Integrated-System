@@ -168,9 +168,9 @@ function LoginFormContent() {
               setValue('password', 'password123');
               handleQuickDemoLogin('DIREKTUR');
             }}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
+            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
           >
-            👔 Direktur
+            Direktur
           </button>
           <button
             type="button"
@@ -179,9 +179,9 @@ function LoginFormContent() {
               setValue('password', 'password123');
               handleQuickDemoLogin('FINANCE');
             }}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
+            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
           >
-            💳 Finance
+            Finance
           </button>
           <button
             type="button"
@@ -190,9 +190,9 @@ function LoginFormContent() {
               setValue('password', 'password123');
               handleQuickDemoLogin('SALES');
             }}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
+            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
           >
-            📊 Sales
+            Sales
           </button>
           <button
             type="button"
@@ -201,9 +201,9 @@ function LoginFormContent() {
               setValue('password', 'password123');
               handleQuickDemoLogin('PROJECT_MANAGER');
             }}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
+            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
           >
-            📋 PM
+            PM
           </button>
           <button
             type="button"
@@ -212,9 +212,9 @@ function LoginFormContent() {
               setValue('password', 'password123');
               handleQuickDemoLogin('PRODUKSI');
             }}
-            className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors font-medium"
+            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
           >
-            🛠️ Produksi
+            Produksi
           </button>
         </div>
       </div>

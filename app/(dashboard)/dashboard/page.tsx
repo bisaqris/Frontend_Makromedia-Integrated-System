@@ -109,7 +109,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 border border-slate-200/80 shadow-2xs">
         <div>
           <p className="text-lg sm:text-xl font-bold text-slate-900">
             {currentDate.toLocaleDateString('id-ID', {
@@ -129,7 +129,7 @@ export default function DashboardPage() {
               value={currentDate.getMonth().toString()}
               onChange={handleMonthSelect}
               options={MONTH_OPTIONS}
-              className="py-2 text-xs bg-slate-50 border-slate-200 rounded-xl font-semibold"
+              className="py-2 text-xs bg-slate-50 border-slate-200 rounded-lg font-semibold"
             />
           </div>
         </div>
@@ -137,71 +137,55 @@ export default function DashboardPage() {
 
       {isFinancialView ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-600 text-white rounded-2xl p-5 shadow-xs border border-blue-700 flex flex-col justify-between">
+          <div className="bg-[#006AFF] text-white rounded-2xl p-5 shadow-xs border border-blue-700 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-blue-100">
                 Total Contract Value
               </span>
-              <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                <DollarSign className="w-4 h-4 text-white" />
-              </div>
             </div>
             <div>
               <p className="text-xl sm:text-2xl font-black tracking-tight">
                 {formatRupiah(financialTotals.totalContractValue)}
               </p>
-              <p className="text-[11px] text-blue-100 mt-1">Nilai total seluruh kontrak proyek</p>
             </div>
           </div>
 
-          <div className="bg-emerald-600 text-white rounded-2xl p-5 shadow-xs border border-emerald-700 flex flex-col justify-between">
+          <div className="bg-[#12B76A] text-white rounded-2xl p-5 shadow-xs border border-emerald-700 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-emerald-100">
                 Total Paid
               </span>
-              <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                <CheckCircle2 className="w-4 h-4 text-white" />
-              </div>
             </div>
             <div>
               <p className="text-xl sm:text-2xl font-black tracking-tight">
                 {formatRupiah(financialTotals.totalPaid)}
               </p>
-              <p className="text-[11px] text-emerald-100 mt-1">Pembayaran yang telah diterima</p>
             </div>
           </div>
 
-          <div className="bg-amber-500 text-white rounded-2xl p-5 shadow-xs border border-amber-600 flex flex-col justify-between">
+          <div className="bg-[#EAB308] text-white rounded-2xl p-5 shadow-xs border border-amber-600 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-amber-100">
                 Rest of the Bill
               </span>
-              <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                <AlertCircle className="w-4 h-4 text-white" />
-              </div>
             </div>
             <div>
               <p className="text-xl sm:text-2xl font-black tracking-tight">
                 {formatRupiah(financialTotals.restOfBill)}
               </p>
-              <p className="text-[11px] text-amber-100 mt-1">Sisa piutang tagihan belum lunas</p>
             </div>
           </div>
 
-          <div className="bg-orange-500 text-white rounded-2xl p-5 shadow-xs border border-orange-600 flex flex-col justify-between">
+          <div className="bg-[#F97316] text-white rounded-2xl p-5 shadow-xs border border-orange-600 flex flex-col justify-between">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-orange-100">
                 Total Project Cost
               </span>
-              <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                <Receipt className="w-4 h-4 text-white" />
-              </div>
             </div>
             <div>
               <p className="text-xl sm:text-2xl font-black tracking-tight">
                 {formatRupiah(financialTotals.totalProjectCost)}
               </p>
-              <p className="text-[11px] text-orange-100 mt-1">Total pengeluaran biaya produksi</p>
             </div>
           </div>
         </div>

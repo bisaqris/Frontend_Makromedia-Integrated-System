@@ -105,11 +105,11 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
               <span className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
                 {user?.name || 'Pengguna'}
               </span>
-              <div className="mt-0.5">
+              {/* <div className="mt-0.5">
                 <Badge variant={getRoleBadgeVariant(role)} size="sm">
                   {role ? ROLE_LABELS[role] || role : 'GUEST'}
                 </Badge>
-              </div>
+              </div> */}
             </div>
 
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
