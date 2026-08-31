@@ -2,20 +2,34 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { User as UserIcon, LogOut, ChevronDown, Bell, Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { ROLE_LABELS } from '@/lib/roles';
-import Badge from '@/components/ui/Badge';
+import { usePageTitle } from '@/context/PageTitleContext';
 import { showToast } from '@/components/ui/Toast';
 
 export interface TopbarProps {
   onToggleSidebar?: () => void;
 }
 
+const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
+  '/dashboard': { title: 'Dashboard', subtitle: 'Calendar Project' },
+  '/projects': { title: 'List Project', subtitle: 'List of All Projects' },
+  '/projects/new': { title: 'Add New Project', subtitle: 'Add new project' },
+  '/projects/history': { title: 'History Project', subtitle: 'List of All Projects That Already Done' },
+  '/application-cost': { title: 'List Application Cost', subtitle: 'List of Application Cost' },
+  '/manpower': { title: 'List Data Employee', subtitle: 'List of All Employees' },
+  '/manpower/skills': { title: 'Data Skill', subtitle: 'Employee skills and certifications' },
+  '/clients/pic': { title: 'List Data Client', subtitle: 'List of Client PICs' },
+  '/clients/company': { title: 'List Client Company', subtitle: 'List of Client Companies' },
+  '/profile': { title: 'Profile', subtitle: 'User Profile Settings' },
+};
+
 export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   const router = useRouter();
-  const { user, role, logout } = useAuth();
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const { customTitle, customSubtitle } = usePageTitle();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -35,22 +49,18 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     router.push('/login');
   };
 
-  const getRoleBadgeVariant = (userRole: string | null) => {
-    switch (userRole) {
-      case 'DIREKTUR':
-        return 'accent';
-      case 'FINANCE':
-        return 'success';
-      case 'SALES':
-        return 'primary';
-      case 'PROJECT_MANAGER':
-        return 'info';
-      case 'PRODUKSI':
-        return 'warning';
-      default:
-        return 'default';
+  const getPageHeader = () => {
+    if (customTitle && customSubtitle) {
+      return { title: customTitle, subtitle: customSubtitle };
     }
+    if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+    if (pathname.startsWith('/projects/')) {
+      return { title: 'Detail Project', subtitle: 'Project details and overview' };
+    }
+    return { title: 'Dashboard', subtitle: 'Calendar Project' };
   };
+
+  const header = getPageHeader();
 
   return (
     <header className="h-16 bg-white border-b border-slate-200/80 sticky top-0 z-30 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
@@ -66,10 +76,10 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
 
         <div className="flex flex-col">
           <h1 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight leading-tight truncate max-w-45 sm:max-w-none">
-            Dashboard
+            {header.title}
           </h1>
           <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-            Calendar Project
+            {header.subtitle}
           </p>
         </div>
       </div>
@@ -105,11 +115,6 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
               <span className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
                 {user?.name || 'Pengguna'}
               </span>
-              <div className="mt-0.5">
-                <Badge variant={getRoleBadgeVariant(role)} size="sm">
-                  {role ? ROLE_LABELS[role] || role : 'GUEST'}
-                </Badge>
-              </div>
             </div>
 
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
