@@ -17,7 +17,7 @@ export default function DashboardLayout({
   return (
     <RoleGuard allowed={ALL_ROLES} fallbackMode="message">
       <PageTitleProvider>
-        <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
+        <div className="min-h-screen bg-white flex overflow-x-hidden">
           <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
           <div className="flex-1 ml-0 lg:ml-64 flex flex-col min-w-0 min-h-screen">
