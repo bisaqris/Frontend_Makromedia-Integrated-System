@@ -10,7 +10,39 @@ import projectService from '@/lib/services/projectService';
 import { mockClientCompanies, mockClientPICs } from '@/lib/mock/clients.mock';
 import { ProjectCategory } from '@/types/project';
 import { showToast } from '@/components/ui/Toast';
-import { Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Loader2,
+  FileText,
+  AlignLeft,
+  Link as LinkIcon,
+} from 'lucide-react';
+
+const formatRupiah = (val: number) => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(val || 0);
+};
+
+const formatDateID = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+  const date = new Date(year, month, day);
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
 
 const CATEGORY_OPTIONS = [
   { value: 'Event', label: 'Event' },
@@ -37,7 +69,6 @@ const PARTNERSHIP_OPTIONS = [
 
 interface AdditionalLinkItem {
   id: string;
-  title: string;
   url: string;
 }
 
@@ -63,8 +94,6 @@ export default function AddProjectPage() {
 
   const [deliverablesLink, setDeliverablesLink] = useState('');
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
-  const [newLinkTitle, setNewLinkTitle] = useState('');
-  const [newLinkUrl, setNewLinkUrl] = useState('');
 
   // Selected company and filtered PICs
   const selectedCompany = mockClientCompanies.find((c) => c.id === companyId) || mockClientCompanies[0];
@@ -72,17 +101,10 @@ export default function AddProjectPage() {
   const selectedPic = mockClientPICs.find((p) => p.id === picId) || filteredPics[0];
 
   const handleAddLink = () => {
-    if (!newLinkTitle || !newLinkUrl) {
-      showToast.error('Judul dan URL link wajib diisi.');
-      return;
-    }
     setAdditionalLinks((prev) => [
       ...prev,
-      { id: `link-${Date.now()}`, title: newLinkTitle, url: newLinkUrl },
+      { id: `link-${Date.now()}`, url: '' },
     ]);
-    setNewLinkTitle('');
-    setNewLinkUrl('');
-    showToast.success('Link tambahan berhasil ditambahkan.');
   };
 
   const handleRemoveLink = (id: string) => {
@@ -134,51 +156,46 @@ export default function AddProjectPage() {
   return (
     <RoleGuard allowed={['DIREKTUR', 'SALES', 'FINANCE']} fallbackMode="message">
       <div className="space-y-6 max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <h1 className="text-xl font-bold text-slate-900">Add New Project</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Lengkapi formulir 2 langkah di bawah ini untuk membuat proyek baru
-          </p>
+        {/* Step Indicator Header Card (Connector line turns blue when currentStep === 2) */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between">
+          {/* Step 1 Indicator */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center shadow-xs">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-slate-900 leading-tight">Input Data</span>
+              <span className="text-xs text-slate-400 font-normal mt-0.5">Step 1</span>
+            </div>
+          </div>
 
-          {/* 2 Step Indicator */}
-          <div className="flex items-center gap-4 mt-6 pt-4 border-t border-slate-100">
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
-                  currentStep === 1
-                    ? 'bg-primary text-white'
-                    : 'bg-emerald-500 text-white'
+          {/* Connecting Line (Turns blue on Step 2) */}
+          <div
+            className={`h-0.5 flex-1 mx-4 sm:mx-8 hidden sm:block transition-colors duration-300 ${
+              currentStep === 2 ? 'bg-primary' : 'bg-slate-200'
+            }`}
+          />
+
+          {/* Step 2 Indicator */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                currentStep === 2
+                  ? 'bg-primary text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-400'
+              }`}
+            >
+              <AlignLeft className="w-6 h-6 text-current" />
+            </div>
+            <div className="flex flex-col">
+              <span
+                className={`text-sm font-bold leading-tight ${
+                  currentStep === 2 ? 'text-slate-900' : 'text-slate-400'
                 }`}
               >
-                {currentStep > 1 ? <CheckCircle2 className="w-4 h-4" /> : '1'}
-              </div>
-              <span className={`text-xs font-bold ${currentStep === 1 ? 'text-primary' : 'text-slate-700'}`}>
-                Input Data
-              </span>
-            </div>
-
-            <div className="h-2 flex-1 max-w-[80px] bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full bg-primary transition-all duration-300 ${
-                  currentStep === 2 ? 'w-full' : 'w-0'
-                }`}
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div
-                className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center ${
-                  currentStep === 2
-                    ? 'bg-primary text-white'
-                    : 'bg-slate-100 text-slate-400'
-                }`}
-              >
-                2
-              </div>
-              <span className={`text-xs font-bold ${currentStep === 2 ? 'text-primary' : 'text-slate-400'}`}>
                 Summary
               </span>
+              <span className="text-xs text-slate-400 font-normal mt-0.5">Step 2</span>
             </div>
           </div>
         </div>
@@ -186,7 +203,7 @@ export default function AddProjectPage() {
         {/* STEP 1: INPUT DATA */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            {/* Card a: Internal Data */}
+            {/* Card 1: Internal Data */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
                 Internal Data
@@ -207,12 +224,12 @@ export default function AddProjectPage() {
               </div>
             </div>
 
-            {/* Card b: Client Data */}
+            {/* Card 2: Client Data */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
                 Client Data
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
                   label="Client Type"
                   value={clientType}
@@ -240,15 +257,15 @@ export default function AddProjectPage() {
               </div>
             </div>
 
-            {/* Card c: Project Data */}
+            {/* Card 3: Project Data */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
                 Project Data
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Project Name"
-                  placeholder="Masukkan nama proyek..."
+                  placeholder="e.g. Q3 Marketing Campaign"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   required
@@ -273,13 +290,13 @@ export default function AddProjectPage() {
                 />
                 <Input
                   label="Venue / Location"
-                  placeholder="Lokasi event / shooting..."
+                  placeholder="e.g. Malang, East Java"
                   value={venue}
                   onChange={(e) => setVenue(e.target.value)}
                 />
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contract Value (Rupiah)
+                    Contract Value
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
@@ -296,83 +313,133 @@ export default function AddProjectPage() {
               </div>
             </div>
 
-            {/* Card d: Progress Link */}
+            {/* Card 4: Progress Link */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
-                Progress Link
-              </h3>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+                  Progress Link
+                </h3>
+                <Button
+                  variant="primary"
+                  size="md"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                  onClick={handleAddLink}
+                >
+                  Add
+                </Button>
+              </div>
 
-              <Input
-                label="Deliverables Link (Utama)"
-                placeholder="https://drive.google.com/drive/folders/..."
-                value={deliverablesLink}
-                onChange={(e) => setDeliverablesLink(e.target.value)}
-              />
-
-              {/* Dynamic Additional Links */}
-              <div className="pt-2 space-y-3">
-                <span className="text-xs font-semibold text-slate-700 block">Additional Link:</span>
-
-                {additionalLinks.map((link) => (
-                  <div
-                    key={link.id}
-                    className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs"
+              {/* Deliverables Link Input */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Deliverables Link
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      id="deliverables-link-input"
+                      type="text"
+                      placeholder="https://drive.google.com/..."
+                      value={deliverablesLink}
+                      onChange={(e) => setDeliverablesLink(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-primary rounded-xl focus:outline-hidden text-slate-800 font-medium"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('deliverables-link-input')?.focus()}
+                    className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                    title="Edit Link"
                   >
-                    <div>
-                      <span className="font-bold text-slate-800">{link.title}:</span>{' '}
-                      <span className="text-accent break-all">{link.url}</span>
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeliverablesLink('')}
+                    className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                    title="Clear Link"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Google Drive, YouTube, or other platforms. Can be updated anytime from the Project List.
+                </p>
+              </div>
+
+              {/* Dynamic Additional Links list (Editable inputs) */}
+              {additionalLinks.map((link) => (
+                <div key={link.id} className="space-y-1">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Additional Link
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        id={`additional-link-${link.id}`}
+                        type="text"
+                        placeholder="https://drive.google.com/..."
+                        value={link.url}
+                        onChange={(e) => {
+                          const newUrl = e.target.value;
+                          setAdditionalLinks((prev) =>
+                            prev.map((l) => (l.id === link.id ? { ...l, url: newUrl } : l))
+                          );
+                        }}
+                        className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary text-slate-800 font-medium"
+                      />
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleRemoveLink(link.id)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
+                      onClick={() => document.getElementById(`additional-link-${link.id}`)?.focus()}
+                      className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                      title="Edit Link"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLink(link.id)}
+                      className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="Delete Link"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                ))}
-
-                {/* Form Add Additional Link */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <Input
-                    placeholder="Judul Link (mis. Asset LED)..."
-                    value={newLinkTitle}
-                    onChange={(e) => setNewLinkTitle(e.target.value)}
-                  />
-                  <Input
-                    placeholder="URL Link..."
-                    value={newLinkUrl}
-                    onChange={(e) => setNewLinkUrl(e.target.value)}
-                  />
                 </div>
-
-                <Button variant="outline" size="sm" type="button" onClick={handleAddLink}>
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  + Add Additional Link
-                </Button>
-              </div>
+              ))}
             </div>
 
             {/* Step 1 Bottom Buttons */}
             <div className="flex items-center justify-between pt-4">
-              <Button variant="outline" onClick={() => router.push('/projects')}>
-                Cancel
-              </Button>
-
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
+                  size="md"
+                  onClick={() => router.push('/projects')}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
                   className="border-accent text-accent hover:bg-orange-50"
                   onClick={() => handleCreateProject('DRAFT')}
                   disabled={isSubmitting}
                 >
                   Save Draft
                 </Button>
-                <Button variant="primary" onClick={handleNextStep}>
-                  <span>Next</span>
-                  <ArrowRight className="w-4 h-4 ml-1.5" />
-                </Button>
               </div>
+
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleNextStep}
+              >
+                Next
+              </Button>
             </div>
           </div>
         )}
@@ -381,73 +448,124 @@ export default function AddProjectPage() {
         {currentStep === 2 && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-6">
-              <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">
-                Summary Ringkasan Proyek
+              <h2 className="text-base font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+                Summary
               </h2>
 
-              <div className="space-y-6 text-xs text-slate-700">
-                {/* Summary Internal */}
-                <div>
-                  <h4 className="font-bold text-primary uppercase text-[11px] mb-2">1. Internal Data</h4>
-                  <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl">
+              <div className="space-y-6">
+                {/* 1. Internal Data Box */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-4">
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+                    Internal Data
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
                     <div>
-                      <span className="text-slate-400">Category:</span>
-                      <p className="font-semibold">{category}</p>
+                      <span className="text-slate-400 font-medium block mb-1">Project Category</span>
+                      <p className="text-sm font-bold text-slate-800">{category}</p>
                     </div>
                     <div>
-                      <span className="text-slate-400">Project Manager:</span>
-                      <p className="font-semibold">Andi PM (Project Manager)</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Summary Client */}
-                <div>
-                  <h4 className="font-bold text-primary uppercase text-[11px] mb-2">2. Client Data</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-xl">
-                    <div>
-                      <span className="text-slate-400">Type:</span>
-                      <p className="font-semibold">{clientType}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Model:</span>
-                      <p className="font-semibold">{partnershipModel}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Company:</span>
-                      <p className="font-semibold">{selectedCompany.name}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">PIC:</span>
-                      <p className="font-semibold">{selectedPic ? selectedPic.name : '-'}</p>
+                      <span className="text-slate-400 font-medium block mb-1">Project Manager</span>
+                      <p className="text-sm font-bold text-slate-800">Andi PM (Project Manager)</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Summary Project */}
-                <div>
-                  <h4 className="font-bold text-primary uppercase text-[11px] mb-2">3. Project Data</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl">
+                {/* 2. Client Data Box */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-4">
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+                    Client Data
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
                     <div>
-                      <span className="text-slate-400">Project Name:</span>
-                      <p className="font-bold text-slate-900">{projectName}</p>
+                      <span className="text-slate-400 font-medium block mb-1">Client Type</span>
+                      <p className="text-sm font-bold text-slate-800">{clientType}</p>
                     </div>
                     <div>
-                      <span className="text-slate-400">Event Date:</span>
-                      <p className="font-semibold">{eventDate}</p>
+                      <span className="text-slate-400 font-medium block mb-1">Partnership Model</span>
+                      <p className="text-sm font-bold text-slate-800">{partnershipModel}</p>
                     </div>
                     <div>
-                      <span className="text-slate-400">Starts - Deadline:</span>
-                      <p className="font-semibold">{projectStarts} - {deadline}</p>
+                      <span className="text-slate-400 font-medium block mb-1">Company Name</span>
+                      <p className="text-sm font-bold text-slate-800">{selectedCompany.name}</p>
                     </div>
                     <div>
-                      <span className="text-slate-400">Venue:</span>
-                      <p className="font-semibold">{venue || 'TBA'}</p>
+                      <span className="text-slate-400 font-medium block mb-1">PIC Client</span>
+                      <p className="text-sm font-bold text-slate-800">{selectedPic ? selectedPic.name : '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Project Data Box */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-4">
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+                    Project Data
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
+                    <div>
+                      <span className="text-slate-400 font-medium block mb-1">Project Name</span>
+                      <p className="text-base font-bold text-slate-900">{projectName || '-'}</p>
                     </div>
                     <div>
-                      <span className="text-slate-400">Contract Value:</span>
-                      <p className="font-extrabold text-primary">Rp {Number(contractValue).toLocaleString('id-ID')}</p>
+                      <span className="text-slate-400 font-medium block mb-1">Event Date</span>
+                      <p className="text-sm font-bold text-slate-800">{formatDateID(eventDate)}</p>
                     </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block mb-1">Project Date Start</span>
+                      <p className="text-sm font-bold text-slate-800">{formatDateID(projectStarts)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block mb-1">Project Deadlines</span>
+                      <p className="text-sm font-bold text-slate-800">{formatDateID(deadline)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block mb-1">Venue / Location</span>
+                      <p className="text-sm font-bold text-slate-800">{venue || '-'}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block mb-1">Contract Value</span>
+                      <p className="text-base font-bold text-slate-900">{formatRupiah(Number(contractValue) || 0)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Progress Link Box */}
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-4">
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+                    Progress Link
+                  </h3>
+                  <div className="text-xs space-y-3">
+                    <div>
+                      <span className="text-slate-400 font-medium block mb-1">Deliverables Link</span>
+                      {deliverablesLink ? (
+                        <a
+                          href={deliverablesLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-accent hover:underline text-sm font-bold underline break-all block"
+                        >
+                          {deliverablesLink}
+                        </a>
+                      ) : (
+                        <p className="text-slate-400 text-sm italic">Belum ada link terlampir</p>
+                      )}
+                    </div>
+
+                    {additionalLinks.length > 0 && (
+                      <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                        <span className="text-slate-400 font-medium block mb-1">Additional Links</span>
+                        {additionalLinks.map((link) => (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-accent hover:underline text-sm font-bold block break-all"
+                          >
+                            {link.url || '-'}
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -455,37 +573,45 @@ export default function AddProjectPage() {
 
             {/* Step 2 Bottom Buttons */}
             <div className="flex items-center justify-between pt-4">
-              <Button variant="outline" onClick={() => router.push('/projects')}>
-                Cancel
-              </Button>
-
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
-                  onClick={() => setCurrentStep(1)}
-                  disabled={isSubmitting}
+                  size="md"
+                  onClick={() => router.push('/projects')}
                 >
-                  <ArrowLeft className="w-4 h-4 mr-1.5" />
-                  <span>Back</span>
+                  Cancel
                 </Button>
                 <Button
                   variant="outline"
+                  size="md"
                   className="border-accent text-accent hover:bg-orange-50"
                   onClick={() => handleCreateProject('DRAFT')}
                   disabled={isSubmitting}
                 >
                   Save Draft
                 </Button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={() => setCurrentStep(1)}
+                  disabled={isSubmitting}
+                >
+                  Back
+                </Button>
                 <Button
                   variant="primary"
+                  size="md"
                   onClick={() => handleCreateProject('QUOTATION_PENDING')}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
-                    <>
+                    <div className="flex items-center gap-1.5">
                       <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
                       <span>Membuat Proyek...</span>
-                    </>
+                    </div>
                   ) : (
                     <span>Create Project</span>
                   )}

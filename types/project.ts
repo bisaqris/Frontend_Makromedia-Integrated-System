@@ -31,7 +31,7 @@ export interface ProjectCostItem {
 
 export interface ProjectLink {
   id: string;
-  title: string;
+  title?: string;
   url: string;
 }
 

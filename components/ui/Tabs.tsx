@@ -28,8 +28,8 @@ export const Tabs: React.FC<TabsProps> = ({
 }) => {
   if (variant === 'pills') {
     return (
-      <div className={twMerge(clsx('flex gap-2 overflow-x-auto p-1', className))}>
-        {tabs.map((tab) => {
+      <div className={twMerge(clsx('flex border-b border-slate-200 -mx-6 -mt-6 mb-6 overflow-x-auto', className))}>
+        {tabs.map((tab, idx) => {
           const isActive = activeTab === tab.id;
           return (
             <button
@@ -37,10 +37,11 @@ export const Tabs: React.FC<TabsProps> = ({
               type="button"
               onClick={() => onChange(tab.id)}
               className={clsx(
-                'flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer',
+                'flex items-center gap-2 px-6 py-4 text-sm sm:text-base font-semibold transition-colors whitespace-nowrap cursor-pointer',
                 isActive
-                  ? 'bg-primary text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'bg-primary text-white font-bold'
+                  : 'bg-primary-50 text-primary hover:bg-primary-100',
+                idx === 0 && 'rounded-tl-2xl'
               )}
             >
               {tab.icon}
@@ -48,8 +49,8 @@ export const Tabs: React.FC<TabsProps> = ({
               {tab.count !== undefined && (
                 <span
                   className={clsx(
-                    'px-2 py-0.5 text-xs rounded-full',
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                    'px-2 py-0.5 text-xs rounded-md',
+                    isActive ? 'bg-white/20 text-white' : 'bg-primary-100 text-primary'
                   )}
                 >
                   {tab.count}

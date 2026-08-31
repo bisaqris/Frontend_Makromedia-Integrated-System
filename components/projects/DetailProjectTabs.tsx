@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Project, ProjectCostItem, ProjectTask, PaymentHistoryItem } from '@/types/project';
 import { Role } from '@/types/user';
 import Tabs from '@/components/ui/Tabs';
@@ -30,14 +29,34 @@ const formatRupiah = (val: number) => {
   }).format(val || 0);
 };
 
+const formatDateID = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+  const date = new Date(year, month, day);
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const formatEventDate = (start?: string, end?: string) => {
+  if (!start) return '-';
+  if (!end || start === end) return formatDateID(start);
+  return `${formatDateID(start)} s/d ${formatDateID(end)}`;
+};
+
 interface DetailProjectTabsProps {
   project: Project;
   role: Role | null;
 }
 
 export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, role }) => {
-  const router = useRouter();
-
   // Active Main Tab state
   const isProduksi = role === 'PRODUKSI';
   const isPM = role === 'PROJECT_MANAGER';
@@ -111,149 +130,139 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   return (
     <div className="space-y-6">
-      {/* Main Tab Bar Navigation */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-2 shadow-2xs">
-        <Tabs
-          tabs={mainTabOptions}
-          activeTab={activeMainTab}
-          onChange={setActiveMainTab}
-          variant="pills"
-        />
-      </div>
+      {/* Main Tab Bar Navigation directly inside single container */}
+      <Tabs
+        tabs={mainTabOptions}
+        activeTab={activeMainTab}
+        onChange={setActiveMainTab}
+        variant="pills"
+      />
 
       {/* ========================================================================= */}
-      {/* TAB 1: PROJECT INFORMATION (Read-only Summary across all roles) */}
+      {/* TAB 1: PROJECT INFORMATION */}
       {/* ========================================================================= */}
       {activeMainTab === 'info' && (
         <div className="space-y-6">
-          {/* Card 1: Internal Data */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 border-b border-slate-100 pb-3">
+          {/* Box 1: Internal Data */}
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Internal Data
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
               <div>
-                <span className="text-slate-400 font-medium">Project Category</span>
+                <span className="text-slate-400 font-medium block mb-1">Project Category</span>
                 <div className="mt-1">
                   <Badge variant="primary" size="sm">{project.category || 'Event'}</Badge>
                 </div>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">Project Manager</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.projectManagerName || 'Belum ditugaskan'}</p>
+                <span className="text-slate-400 font-medium block mb-1">Project Manager</span>
+                <p className="text-sm font-bold text-slate-800">{project.projectManagerName || 'Belum ditugaskan'}</p>
               </div>
             </div>
           </div>
 
-          {/* Card 2: Client Data */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 border-b border-slate-100 pb-3">
+          {/* Box 2: Client Data */}
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Client Data
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
               <div>
-                <span className="text-slate-400 font-medium">Client Type</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.clientType || 'Corporate'}</p>
+                <span className="text-slate-400 font-medium block mb-1">Client Type</span>
+                <p className="text-sm font-bold text-slate-800">{project.clientType || 'Corporate'}</p>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">Partnership Model</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.partnershipModel || 'Direct'}</p>
+                <span className="text-slate-400 font-medium block mb-1">Partnership Model</span>
+                <p className="text-sm font-bold text-slate-800">{project.partnershipModel || 'Direct'}</p>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">Company Name</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.clientName || 'PT Client'}</p>
+                <span className="text-slate-400 font-medium block mb-1">Company Name</span>
+                <p className="text-sm font-bold text-slate-800">{project.clientName || 'PT Client'}</p>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">PIC Client</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.picClientName || '-'}</p>
+                <span className="text-slate-400 font-medium block mb-1">PIC Client</span>
+                <p className="text-sm font-bold text-slate-800">{project.picClientName || '-'}</p>
               </div>
             </div>
           </div>
 
-          {/* Card 3: Project Data */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 border-b border-slate-100 pb-3">
+          {/* Box 3: Project Data */}
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Project Data
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 text-xs">
               <div>
-                <span className="text-slate-400 font-medium">Project Code & Name</span>
-                <p className="mt-1 font-bold text-slate-900 text-sm">{project.name}</p>
-                <p className="text-[11px] text-slate-400">{project.code}</p>
+                <span className="text-slate-400 font-medium block mb-1">Project Name</span>
+                <p className="text-base font-bold text-slate-900">{project.name}</p>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">Event Date</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.startDate} s/d {project.endDate}</p>
+                <span className="text-slate-400 font-medium block mb-1">Event Date</span>
+                <p className="text-sm font-bold text-slate-800">{formatEventDate(project.startDate, project.endDate)}</p>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">Project Date Starts - Deadlines</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.projectStarts || project.startDate} - {project.deadline || project.endDate}</p>
+                <span className="text-slate-400 font-medium block mb-1">Project Date Start</span>
+                <p className="text-sm font-bold text-slate-800">{formatDateID(project.projectStarts || project.startDate)}</p>
               </div>
               <div>
-                <span className="text-slate-400 font-medium">Venue / Location</span>
-                <p className="mt-1 font-semibold text-slate-800">{project.venue || 'TBA'}</p>
+                <span className="text-slate-400 font-medium block mb-1">Project Deadlines</span>
+                <p className="text-sm font-bold text-slate-800">{formatDateID(project.deadline || project.endDate)}</p>
               </div>
-
-              {/* Show Contract Value only for non-Produksi roles */}
+              <div>
+                <span className="text-slate-400 font-medium block mb-1">Venue / Location</span>
+                <p className="text-sm font-bold text-slate-800">{project.venue || '-'}</p>
+              </div>
               {!isProduksi && (
                 <div>
-                  <span className="text-slate-400 font-medium">Contract Value</span>
-                  <p className="mt-1 font-bold text-primary text-sm">{formatRupiah(project.budget || 0)}</p>
+                  <span className="text-slate-400 font-medium block mb-1">Contract Value</span>
+                  <p className="text-base font-bold text-slate-900">{formatRupiah(project.budget || 0)}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Card 4: Progress Link */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4 border-b border-slate-100 pb-3">
+          {/* Box 4: Progress Link */}
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
+            <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Progress Link
             </h3>
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-slate-400 font-medium block mb-1">Deliverables Link (Utama):</span>
+                <span className="text-slate-400 font-medium block mb-1">Deliverables Link</span>
                 {project.deliverablesLink ? (
                   <a
                     href={project.deliverablesLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-accent hover:underline font-semibold flex items-center gap-1.5 break-all"
+                    className="text-accent hover:underline text-sm font-bold underline flex items-center gap-1.5 break-all"
                   >
                     <span>{project.deliverablesLink}</span>
                     <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
                 ) : (
-                  <span className="text-slate-400 italic">Belum ada link terlampir</span>
+                  <p className="text-slate-400 text-sm italic">Belum ada link terlampir</p>
                 )}
               </div>
 
               {project.additionalLinks && project.additionalLinks.length > 0 && (
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <span className="text-slate-400 font-medium block">Additional Links:</span>
+                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                  <span className="text-slate-400 font-medium block mb-1">Additional Links</span>
                   {project.additionalLinks.map((link) => (
-                    <div key={link.id} className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-700">{link.title}:</span>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent hover:underline font-medium flex items-center gap-1 break-all"
-                      >
-                        <span>{link.url}</span>
-                        <ExternalLink className="w-3 h-3 shrink-0" />
-                      </a>
-                    </div>
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent hover:underline text-sm font-bold flex items-center gap-1 break-all"
+                    >
+                      <span>{link.url || '-'}</span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    </a>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Bottom Control */}
-          <div className="flex justify-start">
-            <Button variant="outline" onClick={() => router.push('/projects')}>
-              Cancel
-            </Button>
           </div>
         </div>
       )}
@@ -264,7 +273,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       {activeMainTab === 'payment' && isFinancialRole && (
         <div className="space-y-6">
           {/* Top Card: Payment History */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Payment History
@@ -355,8 +364,8 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             </div>
           </div>
 
-          {/* Bottom Card: SubTabs (Production Cost / Quotation / Invoice in the SAME card) */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-6">
+          {/* SubTabs Box */}
+          <div className="border border-slate-200 rounded-xl p-5 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <button
@@ -511,12 +520,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               </div>
             )}
           </div>
-
-          <div className="flex justify-start">
-            <Button variant="outline" onClick={() => router.push('/projects')}>
-              Back
-            </Button>
-          </div>
         </div>
       )}
 
@@ -525,7 +528,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       {/* ========================================================================= */}
       {activeMainTab === 'production_cost' && isPM && (
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-6">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Production Cost Summary
@@ -573,22 +576,16 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               </div>
             </div>
           </div>
-
-          <div className="flex justify-start">
-            <Button variant="outline" onClick={() => router.push('/projects')}>
-              Back
-            </Button>
-          </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB PRODUCTION TASK (Shared across all roles that have access) */}
+      {/* TAB PRODUCTION TASK */}
       {/* ========================================================================= */}
       {activeMainTab === 'task' && (
         <div className="space-y-6">
           {/* Card 1: Task Progress */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
@@ -624,7 +621,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
           </div>
 
           {/* Card 2: Task Checklist */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Task Checklist
@@ -715,23 +712,16 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
           </div>
 
           {/* Card 3: General Brief */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs space-y-4">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
               General Brief
             </h3>
 
-            {/* Read-only paragraph view for PRODUKSI, active RichTextEditor for other roles */}
             <RichTextEditor
               value={generalBrief}
               readOnly={isProduksi}
               onSave={handleSaveBrief}
             />
-          </div>
-
-          <div className="flex justify-start">
-            <Button variant="outline" onClick={() => router.push('/projects')}>
-              Cancel
-            </Button>
           </div>
         </div>
       )}

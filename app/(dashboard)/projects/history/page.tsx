@@ -7,10 +7,9 @@ import { Project, ProjectCategory } from '@/types/project';
 import projectService from '@/lib/services/projectService';
 import Select from '@/components/ui/Select';
 import Badge from '@/components/ui/Badge';
-import Button from '@/components/ui/Button';
 import EmptyState from '@/components/shared/EmptyState';
 import { showToast } from '@/components/ui/Toast';
-import { Eye, Search, History as HistoryIcon, Loader2 } from 'lucide-react';
+import { Eye, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const formatRupiah = (val: number) => {
   return new Intl.NumberFormat('id-ID', {
@@ -18,6 +17,28 @@ const formatRupiah = (val: number) => {
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(val || 0);
+};
+
+const formatDateID = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+  const date = new Date(year, month, day);
+  return date.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const formatEventDate = (start?: string, end?: string) => {
+  if (!start) return '-';
+  if (!end || start === end) return formatDateID(start);
+  return `${formatDateID(start)} s/d ${formatDateID(end)}`;
 };
 
 const CATEGORY_OPTIONS = [
@@ -42,7 +63,6 @@ export default function HistoryProjectPage() {
   const [total, setTotal] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Filters state
   const [search, setSearch] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedPM, setSelectedPM] = useState<string>('ALL');
@@ -95,21 +115,8 @@ export default function HistoryProjectPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header section */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <HistoryIcon className="w-5 h-5 text-primary" />
-          <span>History Project</span>
-        </h1>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Arsip seluruh proyek yang telah selesai dikerjakan (Status: DONE / COMPLETED)
-        </p>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Search Box */}
           <div className="relative w-full md:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -119,14 +126,12 @@ export default function HistoryProjectPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search history by project..."
-              className="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary transition-colors"
+              placeholder="Search by project..."
+              className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary transition-colors"
             />
           </div>
 
-          {/* Select Filters */}
-          <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
-            {/* Category Filter */}
+          <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
             <div className="w-full sm:w-44">
               <Select
                 value={selectedCategory}
@@ -135,11 +140,10 @@ export default function HistoryProjectPage() {
                   setPage(1);
                 }}
                 options={CATEGORY_OPTIONS}
-                className="py-2 text-xs bg-slate-50 border-slate-200 rounded-xl font-medium"
+                className="py-2 text-xs bg-white border-slate-200 rounded-xl font-medium"
               />
             </div>
 
-            {/* PM Filter (ONLY for DIREKTUR, SALES, FINANCE) */}
             {isFinancialRole && (
               <div className="w-full sm:w-52">
                 <Select
@@ -149,14 +153,13 @@ export default function HistoryProjectPage() {
                     setPage(1);
                   }}
                   options={PM_OPTIONS}
-                  className="py-2 text-xs bg-slate-50 border-slate-200 rounded-xl font-medium"
+                  className="py-2 text-xs bg-white border-slate-200 rounded-xl font-medium"
                 />
               </div>
             )}
           </div>
         </div>
 
-        {/* DataTable */}
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
@@ -168,49 +171,47 @@ export default function HistoryProjectPage() {
             message="Belum ada proyek berstatus DONE yang sesuai dengan pencarian ini."
           />
         ) : (
-          <div className="overflow-x-auto border border-slate-200/80 rounded-xl">
+          <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  <th className="py-3 px-4">Project Name</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Project Manager</th>
-                  <th className="py-3 px-4 text-right">Contract Value</th>
-                  <th className="py-3 px-4">Event Date</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 bg-white">
+                  <th className="py-3.5 px-4">Project Name</th>
+                  <th className="py-3.5 px-4 text-center">Category</th>
+                  <th className="py-3.5 px-4">Project Manager</th>
+                  <th className="py-3.5 px-4 text-right">Contract Value</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4">Event Date</th>
+                  <th className="py-3.5 px-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                 {projects.map((proj) => (
                   <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-900">{proj.name}</p>
-                      <p className="text-[11px] text-slate-400">{proj.code}</p>
+                    <td className="py-4 px-4 text-slate-800">
+                      {proj.name}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-4 px-4 text-center">
                       <Badge variant={getCategoryBadgeVariant(proj.category)} size="sm">
                         {proj.category || 'Event'}
                       </Badge>
                     </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-700">
+                    <td className="py-4 px-4 font-medium text-slate-600">
                       {proj.projectManagerName || '-'}
                     </td>
-                    <td className="py-3.5 px-4 text-right font-bold text-slate-900">
+                    <td className="py-4 px-4 text-right text-slate-800">
                       {formatRupiah(proj.budget || 0)}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600 font-medium">
-                      {proj.startDate} s/d {proj.endDate}
+                    <td className="py-4 px-4 text-center">
+                      <Badge variant="success" size="sm">DONE</Badge>
                     </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <Badge variant="success">DONE</Badge>
+                    <td className="py-4 px-4 text-slate-600 font-medium whitespace-nowrap">
+                      {formatEventDate(proj.startDate, proj.endDate)}
                     </td>
-                    <td className="py-3.5 px-4 text-center">
-                      {/* Action HANYA 1 icon (Eye=view, read-only) untuk SEMUA role di History */}
+                    <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center">
                         <Link
                           href={`/projects/${proj.id}`}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-primary-50 transition-colors"
+                          className="p-1 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                           title="View Detail (Read-Only)"
                         >
                           <Eye className="w-4 h-4" />
@@ -225,48 +226,51 @@ export default function HistoryProjectPage() {
         )}
 
         {/* Pagination Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <span>Show</span>
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(Number(e.target.value));
-                setPage(1);
-              }}
-              className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 font-semibold focus:outline-hidden"
-            >
-              <option value={5}>5</option>
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-            </select>
-            <span>data per page</span>
-          </div>
-
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
           <div>
-            Showing <span className="font-bold text-slate-800">{projects.length > 0 ? (page - 1) * limit + 1 : 0}</span> to{' '}
-            <span className="font-bold text-slate-800">{Math.min(page * limit, total)}</span> out of{' '}
-            <span className="font-bold text-slate-800">{total}</span>
+            Showing <span className="font-semibold text-slate-700">{projects.length > 0 ? (page - 1) * limit + 1 : 0}</span> to{' '}
+            <span className="font-semibold text-slate-700">{Math.min(page * limit, total)}</span> out of{' '}
+            <span className="font-semibold text-slate-700">{total}</span>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Prev
-            </Button>
-            <span className="px-3 font-semibold text-slate-700">{page}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page * limit >= total}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span>Show</span>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-slate-700 font-bold focus:outline-hidden cursor-pointer"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+              <span>data per page</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Previous Page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                disabled={page * limit >= total}
+                onClick={() => setPage((p) => p + 1)}
+                className="w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                title="Next Page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

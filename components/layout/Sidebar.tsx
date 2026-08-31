@@ -12,8 +12,6 @@ import {
   Award,
   Contact2,
   Building2,
-  ChevronRight,
-  Shield,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -40,7 +38,7 @@ export interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const pathname = usePathname();
-  const { role, user } = useAuth();
+  const { role } = useAuth();
 
   useEffect(() => {
     onClose?.();
@@ -77,14 +75,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
           {
             title: 'manpower',
             items: [
-              { title: 'List Data Manpower', href: '/manpower', icon: <Users className="w-4 h-4" /> },
+              { title: 'List Data Employee', href: '/manpower', icon: <Users className="w-4 h-4" /> },
               { title: 'Data Skill', href: '/manpower/skills', icon: <Award className="w-4 h-4" /> },
             ],
           },
           {
             title: 'client data',
             items: [
-              { title: 'List Data PIC Client', href: '/clients/pic', icon: <Contact2 className="w-4 h-4" /> },
+              { title: 'List Data Client', href: '/clients/pic', icon: <Contact2 className="w-4 h-4" /> },
               { title: 'List Client Company', href: '/clients/company', icon: <Building2 className="w-4 h-4" /> },
             ],
           },
@@ -115,10 +113,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
 
   const { standaloneItems, sections } = getRoleMenuStructure(role);
 
-  const isLinkActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard';
-    return pathname === href || pathname.startsWith(`${href}/`);
+  const allHrefs = [
+    ...standaloneItems.map((item) => item.href),
+    ...sections.flatMap((section) => section.items.map((item) => item.href)),
+  ];
+
+  const getActiveHref = (path: string, hrefs: string[]) => {
+    const matches = hrefs.filter(
+      (href) => path === href || path.startsWith(href + '/')
+    );
+    if (matches.length === 0) return null;
+    return matches.reduce((longest, href) =>
+      href.length > longest.length ? href : longest
+    );
   };
+
+  const activeHref = getActiveHref(pathname, allHrefs);
+
+  const isLinkActive = (href: string) => href === activeHref;
 
   return (
     <>
@@ -167,16 +179,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
                   href={item.href}
                   className={twMerge(
                     clsx(
-                      'flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+                      'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                       active
-                        ? 'bg-primary text-white font-semibold shadow-xs'
+                        ? 'bg-primary text-white shadow-xs'
                         : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     )
                   )}
                 >
                   <span className={clsx(active ? 'text-white' : 'text-slate-400')}>{item.icon}</span>
                   <span className="flex-1">{item.title}</span>
-                  {active && <ChevronRight className="w-3.5 h-3.5 text-white/80" />}
                 </Link>
               );
             })}
@@ -184,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
 
           {sections.map((section) => (
             <div key={section.title} className="space-y-1">
-              <p className="px-3 text-[10px] font-semibold uppercase text-slate-400 tracking-wider">
+              <p className="px-3 text-xs font-semibold uppercase text-slate-400 tracking-wider">
                 {section.title}
               </p>
               {section.items.map((item) => {
@@ -195,16 +206,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
                     href={item.href}
                     className={twMerge(
                       clsx(
-                        'flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+                        'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                         active
-                          ? 'bg-primary text-white font-semibold shadow-xs'
+                          ? 'bg-primary text-white shadow-xs'
                           : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                       )
                     )}
                   >
                     <span className={clsx(active ? 'text-white' : 'text-slate-400')}>{item.icon}</span>
                     <span className="flex-1">{item.title}</span>
-                    {active && <ChevronRight className="w-3.5 h-3.5 text-white/80" />}
                   </Link>
                 );
               })}
