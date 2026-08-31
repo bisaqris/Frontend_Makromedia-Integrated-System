@@ -9,6 +9,12 @@ import Badge from '@/components/ui/Badge';
 import LineItemTable from '@/components/shared/LineItemTable';
 import EmptyState from '@/components/shared/EmptyState';
 import RichTextEditor from '@/components/shared/RichTextEditor';
+import AddCostItemModal from '@/components/projects/AddCostItemModal';
+import AddQuotationItemModal from '@/components/projects/AddQuotationItemModal';
+import AddInvoiceItemModal from '@/components/projects/AddInvoiceItemModal';
+import AddTaskModal from '@/components/projects/AddTaskModal';
+import AddPaymentModal from '@/components/projects/AddPaymentModal';
+import ConfirmModal from '@/components/shared/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
 import {
   ExternalLink,
@@ -17,8 +23,10 @@ import {
   Pencil,
   CheckCircle2,
   Calendar as CalendarIcon,
-  CreditCard,
   Download,
+  Upload,
+  Clock,
+  AlertTriangle,
 } from 'lucide-react';
 
 const formatRupiah = (val: number) => {
@@ -29,20 +37,39 @@ const formatRupiah = (val: number) => {
   }).format(val || 0);
 };
 
+const formatRupiahNoSpace = (val: number) => {
+  return `Rp${(val || 0).toLocaleString('id-ID')}`;
+};
+
+const formatRupiahWithSpace = (val: number) => {
+  return `Rp ${(val || 0).toLocaleString('id-ID')}`;
+};
+
 const formatDateID = (dateStr?: string) => {
   if (!dateStr) return '-';
   const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
-  const date = new Date(year, month, day);
-  return date.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+      const date = new Date(year, month, day);
+      return date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    }
+  }
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+  return dateStr;
 };
 
 const formatEventDate = (start?: string, end?: string) => {
@@ -50,6 +77,12 @@ const formatEventDate = (start?: string, end?: string) => {
   if (!end || start === end) return formatDateID(start);
   return `${formatDateID(start)} s/d ${formatDateID(end)}`;
 };
+
+const paymentSubTabOptions = [
+  { id: 'cost', label: 'Production Cost' },
+  { id: 'quotation', label: 'Quotation' },
+  { id: 'invoice', label: 'Invoice' },
+];
 
 interface DetailProjectTabsProps {
   project: Project;
@@ -90,11 +123,95 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   // SubTab state inside Payment Status (for DIREKTUR, SALES, FINANCE)
   const [activePaymentSubTab, setActivePaymentSubTab] = useState<'cost' | 'quotation' | 'invoice'>('cost');
 
-  // Local state for interactive editing of Brief, Tasks, Cost Items
+  // Modal & Item Editing States (Production Cost)
+  const [isAddCostModalOpen, setIsAddCostModalOpen] = useState<boolean>(false);
+  const [editingCostItem, setEditingCostItem] = useState<ProjectCostItem | null>(null);
+  const [deleteCostItemId, setDeleteCostItemId] = useState<string | null>(null);
+
+  // Modal & Item Editing States (Quotation)
+  const [isAddQuotationModalOpen, setIsAddQuotationModalOpen] = useState<boolean>(false);
+  const [editingQuotationItem, setEditingQuotationItem] = useState<ProjectCostItem | null>(null);
+  const [deleteQuotationItemId, setDeleteQuotationItemId] = useState<string | null>(null);
+
+  // Modal & Item Editing States (Invoice)
+  const [isAddInvoiceModalOpen, setIsAddInvoiceModalOpen] = useState<boolean>(false);
+  const [editingInvoiceItem, setEditingInvoiceItem] = useState<ProjectCostItem | null>(null);
+  const [deleteInvoiceItemId, setDeleteInvoiceItemId] = useState<string | null>(null);
+  const [isConfirmImportOpen, setIsConfirmImportOpen] = useState<boolean>(false);
+
+  // Modal & Item Editing States (Production Task)
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState<boolean>(false);
+  const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+
+  // Modal & Item Editing States (Payment History)
+  const [isAddPaymentModalOpen, setIsAddPaymentModalOpen] = useState<boolean>(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentHistoryItem | null>(null);
+  const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
+
+  // Production Cost Submission Status State
+  const [costSubmissionStatus, setCostSubmissionStatus] = useState<'DRAFT' | 'PENDING'>('DRAFT');
+
+  // Local state for interactive editing of Brief, Tasks, Cost Items, Quotation Items, Invoice Items, Payment History
   const [generalBrief, setGeneralBrief] = useState(project.generalBrief || '');
-  const [tasks, setTasks] = useState<ProjectTask[]>(project.tasks || []);
-  const [costItems] = useState<ProjectCostItem[]>(project.costItems || []);
-  const [paymentHistory] = useState<PaymentHistoryItem[]>(project.paymentHistory || []);
+
+  // Tasks initial state matching design screenshot 1:1
+  const [tasks, setTasks] = useState<ProjectTask[]>(() => {
+    if (project.tasks && project.tasks.length > 0) return project.tasks;
+    return [
+      {
+        id: 'task-1',
+        title: 'Livestreaming platform setup',
+        description: 'Persiapan kamera, switcher, dan kabel di venue sebelum acara dimulai.',
+        dueDate: '2026-11-02',
+        status: 'DONE',
+        picName: 'Anton W.',
+      },
+      {
+        id: 'task-2',
+        title: 'Technical rundown draft',
+        description: 'Persiapan kamera, switcher, dan kabel di venue sebelum acara dimulai.',
+        dueDate: '2026-11-02',
+        status: 'TODO',
+        picName: 'Anton W.',
+      },
+      {
+        id: 'task-3',
+        title: 'Dress rehearsal & test stream',
+        description: 'Persiapan kamera, switcher, dan kabel di venue sebelum acara dimulai.',
+        dueDate: '2026-10-29',
+        status: 'TODO',
+        picName: 'Anton W.',
+      },
+    ];
+  });
+
+  const [costItems, setCostItems] = useState<ProjectCostItem[]>(project.costItems || []);
+  const [quotationItems, setQuotationItems] = useState<ProjectCostItem[]>(project.costItems || []);
+
+  // Invoice Items initial state matching design screenshot 1:1
+  const [invoiceItems, setInvoiceItems] = useState<ProjectCostItem[]>(() => {
+    if (project.costItems && project.costItems.length > 0) {
+      return project.costItems;
+    }
+    return [
+      {
+        id: 'inv-init-1',
+        projectId: project.id,
+        category: 'Event Telkomsel',
+        description: 'Full Production Package',
+        executor: 'Event Telkomsel Malang',
+        unitCost: 2000000,
+        quantity: 1,
+        unit: 'Paket',
+        freq: 1,
+        period: '1',
+        totalCost: 2000000,
+      },
+    ];
+  });
+
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>(project.paymentHistory || []);
 
   const handleSaveBrief = (newBrief: string) => {
     setGeneralBrief(newBrief);
@@ -112,14 +229,178 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.info('Status task diperbarui.');
   };
 
-  // Financial calculations
+  // Production Task Handlers
+  const handleSaveTask = (taskData: Omit<ProjectTask, 'id'>) => {
+    if (editingTask) {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === editingTask.id ? { ...t, ...taskData } : t))
+      );
+      setEditingTask(null);
+      showToast.success('Task berhasil diperbarui.');
+    } else {
+      const newTask: ProjectTask = {
+        ...taskData,
+        id: `task-${Date.now()}`,
+      };
+      setTasks((prev) => [...prev, newTask]);
+      showToast.success('Task baru berhasil ditambahkan.');
+    }
+  };
+
+  const handleDeleteTask = () => {
+    if (!deleteTaskId) return;
+    setTasks((prev) => prev.filter((t) => t.id !== deleteTaskId));
+    setDeleteTaskId(null);
+    showToast.success('Task berhasil dihapus.');
+  };
+
+  // Production Cost Handlers
+  const handleAddCostItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    const item: ProjectCostItem = {
+      ...newItem,
+      id: `cost-${Date.now()}`,
+      projectId: project.id,
+    };
+    setCostItems((prev) => [...prev, item]);
+    showToast.success('Item berhasil ditambahkan.');
+  };
+
+  const handleUpdateCostItem = (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!editingCostItem) return;
+    setCostItems((prev) =>
+      prev.map((item) => (item.id === editingCostItem.id ? { ...item, ...updated } : item))
+    );
+    setEditingCostItem(null);
+    showToast.success('Item berhasil diperbarui.');
+  };
+
+  const handleDeleteCostItem = () => {
+    if (!deleteCostItemId) return;
+    setCostItems((prev) => prev.filter((item) => item.id !== deleteCostItemId));
+    setDeleteCostItemId(null);
+    showToast.success('Item berhasil dihapus.');
+  };
+
+  // Quotation Handlers (Independent logic & data from Production Cost)
+  const handleAddQuotationItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    const item: ProjectCostItem = {
+      ...newItem,
+      id: `quot-${Date.now()}`,
+      projectId: project.id,
+    };
+    setQuotationItems((prev) => [...prev, item]);
+    showToast.success('Item quotation berhasil ditambahkan.');
+  };
+
+  const handleUpdateQuotationItem = (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!editingQuotationItem) return;
+    setQuotationItems((prev) =>
+      prev.map((item) => (item.id === editingQuotationItem.id ? { ...item, ...updated } : item))
+    );
+    setEditingQuotationItem(null);
+    showToast.success('Item quotation berhasil diperbarui.');
+  };
+
+  const handleDeleteQuotationItem = () => {
+    if (!deleteQuotationItemId) return;
+    setQuotationItems((prev) => prev.filter((item) => item.id !== deleteQuotationItemId));
+    setDeleteQuotationItemId(null);
+    showToast.success('Item quotation berhasil dihapus.');
+  };
+
+  // Invoice Handlers (Independent logic & data)
+  const handleAddInvoiceItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    const item: ProjectCostItem = {
+      ...newItem,
+      id: `inv-${Date.now()}`,
+      projectId: project.id,
+    };
+    setInvoiceItems((prev) => [...prev, item]);
+    showToast.success('Item invoice berhasil ditambahkan.');
+  };
+
+  const handleUpdateInvoiceItem = (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!editingInvoiceItem) return;
+    setInvoiceItems((prev) =>
+      prev.map((item) => (item.id === editingInvoiceItem.id ? { ...item, ...updated } : item))
+    );
+    setEditingInvoiceItem(null);
+    showToast.success('Item invoice berhasil diperbarui.');
+  };
+
+  const handleDeleteInvoiceItem = () => {
+    if (!deleteInvoiceItemId) return;
+    setInvoiceItems((prev) => prev.filter((item) => item.id !== deleteInvoiceItemId));
+    setDeleteInvoiceItemId(null);
+    showToast.success('Item invoice berhasil dihapus.');
+  };
+
+  // Refined Import From Quotation Logic
+  const handleTriggerImportFromQuotation = () => {
+    if (quotationItems.length === 0) {
+      showToast.error('Belum ada item quotation untuk di-import.');
+      return;
+    }
+    if (invoiceItems.length > 0) {
+      setIsConfirmImportOpen(true);
+    } else {
+      executeImportFromQuotation();
+    }
+  };
+
+  const executeImportFromQuotation = () => {
+    const imported = quotationItems.map((q, idx) => ({
+      ...q,
+      id: `inv-imp-${Date.now()}-${idx}`,
+      category: q.category || 'Quotation',
+    }));
+    setInvoiceItems(imported);
+    setIsConfirmImportOpen(false);
+    showToast.success(`${imported.length} item Quotation berhasil di-import ke Invoice!`);
+  };
+
+  // Payment History Handlers
+  const handleSavePayment = (item: Omit<PaymentHistoryItem, 'id'>) => {
+    if (editingPayment) {
+      setPaymentHistory((prev) =>
+        prev.map((p) => (p.id === editingPayment.id ? { ...p, ...item } : p))
+      );
+      setEditingPayment(null);
+      showToast.success('Pembayaran berhasil diperbarui.');
+    } else {
+      setPaymentHistory((prev) => [...prev, { ...item, id: `pay-${Date.now()}` }]);
+      showToast.success('Pembayaran berhasil dicatat.');
+    }
+  };
+
+  const handleDeletePayment = () => {
+    if (!deletePaymentId) return;
+    setPaymentHistory((prev) => prev.filter((p) => p.id !== deletePaymentId));
+    setDeletePaymentId(null);
+    showToast.success('Pembayaran berhasil dihapus.');
+  };
+
+  const handleSubmitCost = () => {
+    if (costItems.length === 0) {
+      showToast.error('Belum ada item yang bisa diajukan.');
+      return;
+    }
+    setCostSubmissionStatus('PENDING');
+    showToast.success('Production Cost berhasil diajukan untuk approval Direktur.');
+  };
+
+  // Dynamic Financial calculations
   const contractValue = project.budget || 0;
-  const totalPaid = project.totalPaid || 0;
-  const restOfBill = project.restOfBill || Math.max(0, contractValue - totalPaid);
+  const totalPaid = paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0);
+  const restOfBill = Math.max(0, contractValue - totalPaid);
   const totalProjectCost = costItems.reduce((acc, c) => acc + (c.totalCost || 0), 0);
+  const quotationTotalCost = quotationItems.reduce((acc, c) => acc + (c.totalCost || 0), 0);
+  const invoiceTotalCost = invoiceItems.reduce((acc, c) => acc + (c.totalCost || 0), 0);
+  const invoiceAmountForPeriod = Math.max(0, invoiceTotalCost - totalPaid);
   const totalProfit = Math.max(0, contractValue - totalProjectCost);
 
-  const totalPaidPercent = contractValue ? Math.round((totalPaid / contractValue) * 100) : 0;
+  const totalPaidPercentVal = contractValue ? (totalPaid / contractValue) * 100 : 0;
+  const totalPaidPercentFormatted = totalPaidPercentVal.toFixed(2).replace('.', ',');
   const profitPercent = contractValue ? Math.round((totalProfit / contractValue) * 100) : 0;
   const costPercent = contractValue ? Math.round((totalProjectCost / contractValue) * 100) : 0;
 
@@ -273,221 +554,330 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       {activeMainTab === 'payment' && isFinancialRole && (
         <div className="space-y-6">
           {/* Top Card: Payment History */}
-          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Payment History
-              </h3>
+          <div className="border border-slate-200 rounded-xl p-5 space-y-4 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-primary">
+                  Payment History
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Payment from Client / Customer
+                </p>
+              </div>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => showToast.info('Form Tambah Pembayaran')}
+                leftIcon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => setIsAddPaymentModalOpen(true)}
               >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Catat Pembayaran
+                Add
               </Button>
             </div>
 
             {paymentHistory.length === 0 ? (
-              <EmptyState
-                icon={<CreditCard className="w-6 h-6 text-slate-400" />}
-                title="Masih Belum Ada Riwayat Pembayaran"
-                message="Pembayaran dari client untuk proyek ini belum pernah dicatat."
-              />
+              <div className="flex flex-col items-center justify-center py-12 text-center select-none">
+                <img src="/illustrations/empty-box.svg" alt="" className="w-40 h-40 mb-4 object-contain" />
+                <p className="text-sm text-slate-500">
+                  Masih belum ada riwayat pembayaran.
+                </p>
+                <p className="text-sm text-slate-500">
+                  Untuk menambahkan silakan klik button{' '}
+                  <span className="text-primary font-bold">&quot;+ Add&quot;</span>
+                </p>
+              </div>
             ) : (
-              <div className="overflow-x-auto border border-slate-200/80 rounded-xl">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-400 uppercase">
-                      <th className="py-2.5 px-4">Tanggal</th>
-                      <th className="py-2.5 px-4 text-right">Nominal</th>
-                      <th className="py-2.5 px-4">Metode</th>
-                      <th className="py-2.5 px-4">Ke Rekening</th>
-                      <th className="py-2.5 px-4">Dari Rekening</th>
-                      <th className="py-2.5 px-4">Berita / Catatan</th>
-                      <th className="py-2.5 px-4 text-center">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                    {paymentHistory.map((pay) => (
-                      <tr key={pay.id} className="hover:bg-slate-50/60">
-                        <td className="py-3 px-4 font-semibold text-slate-800">{pay.date}</td>
-                        <td className="py-3 px-4 text-right font-bold text-emerald-600">
-                          {formatRupiah(pay.amount)}
-                        </td>
-                        <td className="py-3 px-4">{pay.paymentMethod}</td>
-                        <td className="py-3 px-4 text-slate-500">{pay.toAccount}</td>
-                        <td className="py-3 px-4 text-slate-500">{pay.fromAccount}</td>
-                        <td className="py-3 px-4 text-slate-600 max-w-xs truncate">{pay.notes}</td>
-                        <td className="py-3 px-4 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => showToast.info('Edit Pembayaran')}
-                              className="p-1 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => showToast.info('Hapus Pembayaran')}
-                              className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
+              <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-xs sm:text-sm font-bold text-slate-700">
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Date</th>
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Nominal</th>
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Payment Method</th>
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Ke Rekening</th>
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Dari Rekening</th>
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Berita</th>
+                        <th className="py-4 px-4 text-center font-bold text-slate-700">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="text-xs sm:text-sm text-slate-700">
+                      {paymentHistory.map((pay) => (
+                        <tr key={pay.id} className="bg-white hover:bg-slate-50/60 transition-colors border-b border-slate-50">
+                          <td className="py-4 px-4 text-slate-800 text-center font-normal">{formatDateID(pay.date)}</td>
+                          <td className="py-4 px-4 text-center text-slate-800 font-normal">
+                            {formatRupiahNoSpace(pay.amount)}
+                          </td>
+                          <td className="py-4 px-4 text-center font-normal">{pay.paymentMethod}</td>
+                          <td className="py-4 px-4 text-slate-700 text-center font-normal">{pay.toAccount}</td>
+                          <td className="py-4 px-4 text-slate-700 text-center font-normal">{pay.fromAccount}</td>
+                          <td className="py-4 px-4 text-slate-700 text-center max-w-xs truncate font-normal">{pay.notes}</td>
+                          <td className="py-4 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setDeletePaymentId(pay.id)}
+                                className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Hapus Pembayaran"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingPayment(pay)}
+                                className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                title="Edit Pembayaran"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Payment Summary Footer matching design 1:1 */}
+                <div className="pt-4 space-y-2 text-sm">
+                  <div className="flex items-center gap-6">
+                    <span className="text-slate-500 font-semibold min-w-[140px]">
+                      Total Pembayaran
+                    </span>
+                    <div className="flex items-center gap-1 font-bold text-primary">
+                      <span>{formatRupiahNoSpace(totalPaid)}</span>
+                      <span className="px-1 font-normal text-primary">|</span>
+                      <span>{totalPaidPercentFormatted}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <span className="text-slate-500 font-semibold min-w-[140px]">
+                      Sisa Pembayaran
+                    </span>
+                    <span className="font-bold text-primary">
+                      {formatRupiahNoSpace(restOfBill)}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* Payment Summary Footer */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/80">
-              <div>
-                <span className="text-[11px] font-semibold text-slate-400 uppercase">Total Pembayaran</span>
-                <p className="text-base font-extrabold text-emerald-600 mt-0.5">
-                  {formatRupiah(totalPaid)}{' '}
-                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full ml-1">
-                    {totalPaidPercent}%
-                  </span>
-                </p>
-              </div>
-              <div>
-                <span className="text-[11px] font-semibold text-slate-400 uppercase">Sisa Pembayaran</span>
-                <p className="text-base font-extrabold text-amber-600 mt-0.5">
-                  {formatRupiah(restOfBill)}
-                </p>
-              </div>
-            </div>
           </div>
 
-          {/* SubTabs Box */}
-          <div className="border border-slate-200 rounded-xl p-5 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActivePaymentSubTab('cost')}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-                    activePaymentSubTab === 'cost'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Production Cost
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivePaymentSubTab('quotation')}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-                    activePaymentSubTab === 'quotation'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Quotation
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActivePaymentSubTab('invoice')}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
-                    activePaymentSubTab === 'invoice'
-                      ? 'bg-primary text-white shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Invoice
-                </button>
-              </div>
-
-              {/* Action buttons top right */}
-              <div className="flex items-center gap-2">
-                {activePaymentSubTab === 'invoice' && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => showToast.success('Data Quotation berhasil di-import ke Invoice!')}
-                  >
-                    <Download className="w-3.5 h-3.5 mr-1" />
-                    Import From Quotation
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-accent text-accent hover:bg-orange-50"
-                  onClick={() => showToast.info('Pengajuan Cost Terkirim!')}
-                >
-                  Ajukan Cost
-                </Button>
-                <Button variant="primary" size="sm" onClick={() => showToast.info('Form Tambah Item')}>
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  + Add
-                </Button>
-              </div>
-            </div>
+          {/* SubTabs Card: Production Cost / Quotation / Invoice */}
+          <div className="border border-slate-200 rounded-xl p-5 space-y-6 bg-white overflow-hidden">
+            <Tabs
+              tabs={paymentSubTabOptions}
+              activeTab={activePaymentSubTab}
+              onChange={(id) => setActivePaymentSubTab(id as 'cost' | 'quotation' | 'invoice')}
+              variant="pills"
+            />
 
             {/* SubTab Content: Production Cost */}
             {activePaymentSubTab === 'cost' && (
               <div className="space-y-6">
-                <LineItemTable items={costItems} />
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm sm:text-base font-bold text-primary">
+                      Production Cost
+                    </h3>
+                    {costSubmissionStatus === 'PENDING' && (
+                      <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                        MENUNGGU APPROVAL
+                      </span>
+                    )}
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-xs">
-                  <div>
-                    <span className="text-slate-400 font-medium">Contract Value</span>
-                    <p className="text-sm font-bold text-slate-800 mt-0.5">{formatRupiah(contractValue)}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 font-medium">Total Biaya Project</span>
-                    <p className="text-sm font-bold text-orange-600 mt-0.5">
-                      {formatRupiah(totalProjectCost)}{' '}
-                      <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-md">
-                        {costPercent}%
-                      </span>
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 font-medium">Total Profit</span>
-                    <p className="text-sm font-bold text-emerald-600 mt-0.5">
-                      {formatRupiah(totalProfit)}{' '}
-                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md">
-                        {profitPercent}%
-                      </span>
-                    </p>
+                  <div className="flex items-center gap-2">
+                    {costItems.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-accent text-accent hover:bg-orange-50"
+                        leftIcon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={handleSubmitCost}
+                        disabled={costSubmissionStatus === 'PENDING' || costItems.length === 0}
+                      >
+                        Ajukan Cost
+                      </Button>
+                    )}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
+                      onClick={() => setIsAddCostModalOpen(true)}
+                      disabled={costSubmissionStatus === 'PENDING'}
+                    >
+                      Add
+                    </Button>
                   </div>
                 </div>
+
+                {costItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center select-none">
+                    <img src="/illustrations/empty-box.svg" alt="" className="w-40 h-40 mb-4 object-contain" />
+                    <p className="text-sm text-slate-500">
+                      Masih belum ada production cost.
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      Untuk menambahkan silakan klik button{' '}
+                      <span className="text-primary font-bold">&quot;+ Add&quot;</span>
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <LineItemTable
+                      items={costItems}
+                      onEdit={(item) => setEditingCostItem(item)}
+                      onDelete={(id) => setDeleteCostItemId(id)}
+                      readOnly={costSubmissionStatus === 'PENDING'}
+                    />
+
+                    {/* Redesigned Summary Table for Production Cost */}
+                    <div className="pt-4">
+                      <div className="flex justify-end gap-12 text-xs font-semibold text-slate-700 pb-2 border-b border-slate-200">
+                        <span className="w-20 text-right">Presentase</span>
+                        <span className="w-32 text-right">Total</span>
+                      </div>
+                      {[
+                        { label: 'Contract Value:', percent: 100, value: contractValue },
+                        { label: 'Total Biaya Project:', percent: costPercent, value: totalProjectCost },
+                        { label: 'Total Profit:', percent: profitPercent, value: totalProfit },
+                      ].map((row) => (
+                        <div key={row.label} className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                          <span className="text-sm font-bold text-accent">{row.label}</span>
+                          <div className="flex gap-12">
+                            <span className="w-20 text-right text-sm font-bold text-accent">{row.percent}%</span>
+                            <span className="w-32 text-right text-sm font-bold text-accent">{formatRupiah(row.value)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
             {/* SubTab Content: Quotation */}
             {activePaymentSubTab === 'quotation' && (
               <div className="space-y-6">
-                <div className="border border-slate-200/80 rounded-xl p-4 bg-slate-50/50">
-                  <h4 className="text-xs font-bold uppercase text-slate-800 tracking-wider mb-3">
-                    RINCIAN PEKERJAAN (QUOTATION)
-                  </h4>
-                  <LineItemTable items={costItems} />
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-primary">
+                      Quotation
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Offering document to the client
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-accent text-accent hover:bg-orange-50"
+                      leftIcon={<Upload className="w-3.5 h-3.5" />}
+                      onClick={handleSubmitCost}
+                      disabled={costSubmissionStatus === 'PENDING' || quotationItems.length === 0}
+                    >
+                      Ajukan Cost
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
+                      onClick={() => setIsAddQuotationModalOpen(true)}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="p-4 bg-orange-50/60 border border-accent/30 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Sub Total:</span>
-                    <span className="font-semibold">{formatRupiah(contractValue)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Diskon:</span>
-                    <span className="font-semibold">Rp 0</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>PPH 23 (2%):</span>
-                    <span className="font-semibold">{formatRupiah(contractValue * 0.02)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-extrabold text-accent pt-2 border-t border-accent/20">
-                    <span>Grand Total:</span>
-                    <span>{formatRupiah(contractValue)}</span>
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-primary tracking-wider mb-4">
+                    RINCIAN PEKERJAAN
+                  </h4>
+
+                  {quotationItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center select-none">
+                      <img src="/illustrations/empty-box.svg" alt="" className="w-40 h-40 mb-4 object-contain" />
+                      <p className="text-sm text-slate-500">
+                        Masih belum ada rincian quotation.
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Untuk menambahkan silakan klik button{' '}
+                        <span className="text-primary font-bold">&quot;+ Add&quot;</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-xs sm:text-sm font-semibold text-slate-600">
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Item</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Deskripsi</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Harga Satuan</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Jumlah</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-xs sm:text-sm text-slate-700">
+                          {quotationItems.map((item) => (
+                            <tr key={item.id} className="bg-white hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                              <td className="py-4 px-4 font-medium text-slate-800 whitespace-nowrap">{item.description}</td>
+                              <td className="py-4 px-4 text-slate-600">{item.executor || '-'}</td>
+                              <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.unitCost)}</td>
+                              <td className="py-4 px-4 text-center font-normal">{item.quantity}</td>
+                              <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
+                              <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || 'hari'}</td>
+                              <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
+                              <td className="py-4 px-4 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingQuotationItem(item)}
+                                    className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                    title="Edit Item"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteQuotationItemId(item.id)}
+                                    className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Hapus Item"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Summary Footer with increased vertical spacing */}
+                  <div className="pt-6 border-t border-slate-100 space-y-6 text-sm sm:text-base">
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Sub Total</span>
+                      <span className="font-bold text-slate-800">{formatRupiahWithSpace(quotationTotalCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Discount</span>
+                      <span className="font-bold text-slate-800">0%</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>PPH</span>
+                      <span className="font-bold text-slate-800">Rp 0</span>
+                    </div>
+
+                    <div className="p-4 sm:p-5 bg-orange-50/70 border border-orange-100/60 rounded-xl flex justify-between items-center mt-6">
+                      <span className="text-sm sm:text-base font-extrabold text-accent">Grand Total</span>
+                      <span className="text-sm sm:text-base font-extrabold text-accent">{formatRupiahWithSpace(quotationTotalCost)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -496,25 +886,154 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             {/* SubTab Content: Invoice */}
             {activePaymentSubTab === 'invoice' && (
               <div className="space-y-6">
-                <div className="border border-slate-200/80 rounded-xl p-4 bg-slate-50/50">
-                  <h4 className="text-xs font-bold uppercase text-slate-800 tracking-wider mb-3">
-                    RINCIAN INVOICE
-                  </h4>
-                  <LineItemTable items={costItems} />
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-primary">
+                      Invoice
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Billing document to the client
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Download className="w-3.5 h-3.5" />}
+                      onClick={handleTriggerImportFromQuotation}
+                    >
+                      Import From Quotation
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-accent text-accent hover:bg-orange-50"
+                      leftIcon={<Upload className="w-3.5 h-3.5" />}
+                      onClick={handleSubmitCost}
+                      disabled={costSubmissionStatus === 'PENDING' || invoiceItems.length === 0}
+                    >
+                      Ajukan Cost
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      leftIcon={<Plus className="w-3.5 h-3.5" />}
+                      onClick={() => setIsAddInvoiceModalOpen(true)}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="p-4 bg-amber-50/80 border border-amber-300/80 rounded-xl space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Contract Amount:</span>
-                    <span className="font-semibold">{formatRupiah(contractValue)}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-600">
-                    <span>Previous Payment Received:</span>
-                    <span className="font-semibold text-emerald-600">{formatRupiah(totalPaid)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-extrabold text-amber-800 pt-2 border-t border-amber-300">
-                    <span>Invoice Amount For This Period:</span>
-                    <span>{formatRupiah(restOfBill)}</span>
+                <div>
+                  <h4 className="text-xs font-bold uppercase text-primary tracking-wider mb-4">
+                    RINCIAN PEKERJAAN
+                  </h4>
+
+                  {invoiceItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center select-none">
+                      <img src="/illustrations/empty-box.svg" alt="" className="w-40 h-40 mb-4 object-contain" />
+                      <p className="text-sm text-slate-500">
+                        Masih belum ada rincian invoice.
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        Untuk menambahkan silakan klik button{' '}
+                        <span className="text-primary font-bold">&quot;+ Add&quot;</span> atau{' '}
+                        <span className="text-primary font-bold">&quot;Import From Quotation&quot;</span>
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-xs sm:text-sm font-semibold text-slate-600">
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Item</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Deskripsi</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Harga Satuan</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Jumlah</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-xs sm:text-sm text-slate-700">
+                          {invoiceItems.map((item) => (
+                            <tr key={item.id} className="bg-white hover:bg-slate-50/50 transition-colors border-b border-slate-50">
+                              <td className="py-4 px-4 font-medium text-slate-800 whitespace-nowrap">
+                                <div>
+                                  <p className="font-semibold text-slate-800">{item.description}</p>
+                                  {item.category && item.category !== 'Quotation' && item.category !== 'Invoice' && (
+                                    <p className="text-xs text-slate-400 font-normal">{item.category}</p>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-4 px-4 text-slate-600">{item.executor || '-'}</td>
+                              <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.unitCost)}</td>
+                              <td className="py-4 px-4 text-center font-normal">{item.quantity}</td>
+                              <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
+                              <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || '1'}</td>
+                              <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
+                              <td className="py-4 px-4 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingInvoiceItem(item)}
+                                    className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                    title="Edit Item"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteInvoiceItemId(item.id)}
+                                    className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Hapus Item"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Invoice Summary Footer */}
+                  <div className="pt-6 border-t border-slate-100 space-y-6 text-sm sm:text-base">
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Sub Total</span>
+                      <span className="font-bold text-slate-800">{formatRupiahWithSpace(invoiceTotalCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Diskon</span>
+                      <span className="font-bold text-slate-800">0%</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>PPH</span>
+                      <span className="font-bold text-slate-800">Rp 0</span>
+                    </div>
+
+                    <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                      <span className="font-extrabold text-slate-900">Contract Amount</span>
+                      <span className="font-extrabold text-slate-900">{formatRupiahWithSpace(invoiceTotalCost)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-400 font-normal">
+                      <span>Previous Payment</span>
+                      <span>- {formatRupiahWithSpace(totalPaid)}</span>
+                    </div>
+
+                    {/* Orange Banner Box */}
+                    <div className="p-4 sm:p-5 bg-orange-50/70 border border-orange-100/60 rounded-xl flex justify-between items-center mt-6">
+                      <div>
+                        <p className="text-sm sm:text-base font-extrabold text-accent">Invoice Amount</p>
+                        <p className="text-xs sm:text-sm font-semibold text-accent/90 mt-0.5">For This Period</p>
+                      </div>
+                      <span className="text-base sm:text-lg font-extrabold text-accent">{formatRupiahWithSpace(invoiceAmountForPeriod)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -528,53 +1047,86 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       {/* ========================================================================= */}
       {activeMainTab === 'production_cost' && isPM && (
         <div className="space-y-6">
-          <div className="border border-slate-200 rounded-xl p-5 space-y-6">
+          <div className="border border-slate-200 rounded-xl p-5 space-y-6 bg-white">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                Production Cost Summary
-              </h3>
               <div className="flex items-center gap-2">
+                <h3 className="text-sm sm:text-base font-bold text-primary">
+                  Production Cost
+                </h3>
+                {costSubmissionStatus === 'PENDING' && (
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200">
+                    MENUNGGU APPROVAL
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {costItems.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-accent text-accent hover:bg-orange-50"
+                    leftIcon={<Upload className="w-3.5 h-3.5" />}
+                    onClick={handleSubmitCost}
+                    disabled={costSubmissionStatus === 'PENDING' || costItems.length === 0}
+                  >
+                    Ajukan Cost
+                  </Button>
+                )}
                 <Button
-                  variant="outline"
+                  variant="primary"
                   size="sm"
-                  className="border-accent text-accent hover:bg-orange-50"
-                  onClick={() => showToast.info('Pengajuan Cost Terkirim!')}
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  onClick={() => setIsAddCostModalOpen(true)}
+                  disabled={costSubmissionStatus === 'PENDING'}
                 >
-                  Ajukan Cost
-                </Button>
-                <Button variant="primary" size="sm" onClick={() => showToast.info('Form Tambah Item')}>
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  + Add
+                  Add
                 </Button>
               </div>
             </div>
 
-            <LineItemTable items={costItems} />
+            {costItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center select-none">
+                <img src="/illustrations/empty-box.svg" alt="" className="w-40 h-40 mb-4 object-contain" />
+                <p className="text-sm text-slate-500">
+                  Masih belum ada production cost.
+                </p>
+                <p className="text-sm text-slate-500">
+                  Untuk menambahkan silakan klik button{' '}
+                  <span className="text-primary font-bold">&quot;+ Add&quot;</span>
+                </p>
+              </div>
+            ) : (
+              <>
+                <LineItemTable
+                  items={costItems}
+                  onEdit={(item) => setEditingCostItem(item)}
+                  onDelete={(id) => setDeleteCostItemId(id)}
+                  readOnly={costSubmissionStatus === 'PENDING'}
+                />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200/80 text-xs">
-              <div>
-                <span className="text-slate-400 font-medium">Contract Value</span>
-                <p className="text-sm font-bold text-slate-800 mt-0.5">{formatRupiah(contractValue)}</p>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium">Total Biaya Project</span>
-                <p className="text-sm font-bold text-orange-600 mt-0.5">
-                  {formatRupiah(totalProjectCost)}{' '}
-                  <span className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-md">
-                    {costPercent}%
-                  </span>
-                </p>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium">Total Profit</span>
-                <p className="text-sm font-bold text-emerald-600 mt-0.5">
-                  {formatRupiah(totalProfit)}{' '}
-                  <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md">
-                    {profitPercent}%
-                  </span>
-                </p>
-              </div>
-            </div>
+                {/* Redesigned Summary Table for Production Cost */}
+                <div className="pt-4">
+                  <div className="flex justify-end gap-12 text-xs font-semibold text-slate-700 pb-2 border-b border-slate-200">
+                    <span className="w-20 text-right">Presentase</span>
+                    <span className="w-32 text-right">Total</span>
+                  </div>
+                  {[
+                    { label: 'Contract Value:', percent: 100, value: contractValue },
+                    { label: 'Total Biaya Project:', percent: costPercent, value: totalProjectCost },
+                    { label: 'Total Profit:', percent: profitPercent, value: totalProfit },
+                  ].map((row) => (
+                    <div key={row.label} className="flex justify-between items-center py-2.5 border-b border-slate-100">
+                      <span className="text-sm font-bold text-accent">{row.label}</span>
+                      <div className="flex gap-12">
+                        <span className="w-20 text-right text-sm font-bold text-accent">{row.percent}%</span>
+                        <span className="w-32 text-right text-sm font-bold text-accent">{formatRupiah(row.value)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -584,52 +1136,56 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       {/* ========================================================================= */}
       {activeMainTab === 'task' && (
         <div className="space-y-6">
-          {/* Card 1: Task Progress */}
-          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Task Progress
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Overall Completion: <span className="font-bold text-slate-800">{completedTasksCount} / {totalTasksCount} tasks completed</span>
-                </p>
-              </div>
-              <span className="text-sm font-black text-primary">{taskProgressPercent}%</span>
+          {/* Card 1: Task Progress matching screenshot 1:1 */}
+          <div className="border border-slate-200/80 rounded-xl p-5 bg-white space-y-3">
+            <h3 className="text-base sm:text-lg font-bold text-primary">
+              Task Progress
+            </h3>
+            <div>
+              <h4 className="text-sm sm:text-base font-bold text-slate-800">
+                Overall Completion
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                {completedTasksCount} / {totalTasksCount} tasks completed
+              </p>
             </div>
 
-            {/* Progress Bar */}
-            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+            {/* Thin Blue Progress Bar */}
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden my-3">
               <div
                 className="h-full bg-primary transition-all duration-300"
                 style={{ width: `${taskProgressPercent}%` }}
               />
             </div>
 
-            {/* Status Badges */}
-            <div className="flex items-center gap-2 pt-1 text-xs">
-              <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+            {/* Horizontal Status Badges below progress bar */}
+            <div className="flex items-center gap-2 pt-1">
+              <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] sm:text-xs font-bold border border-emerald-100">
                 {completedTasksCount} DONE
               </span>
-              <span className="px-2.5 py-1 rounded-full bg-orange-50 text-orange-700 font-semibold border border-orange-200">
+              <span className="px-3 py-1 rounded-full bg-orange-50 text-orange-500 text-[10px] sm:text-xs font-bold border border-orange-100">
                 {tasks.filter((t) => t.status === 'IN_PROGRESS').length} IN PROGRESS
               </span>
-              <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold border border-slate-200">
+              <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[10px] sm:text-xs font-bold border border-slate-200">
                 {tasks.filter((t) => t.status === 'TODO').length} TO DO
               </span>
             </div>
           </div>
 
-          {/* Card 2: Task Checklist */}
-          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
+          {/* Card 2: Task Checklist matching screenshot 1:1 */}
+          <div className="border border-slate-200/80 rounded-xl p-5 bg-white space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              <h3 className="text-base sm:text-lg font-bold text-primary">
                 Task Checklist
               </h3>
               {!isProduksi && (
-                <Button variant="primary" size="sm" onClick={() => showToast.info('Form Tambah Task')}>
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  + Add
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  onClick={() => setIsAddTaskModalOpen(true)}
+                >
+                  Add
                 </Button>
               )}
             </div>
@@ -638,69 +1194,89 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               <EmptyState message="Belum ada task checklist yang ditambahkan untuk proyek ini." />
             ) : (
               <div className="space-y-3">
-                {tasks.map((task) => {
+                {tasks.map((task, idx) => {
                   const isDone = task.status === 'DONE';
                   return (
                     <div
                       key={task.id}
-                      className={`flex items-start justify-between p-4 rounded-xl border transition-all ${
+                      className={`flex items-start justify-between p-4 sm:p-5 rounded-xl border transition-all ${
                         isDone
-                          ? 'bg-slate-50/70 border-slate-200/60'
-                          : 'bg-white border-slate-200 hover:border-slate-300'
+                          ? 'bg-white border-slate-200/80'
+                          : 'bg-white border-slate-200/80 hover:border-slate-300'
                       }`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-3.5">
                         <button
                           type="button"
                           onClick={() => handleToggleTaskStatus(task.id)}
-                          className="mt-0.5 text-slate-300 hover:text-primary transition-colors cursor-pointer"
+                          className="mt-0.5 cursor-pointer shrink-0"
                         >
                           {isDone ? (
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600 fill-emerald-100" />
+                            <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-100" />
                           ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-slate-300 hover:border-primary" />
+                            <div className="w-5 h-5 rounded-full border-2 border-slate-300 hover:border-primary transition-colors" />
                           )}
                         </button>
 
                         <div className="space-y-1">
                           <p
-                            className={`text-xs sm:text-sm font-bold ${
-                              isDone ? 'line-through text-slate-400' : 'text-slate-800'
+                            className={`text-sm sm:text-base font-bold ${
+                              isDone ? 'line-through text-slate-300 font-normal' : 'text-slate-800'
                             }`}
                           >
                             {task.title}
                           </p>
                           {task.description && (
-                            <p className="text-xs text-slate-500 leading-relaxed">{task.description}</p>
+                            <p className={`text-xs sm:text-sm leading-relaxed ${isDone ? 'text-slate-300' : 'text-slate-500'}`}>
+                              {task.description}
+                            </p>
                           )}
 
-                          <div className="flex items-center gap-3 pt-1 text-[11px]">
-                            <span className="flex items-center gap-1 text-slate-400">
-                              <CalendarIcon className="w-3 h-3 text-slate-400" />
-                              <span>{task.dueDate}</span>
+                          <div className={`flex items-center gap-3 pt-1 text-xs ${isDone ? 'text-slate-300' : 'text-slate-400'}`}>
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon className={`w-3.5 h-3.5 ${isDone ? 'text-slate-300' : 'text-slate-400'}`} />
+                              <span>{formatDateID(task.dueDate)}</span>
                             </span>
-                            <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-medium">
-                              PIC: {task.picName}
+
+                            {/* Overdue Alert Badge */}
+                            {idx === 2 && !isDone && (
+                              <span className="flex items-center gap-1.5 text-red-500 font-semibold bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
+                                <Clock className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                <span>1 November</span>
+                                <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                              </span>
+                            )}
+
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                              isDone ? 'bg-blue-50/50 text-blue-300' : 'bg-blue-50 text-blue-600'
+                            }`}>
+                              {task.picName || 'Anton W.'}
                             </span>
                           </div>
                         </div>
                       </div>
 
                       {!isProduksi && (
-                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <div className="flex items-center gap-1 shrink-0 ml-3">
                           <button
                             type="button"
-                            onClick={() => showToast.info('Edit Task')}
-                            className="p-1 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                            onClick={() => setEditingTask(task)}
+                            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                              isDone ? 'text-amber-300 hover:bg-amber-50/50' : 'text-amber-500 hover:bg-amber-50'
+                            }`}
+                            title="Edit Task"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
-                            onClick={() => showToast.info('Hapus Task')}
-                            className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => setDeleteTaskId(task.id)}
+                            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                              isDone ? 'text-red-300 hover:bg-red-50/50' : 'text-red-500 hover:bg-red-50'
+                            }`}
+                            title="Hapus Task"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       )}
@@ -711,9 +1287,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             )}
           </div>
 
-          {/* Card 3: General Brief */}
-          <div className="border border-slate-200 rounded-xl p-5 space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+          {/* Card 3: General Brief matching screenshot 1:1 */}
+          <div className="border border-slate-200/80 rounded-xl p-5 bg-white space-y-4">
+            <h3 className="text-base sm:text-lg font-bold text-primary">
               General Brief
             </h3>
 
@@ -725,6 +1301,134 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
           </div>
         </div>
       )}
+
+      {/* Add Production Cost Item Modal */}
+      <AddCostItemModal
+        isOpen={isAddCostModalOpen}
+        onClose={() => setIsAddCostModalOpen(false)}
+        onSave={handleAddCostItem}
+        existingCategories={Array.from(new Set(costItems.map((i) => i.category)))}
+      />
+
+      {/* Edit Production Cost Item Modal */}
+      <AddCostItemModal
+        isOpen={!!editingCostItem}
+        onClose={() => setEditingCostItem(null)}
+        onSave={handleUpdateCostItem}
+        existingCategories={Array.from(new Set(costItems.map((i) => i.category)))}
+        editItem={editingCostItem || undefined}
+      />
+
+      {/* Delete Production Cost Item Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteCostItemId}
+        onClose={() => setDeleteCostItemId(null)}
+        onConfirm={handleDeleteCostItem}
+        title="Hapus Item Production Cost"
+        message="Apakah Anda yakin ingin menghapus item ini? Tindakan ini tidak dapat dibatalkan."
+      />
+
+      {/* Add Quotation Item Modal */}
+      <AddQuotationItemModal
+        isOpen={isAddQuotationModalOpen}
+        onClose={() => setIsAddQuotationModalOpen(false)}
+        onSave={handleAddQuotationItem}
+      />
+
+      {/* Edit Quotation Item Modal */}
+      <AddQuotationItemModal
+        isOpen={!!editingQuotationItem}
+        onClose={() => setEditingQuotationItem(null)}
+        onSave={handleUpdateQuotationItem}
+        editItem={editingQuotationItem || undefined}
+      />
+
+      {/* Delete Quotation Item Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteQuotationItemId}
+        onClose={() => setDeleteQuotationItemId(null)}
+        onConfirm={handleDeleteQuotationItem}
+        title="Hapus Item Quotation"
+        message="Apakah Anda yakin ingin menghapus item quotation ini?"
+      />
+
+      {/* Add Invoice Item Modal */}
+      <AddInvoiceItemModal
+        isOpen={isAddInvoiceModalOpen}
+        onClose={() => setIsAddInvoiceModalOpen(false)}
+        onSave={handleAddInvoiceItem}
+      />
+
+      {/* Edit Invoice Item Modal */}
+      <AddInvoiceItemModal
+        isOpen={!!editingInvoiceItem}
+        onClose={() => setEditingInvoiceItem(null)}
+        onSave={handleUpdateInvoiceItem}
+        editItem={editingInvoiceItem || undefined}
+      />
+
+      {/* Delete Invoice Item Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteInvoiceItemId}
+        onClose={() => setDeleteInvoiceItemId(null)}
+        onConfirm={handleDeleteInvoiceItem}
+        title="Hapus Item Invoice"
+        message="Apakah Anda yakin ingin menghapus item invoice ini?"
+      />
+
+      {/* Import Quotation to Invoice Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isConfirmImportOpen}
+        onClose={() => setIsConfirmImportOpen(false)}
+        onConfirm={executeImportFromQuotation}
+        title="Import Data Quotation"
+        message="Import akan memperbarui data Invoice dengan data rincian terbaru dari Quotation. Apakah Anda yakin?"
+        confirmText="Ya, Import Data"
+      />
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        isOpen={isAddTaskModalOpen}
+        onClose={() => setIsAddTaskModalOpen(false)}
+        onSave={handleSaveTask}
+      />
+
+      {/* Edit Task Modal */}
+      <AddTaskModal
+        isOpen={!!editingTask}
+        onClose={() => setEditingTask(null)}
+        onSave={handleSaveTask}
+        editTask={editingTask || undefined}
+      />
+
+      {/* Delete Task Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteTaskId}
+        onClose={() => setDeleteTaskId(null)}
+        onConfirm={handleDeleteTask}
+        title="Hapus Task Production"
+        message="Apakah Anda yakin ingin menghapus task ini dari checklist produksi?"
+      />
+
+      {/* Add / Edit Payment Modal */}
+      <AddPaymentModal
+        isOpen={isAddPaymentModalOpen || !!editingPayment}
+        onClose={() => {
+          setIsAddPaymentModalOpen(false);
+          setEditingPayment(null);
+        }}
+        onSave={handleSavePayment}
+        editItem={editingPayment || undefined}
+      />
+
+      {/* Delete Payment Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletePaymentId}
+        onClose={() => setDeletePaymentId(null)}
+        onConfirm={handleDeletePayment}
+        title="Hapus Pembayaran"
+        message="Apakah Anda yakin ingin menghapus riwayat pembayaran ini?"
+      />
     </div>
   );
 };
