@@ -129,7 +129,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const taskProgressPercent = totalTasksCount ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs overflow-hidden space-y-6">
       {/* Main Tab Bar Navigation directly inside single container */}
       <Tabs
         tabs={mainTabOptions}
