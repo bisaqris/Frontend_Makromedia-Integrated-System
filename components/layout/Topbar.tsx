@@ -20,7 +20,8 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/application-cost': { title: 'List Application Cost', subtitle: 'List of Application Cost' },
   '/manpower': { title: 'List Data Employee', subtitle: 'List of All Employees' },
   '/manpower/skills': { title: 'Data Skill', subtitle: 'Employee skills and certifications' },
-  '/clients/pic': { title: 'List Data Client', subtitle: 'List of Client PICs' },
+  '/clients/pic': { title: 'Data PIC Client', subtitle: 'List of All PIC Client' },
+  '/clients/pic/new': { title: 'Add New PIC Client', subtitle: 'Add new PIC Client' },
   '/clients/company': { title: 'List Client Company', subtitle: 'List of Client Companies' },
   '/profile': { title: 'Profile', subtitle: 'Director Profile' },
 };
