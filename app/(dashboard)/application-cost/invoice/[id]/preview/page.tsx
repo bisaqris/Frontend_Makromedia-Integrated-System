@@ -11,14 +11,14 @@ const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
 };
 
-export default function QuotationPreviewPage() {
+export default function InvoicePreviewPage() {
   const params = useParams();
   const router = useRouter();
 
   const id = params?.id as string;
   const initialItem =
     mockApplicationCosts.find((item) => item.id === id) ||
-    mockApplicationCosts[1] ||
+    mockApplicationCosts[2] ||
     mockApplicationCosts[0];
 
   const [zoomLevel, setZoomLevel] = useState<number>(100);
@@ -43,7 +43,7 @@ export default function QuotationPreviewPage() {
 
     const opt = {
       margin: [0, 0, 0, 0] as [number, number, number, number],
-      filename: `QUO-2026.11.001-${initialItem.projectName || 'Quotation'}.pdf`,
+      filename: `INV-2026.11.001-${initialItem.projectName || 'Invoice'}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -72,7 +72,7 @@ export default function QuotationPreviewPage() {
     try {
       const html2pdf = (await import('html2pdf.js')).default;
       await html2pdf().set(opt).from(element).save();
-      showToast.success('PDF Quotation berhasil diunduh!');
+      showToast.success('PDF Invoice berhasil diunduh!');
     } catch (err) {
       console.error(err);
       window.print();
@@ -182,7 +182,7 @@ export default function QuotationPreviewPage() {
           <div className="flex items-center gap-3">
             <span className="text-slate-400 font-bold">≡</span>
             <span className="text-xs sm:text-sm font-bold text-slate-800">
-              QUO-2026.11.001 – Telkomsel / 82 Pro
+              INV-2026.11.001 – Telkomsel / 82 Pro
             </span>
           </div>
 
@@ -241,135 +241,94 @@ export default function QuotationPreviewPage() {
             style={{ transform: `scale(${zoomLevel / 100})` }}
           >
             {/* Top Header Banner Image */}
-            <div className="pdf-banner-top w-full rounded-none overflow-hidden mb-3">
+            <div className="pdf-banner-top w-full rounded-none overflow-hidden mb-5">
               <img
-                src="/images/application-cost/quotation-header-banner.png"
-                alt="Makromedia Quotation Header Banner"
+                src="/images/application-cost/invoice-header-banner.png"
+                alt="Makromedia Invoice Header Banner"
                 className="w-full h-auto block object-contain"
               />
             </div>
 
-            {/* Top Info Section Card matching design screenshot 1:1 */}
+            {/* Top Info Section Card (Bill To, Bill From, Invoice No.) */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6">
-                {/* Column 1: INFORMASI PROJECT */}
-                <div className="md:col-span-4 space-y-2">
+                {/* Column 1: Bill To */}
+                <div className="md:col-span-4 space-y-1.5">
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
-                    INFORMASI PROJECT
+                    Bill To
                   </span>
                   <h3 className="text-sm sm:text-base font-bold text-slate-800">82 PRO</h3>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Event / Project</span>
-                      <span className="font-bold text-slate-800">Telkomsel</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Venue / Kota</span>
-                      <span className="font-bold text-slate-800">Malang, Jawa Timur</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Tanggal Event</span>
-                      <span className="font-bold text-slate-800">02 / 11 / 2026</span>
-                    </div>
-                  </div>
+                  <p className="text-xs font-bold text-[#0066ff]">Mr. Bayu</p>
+                  <p className="text-xs text-slate-500 font-normal">
+                    Jalan Sulfat No 10, Malang, Jawa Timur
+                  </p>
+                  <p className="text-xs text-slate-500 font-normal">bayu@82pro.co.id</p>
                 </div>
 
-                {/* Column 2: INFORMASI KLIEN */}
-                <div className="md:col-span-4 space-y-2">
+                {/* Column 2: Bill From */}
+                <div className="md:col-span-4 space-y-1.5">
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
-                    INFORMASI KLIEN
+                    Bill From
                   </span>
                   <h3 className="text-sm sm:text-base font-bold text-slate-800">Makromedia Visual</h3>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Company Name</span>
-                      <span className="font-bold text-slate-800">Telkomsel</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Contact Person</span>
-                      <span className="font-bold text-slate-800">Malang, Jawa Timur</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400 font-medium">Email</span>
-                      <span className="font-bold text-slate-800 truncate">bayu@82pro.co.id</span>
-                    </div>
-                  </div>
+                  <p className="text-xs font-bold text-[#0066ff]">Agus Tjahjono</p>
+                  <p className="text-xs text-slate-500 font-normal">Malang, Jawa Timur</p>
+                  <p className="text-xs text-slate-500 font-normal">makromedia@gmail.com</p>
                 </div>
 
-                {/* Column 3: DOCUMENT NO & CONTRACT AMOUNT */}
+                {/* Column 3: Invoice No. & Dates (vertical stacked layout) */}
                 <div className="md:col-span-4 space-y-2 flex flex-col justify-between">
                   <div>
+                    <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block mb-0.5">
+                      Invoice No.
+                    </span>
                     <p className="text-xs sm:text-sm font-bold text-[#f97316]">
-                      001/QUO.MAKROMEDIA/11/2026
-                    </p>
-                    <p className="text-xs text-slate-500 font-normal mt-0.5">
-                      Diterbitkan: <span className="font-bold text-slate-700">02 November 2026</span>
+                      001/INV.MAKROMEDIA/11/2026
                     </p>
                   </div>
 
-                  <div className="pt-2">
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
-                      CONTRACT AMOUNT
-                    </span>
-                    <p className="text-lg sm:text-xl font-bold text-[#0066ff]">
-                      {formatRupiahWithSpace(contractVal)}
-                    </p>
+                  <div>
+                    <span className="text-xs text-slate-400 font-medium block mb-0.5">Release date</span>
+                    <p className="text-xs font-bold text-slate-800">02 November 2026</p>
+                  </div>
+
+                  <div>
+                    <span className="text-xs text-slate-400 font-medium block mb-0.5">Due date</span>
+                    <p className="text-xs font-bold text-slate-800">09 November 2026</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Table 1: RINCIAN PEKERJAAN */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2">
-              <h4 className="text-xs font-bold text-blue-600 tracking-wider uppercase">
-                RINCIAN PEKERJAAN
-              </h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[650px] text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-600 font-semibold">
-                      <th className="py-2 px-3">Item / Jenis Pekerjaan</th>
-                      <th className="py-2 px-3">Deskripsi</th>
-                      <th className="py-2 px-3 text-center">Harga Satuan</th>
-                      <th className="py-2 px-3 text-center">Jumlah</th>
-                      <th className="py-2 px-3 text-center">Freq</th>
-                      <th className="py-2 px-3 text-center">Durasi</th>
-                      <th className="py-2 px-3 text-center">Sub Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    <tr className="align-top">
-                      <td className="py-2.5 px-3 font-normal text-slate-800">Livecam</td>
-                      <td className="py-2.5 px-3 text-slate-600 space-y-1">
-                        <p className="mt-2">2 Kamera</p>
-                        <p>Editing Livecam</p>
-                        <p>Switcher</p>
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 1.000.000</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">hari</td>
-                      <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
-                        Rp 1.000.000
-                      </td>
-                    </tr>
-                    <tr className="align-top">
-                      <td className="py-2.5 px-3 font-normal text-slate-800">Foto Dokumentasi</td>
-                      <td className="py-2.5 px-3 text-slate-600"></td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 1.000.000</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">hari</td>
-                      <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
-                        Rp 1.000.000
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+            {/* Middle 3-Column Amount Info Card */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                <div>
+                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+                    Contract Amount
+                  </span>
+                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">
+                    {formatRupiahWithSpace(contractVal)}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+                    Previous Payment
+                  </span>
+                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">Rp0</p>
+                </div>
+                <div>
+                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+                    Invoice This Period
+                  </span>
+                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">
+                    {formatRupiahWithSpace(contractVal)}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Table 2: RINCIAN PEKERJAAN (FULL PRODUCTION PACKAGE) */}
+            {/* Table: RINCIAN PEKERJAAN */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2">
               <h4 className="text-xs font-bold text-blue-600 tracking-wider uppercase">
                 RINCIAN PEKERJAAN
@@ -383,7 +342,7 @@ export default function QuotationPreviewPage() {
                       <th className="py-2 px-3 text-center">Harga Satuan</th>
                       <th className="py-2 px-3 text-center">Jumlah</th>
                       <th className="py-2 px-3 text-center">Freq</th>
-                      <th className="py-2 px-3 text-center">Durasi</th>
+                      <th className="py-2 px-3 text-center">Periode</th>
                       <th className="py-2 px-3 text-center">Sub Total</th>
                     </tr>
                   </thead>
@@ -399,7 +358,7 @@ export default function QuotationPreviewPage() {
                       <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 2.000.000</td>
                       <td className="py-2.5 px-3 text-center">1</td>
                       <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">hari</td>
+                      <td className="py-2.5 px-3 text-center">1</td>
                       <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
                         Rp 2.000.000
                       </td>
@@ -411,7 +370,7 @@ export default function QuotationPreviewPage() {
 
             {/* Totals Section Card */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5">
-              <div className="space-y-1.5 border-b border-slate-200 pb-2.5 text-xs">
+              <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>Sub Total</span>
                   <span className="font-bold text-slate-800">Rp 2.000.000</span>
@@ -424,42 +383,50 @@ export default function QuotationPreviewPage() {
                   <span>PPH</span>
                   <span className="font-bold text-slate-800">Rp 0</span>
                 </div>
+
+                <div className="border-b border-slate-200 pt-1" />
+
+                <div className="flex justify-between items-center text-slate-800 font-bold pt-0.5">
+                  <span>Contract Amount</span>
+                  <span>Rp 2.000.000</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-400 font-medium">
+                  <span>Previous Payment</span>
+                  <span>- Rp 0</span>
+                </div>
               </div>
 
-              {/* Highlighted Orange Grand Total Box */}
+              {/* Highlighted Light Orange Box */}
               <div className="bg-[#fff7ed] border border-[#ffedd5] rounded-xl p-3 flex justify-between items-center">
-                <span className="text-sm font-bold text-orange-600">Grand Total</span>
-                <span className="text-base font-extrabold text-orange-600">Rp 2.000.000</span>
+                <div>
+                  <span className="text-xs sm:text-sm font-bold text-orange-600 block">
+                    Invoice Amount
+                  </span>
+                  <span className="text-[11px] text-orange-400 font-normal">For This Period</span>
+                </div>
+                <span className="text-base sm:text-lg font-bold text-orange-600">
+                  Rp 2.000.000
+                </span>
               </div>
             </div>
 
-            {/* Term of Condition & Sistem Pembayaran Card */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 text-xs">
-              <div className="space-y-1">
-                <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
-                  TERM OF CONDITION
-                </h4>
-                <ol className="list-decimal list-inside text-slate-600 space-y-0.5">
-                  <li>
-                    Penawaran ini masih bersifat <strong className="font-bold text-slate-800">customize</strong>, dapat berubah sesuai kebutuhan selama project berlangsung
-                  </li>
-                  <li>Kesepakatan nilai kontrak dapat dikomunikasikan dengan pihak Makromedia</li>
-                </ol>
-              </div>
-
-              <div className="space-y-1 pt-1">
-                <h4 className="font-bold text-slate-800 tracking-wider uppercase text-[11px]">
-                  SISTEM PEMBAYARAN
-                </h4>
-                <ol className="list-decimal list-inside text-slate-600 space-y-0.5">
-                  <li>
-                    Demi kelancaran produksi, kami mewajibkan <strong className="font-bold text-slate-800">Deposit / Down Payment (DP)</strong> sesuai kesepakatan dengan PIC Makromedia dengan due date <strong className="font-bold text-slate-800">H-1 sebelum event</strong>
-                  </li>
-                  <li>
-                    Pembayaran / pelunasan <strong className="font-bold text-slate-800">14 hari kalender</strong> sejak invoice kami kirim (invoice kami kirim setelah seluruh pekerjaan selesai kami lakukan)
-                  </li>
-                  <li>Segala hal yang berkaitan dengan term & condition tambahan dapat didiskusikan lebih lanjut dengan PIC Makromedia</li>
-                </ol>
+            {/* Term of Condition Card */}
+            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2 text-xs">
+              <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
+                TERM OF CONDITION
+              </h4>
+              <div className="text-slate-600 space-y-1.5 leading-relaxed text-[11px]">
+                <p>
+                  Invoice ini adalah <strong className="font-bold text-slate-800">Proforma Invoice</strong>{' '}
+                  atau pengajuan DP (Payment Term 1) senilai{' '}
+                  <strong className="font-bold text-slate-800">... % dari nilai kontrak</strong> sementara.
+                  Apabila terdapat perubahan nilai kontrak saat event selesai, akan dikondisikan selanjutnya.
+                </p>
+                <p>
+                  Pengajuan Term 1 senilai ... % sudah sesuai kesepakatan antara ... dengan{' '}
+                  <strong className="font-bold text-slate-800">Makromedia</strong>. Pembayaran dapat
+                  dilakukan secara transfer ke rekening yang tertera dibawah.
+                </p>
               </div>
             </div>
 
@@ -546,7 +513,7 @@ export default function QuotationPreviewPage() {
             <div className="pdf-banner-bottom w-full rounded-none overflow-hidden mt-2">
               <img
                 src="/images/application-cost/quotation-footer-banner.png"
-                alt="Makromedia Quotation Footer Banner"
+                alt="Makromedia Invoice Footer Banner"
                 className="w-full h-auto block object-contain"
               />
             </div>

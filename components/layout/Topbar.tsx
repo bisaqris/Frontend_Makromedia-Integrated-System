@@ -57,6 +57,18 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
     if (pathname.startsWith('/projects/')) {
       return { title: 'Detail Project', subtitle: 'Project details and overview' };
     }
+    if (pathname.startsWith('/application-cost/production-cost')) {
+      return { title: 'Production Cost', subtitle: 'Production Cost Document' };
+    }
+    if (pathname.startsWith('/application-cost/quotation')) {
+      return { title: 'Quotation', subtitle: 'Quotation Document' };
+    }
+    if (pathname.startsWith('/application-cost/invoice')) {
+      return { title: 'Invoice', subtitle: 'Invoice Document' };
+    }
+    if (pathname.startsWith('/application-cost/')) {
+      return { title: 'Production Cost', subtitle: 'Production Cost Document' };
+    }
     return { title: 'Dashboard', subtitle: 'Calendar Project' };
   };
 
