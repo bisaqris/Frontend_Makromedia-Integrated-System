@@ -22,7 +22,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/manpower/skills': { title: 'Data Skill', subtitle: 'Employee skills and certifications' },
   '/clients/pic': { title: 'List Data Client', subtitle: 'List of Client PICs' },
   '/clients/company': { title: 'List Client Company', subtitle: 'List of Client Companies' },
-  '/profile': { title: 'Profile', subtitle: 'User Profile Settings' },
+  '/profile': { title: 'Profile', subtitle: 'Director Profile' },
 };
 
 export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
