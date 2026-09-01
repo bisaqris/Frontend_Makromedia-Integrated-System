@@ -48,4 +48,5 @@ export interface ApplicationCostItem {
   categories?: ApplicationCostGroupCategory[];
 
   notes?: string;
+  signatureUrl?: string;
 }
