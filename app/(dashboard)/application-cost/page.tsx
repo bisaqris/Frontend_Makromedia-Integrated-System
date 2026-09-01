@@ -10,6 +10,22 @@ const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
 };
 
+const getApplicationDetailUrl = (
+  documentType: string,
+  refId: string
+): string => {
+  switch (documentType) {
+    case 'Production Cost':
+      return `/application-cost/production-cost/${refId}`;
+    case 'Quotation':
+      return `/application-cost/quotation/${refId}`;
+    case 'Invoice':
+      return `/application-cost/invoice/${refId}`;
+    default:
+      return '/application-cost';
+  }
+};
+
 export default function ApplicationCostPage() {
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -83,8 +99,8 @@ export default function ApplicationCostPage() {
                   <td className="py-6 px-6 text-center">{renderStatusBadge(item.status)}</td>
                   <td className="py-6 px-6 text-center">
                     <Link
-                      href={`/projects/${item.projectId}`}
-                      className="w-6 h-6 rounded-full border-blue-400 text-blue-500 hover:bg-blue-50 transition-colors inline-flex items-center justify-center cursor-pointer"
+                      href={getApplicationDetailUrl(item.applicationDocument, item.id)}
+                      className="w-6 h-6 rounded-full border border-blue-400 text-blue-500 hover:bg-blue-50 transition-colors inline-flex items-center justify-center cursor-pointer"
                       title="Lihat Detail Application Cost"
                     >
                       <Eye className="w-3.5 h-3.5" />
