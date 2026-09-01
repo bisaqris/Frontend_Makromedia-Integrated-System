@@ -100,7 +100,7 @@ export default function ApplicationCostPage() {
                   <td className="py-6 px-6 text-center">
                     <Link
                       href={getApplicationDetailUrl(item.applicationDocument, item.id)}
-                      className="w-6 h-6 rounded-full border border-blue-400 text-blue-500 hover:bg-blue-50 transition-colors inline-flex items-center justify-center cursor-pointer"
+                      className="w-6 h-6 rounded-full text-blue-500 hover:bg-blue-50 transition-colors inline-flex items-center justify-center cursor-pointer"
                       title="Lihat Detail Application Cost"
                     >
                       <Eye className="w-3.5 h-3.5" />
