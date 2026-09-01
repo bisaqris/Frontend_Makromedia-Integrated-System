@@ -55,12 +55,6 @@ export default function QuotationApprovalDetailPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Header Section */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quotation</h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-0.5">Quotation Document</p>
-      </div>
-
       {/* Top Information Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
