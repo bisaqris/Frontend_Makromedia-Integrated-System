@@ -45,6 +45,52 @@ export const deletePicClient = (id: string) => {
   picClientStore = picClientStore.filter((item) => item.id !== id);
 };
 
+// --- Company Client Store & Types ---
+
+export interface CompanyClientRecord {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  phone: string;
+  email: string;
+  country?: string;
+  province?: string;
+  subdistrict?: string;
+  village?: string;
+  postalCode?: string;
+}
+
+export const initialCompanyClientRecords: CompanyClientRecord[] = [
+  { id: 'cmp-1', name: 'Agus T.', address: 'Director', city: 'Malang', phone: '0821 5410 7123', email: 'agus@makromedia.id', country: 'Indonesia', province: 'East Java', subdistrict: 'Blimbing', village: 'Purwantoro', postalCode: '65126' },
+  { id: 'cmp-2', name: 'Angga D.', address: 'Marketing', city: 'Surabaya', phone: '0823 5410 8129', email: 'angga@makromedia.id', country: 'Indonesia', province: 'East Java', subdistrict: 'Gubeng', village: 'Airlangga', postalCode: '60286' },
+  { id: 'cmp-3', name: 'Fatur Rahman F.', address: 'Marketing', city: 'Jakarta', phone: '0822 9910 0987', email: 'fatur@makromedia.id', country: 'Indonesia', province: 'DKI Jakarta', subdistrict: 'Kebayoran Baru', village: 'Senayan', postalCode: '12190' },
+  { id: 'cmp-4', name: 'Sefin Meidi B. V.', address: 'Editor', city: 'Bandung', phone: '0858 9081 7226', email: 'sefin@makromedia.id', country: 'Indonesia', province: 'West Java', subdistrict: 'Coblong', village: 'Dago', postalCode: '40135' },
+  { id: 'cmp-5', name: 'Andi K.', address: 'Editor', city: 'Semarang', phone: '0888 5422 6129', email: 'andi@gmail.com', country: 'Indonesia', province: 'Central Java', subdistrict: 'Semarang Selatan', village: 'Randusari', postalCode: '50244' },
+  { id: 'cmp-6', name: 'Nur Khoiru R.', address: 'Editor', city: 'Madiun', phone: '0821 5422 7123', email: 'khoiru@gmail.com', country: 'Indonesia', province: 'East Java', subdistrict: 'Kartoharjo', village: 'Oro Oro Ombo', postalCode: '63117' },
+  { id: 'cmp-7', name: 'Fania Eka H. W.', address: 'Motion Graphic', city: 'Solo', phone: '0898 9611 7120', email: 'fania@gmail.com', country: 'Indonesia', province: 'Central Java', subdistrict: 'Banjarsari', village: 'Kadipiro', postalCode: '57136' },
+  { id: 'cmp-8', name: 'Dona K.', address: 'Motion Graphic', city: 'Yogyakarta', phone: '0858 1111 7121', email: 'dona@gmail.com', country: 'Indonesia', province: 'DI Yogyakarta', subdistrict: 'Gondomanan', village: 'Ngupasan', postalCode: '55122' },
+  { id: 'cmp-9', name: 'Budi S.', address: 'Project Manager', city: 'Sukabumi', phone: '0821 1902 7181', email: 'budi@gmail.com', country: 'Indonesia', province: 'West Java', subdistrict: 'Cikole', village: 'Selabatu', postalCode: '43114' },
+  { id: 'cmp-10', name: 'Febrian S.', address: 'Project Manager', city: 'Tegal', phone: '0823 8011 3298', email: 'febrian@gmail.com', country: 'Indonesia', province: 'Central Java', subdistrict: 'Tegal Timur', village: 'Mangkukusuman', postalCode: '52125' },
+];
+
+export let companyClientStore: CompanyClientRecord[] = [...initialCompanyClientRecords];
+
+export const getCompanyClients = () => companyClientStore;
+
+export const addCompanyClient = (newRecord: Omit<CompanyClientRecord, 'id'>) => {
+  const newCmp: CompanyClientRecord = {
+    id: `cmp-${Date.now()}`,
+    ...newRecord,
+  };
+  companyClientStore = [newCmp, ...companyClientStore];
+  return newCmp;
+};
+
+export const deleteCompanyClient = (id: string) => {
+  companyClientStore = companyClientStore.filter((item) => item.id !== id);
+};
+
 export const mockClientPICs: ClientPIC[] = [
   {
     id: 'pic-1',
