@@ -22,7 +22,8 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/manpower/skills': { title: 'Data Skill', subtitle: 'Employee skills and certifications' },
   '/clients/pic': { title: 'Data PIC Client', subtitle: 'List of All PIC Client' },
   '/clients/pic/new': { title: 'Add New PIC Client', subtitle: 'Add new PIC Client' },
-  '/clients/company': { title: 'List Client Company', subtitle: 'List of Client Companies' },
+  '/clients/company': { title: 'List Client Company', subtitle: 'List of All Client Company' },
+  '/clients/company/new': { title: 'Add New Company Client', subtitle: 'Add new Company Client' },
   '/profile': { title: 'Profile', subtitle: 'Director Profile' },
 };
 
