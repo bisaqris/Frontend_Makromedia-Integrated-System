@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Role } from '@/types/user';
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +23,20 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   const { user, role, isLoading, isAuthenticated, hasAccess } = useAuth();
   const router = useRouter();
 
+  // Redirect unauthenticated users inside useEffect to prevent setState during render
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  // Handle fallbackMode === 'redirect' inside useEffect
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && (!role || !hasAccess(allowed)) && fallbackMode === 'redirect') {
+      router.replace(redirectTo);
+    }
+  }, [isLoading, isAuthenticated, role, allowed, hasAccess, fallbackMode, redirectTo, router]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-50 w-full items-center justify-center p-6 text-slate-400">
@@ -32,15 +46,23 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     );
   }
 
-  if (!isAuthenticated || !role || !hasAccess(allowed)) {
+  // Unauthenticated users -> display spinner while useEffect performs redirect
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-50 w-full items-center justify-center p-6 text-slate-400">
+        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+        <span className="text-sm font-medium">Mengalihkan ke halaman login...</span>
+      </div>
+    );
+  }
+
+  // Authenticated users lacking access to the allowed roles
+  if (!role || !hasAccess(allowed)) {
     if (fallbackMode === 'hide') {
       return null;
     }
 
     if (fallbackMode === 'redirect') {
-      if (typeof window !== 'undefined') {
-        router.replace(redirectTo);
-      }
       return null;
     }
 

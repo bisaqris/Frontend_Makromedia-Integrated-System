@@ -46,9 +46,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   }, []);
 
   const handleLogout = () => {
+    router.replace('/login');
     logout();
     showToast.success('Anda telah keluar dari sistem.');
-    router.push('/login');
   };
 
   const getPageHeader = () => {
