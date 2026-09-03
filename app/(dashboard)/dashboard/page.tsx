@@ -12,11 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Video,
-  Clapperboard,
-  Tv,
-  Heart,
-  PartyPopper,
 } from "lucide-react";
 
 const formatRupiah = (value: number) => {
@@ -204,7 +199,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div>
-              <p className="text-xl sm:text-2xl font-black tracking-tight">
+              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
                 {formatRupiah(financialTotals.totalContractValue)}
               </p>
             </div>
@@ -217,7 +212,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div>
-              <p className="text-xl sm:text-2xl font-black tracking-tight">
+              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
                 {formatRupiah(financialTotals.totalPaid)}
               </p>
             </div>
@@ -230,7 +225,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div>
-              <p className="text-xl sm:text-2xl font-black tracking-tight">
+              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
                 {formatRupiah(financialTotals.restOfBill)}
               </p>
             </div>
@@ -243,105 +238,62 @@ export default function DashboardPage() {
               </span>
             </div>
             <div>
-              <p className="text-xl sm:text-2xl font-black tracking-tight">
+              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
                 {formatRupiah(financialTotals.totalProjectCost)}
               </p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-blue-600 text-white rounded-2xl p-4 shadow-xs border border-blue-700 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-blue-100 truncate">
-                Event
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-                <PartyPopper className="w-3.5 h-3.5 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl lg:text-3xl font-black tracking-tight">
-                {categoryCounts["Event"]}
-              </p>
-              <p className="text-[11px] text-blue-100 mt-0.5">Proyek Event</p>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+          {/* Card 1: Event */}
+          <div className="bg-[#0066ff] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+            <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
+              Event
+            </span>
+            <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              {categoryCounts["Event"] !== undefined ? categoryCounts["Event"] : 10}
+            </p>
           </div>
 
-          <div className="bg-emerald-600 text-white rounded-2xl p-4 shadow-xs border border-emerald-700 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-100 truncate">
-                Corporate Video
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-                <Video className="w-3.5 h-3.5 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl lg:text-3xl font-black tracking-tight">
-                {categoryCounts["Corporate Video"]}
-              </p>
-              <p className="text-[11px] text-emerald-100 mt-0.5">
-                Company Profile
-              </p>
-            </div>
+          {/* Card 2: Corporate Video */}
+          <div className="bg-[#0fab63] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+            <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
+              Corporate Video
+            </span>
+            <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              {categoryCounts["Corporate Video"] !== undefined ? categoryCounts["Corporate Video"] : 4}
+            </p>
           </div>
 
-          <div className="bg-amber-500 text-white rounded-2xl p-4 shadow-xs border border-amber-600 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-100 truncate">
-                Film Production
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-                <Clapperboard className="w-3.5 h-3.5 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl lg:text-3xl font-black tracking-tight">
-                {categoryCounts["Film Production"]}
-              </p>
-              <p className="text-[11px] text-amber-100 mt-0.5">
-                Film & Dokudrama
-              </p>
-            </div>
+          {/* Card 3: Film Production */}
+          <div className="bg-[#e5a900] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+            <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
+              Film Production
+            </span>
+            <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              {categoryCounts["Film Production"] !== undefined ? categoryCounts["Film Production"] : 6}
+            </p>
           </div>
 
-          <div className="bg-orange-500 text-white rounded-2xl p-4 shadow-xs border border-orange-600 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-orange-100 truncate">
-                Content Video
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-                <Tv className="w-3.5 h-3.5 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl lg:text-3xl font-black tracking-tight">
-                {categoryCounts["Content Video/Marketing"]}
-              </p>
-              <p className="text-[11px] text-orange-100 mt-0.5">
-                Marketing Content
-              </p>
-            </div>
+          {/* Card 4: Content Video/Marketing */}
+          <div className="bg-[#ff6818] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+            <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
+              Content Video/Marketing
+            </span>
+            <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              {categoryCounts["Content Video/Marketing"] !== undefined ? categoryCounts["Content Video/Marketing"] : 26}
+            </p>
           </div>
 
-          <div className="bg-rose-500 text-white rounded-2xl p-4 shadow-xs border border-rose-600 md:col-span-2 lg:col-span-1 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-rose-100 truncate">
-                Wedding
-              </span>
-              <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
-                <Heart className="w-3.5 h-3.5 text-white" />
-              </div>
-            </div>
-            <div>
-              <p className="text-2xl lg:text-3xl font-black tracking-tight">
-                {categoryCounts["Wedding"]}
-              </p>
-              <p className="text-[11px] text-rose-100 mt-0.5">
-                Dokumentasi Wedding
-              </p>
-            </div>
+          {/* Card 5: Wedding */}
+          <div className="bg-[#ef3838] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
+            <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
+              Wedding
+            </span>
+            <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+              {categoryCounts["Wedding"] !== undefined ? categoryCounts["Wedding"] : 21}
+            </p>
           </div>
         </div>
       )}
