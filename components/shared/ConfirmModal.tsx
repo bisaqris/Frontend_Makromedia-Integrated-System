@@ -43,10 +43,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         </Button>
         <Button variant="danger" onClick={onConfirm} disabled={isLoading}>
           {isLoading ? (
-            <>
+            <div className='flex'>
               <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
               <span>Memproses...</span>
-            </>
+            </div>
           ) : (
             confirmText
           )}

@@ -63,11 +63,9 @@ export default function SkillModal({
         const payload: CreateSkillDTO = {
             name: data.name,
             status: data.status,
-            category: data.status === 'ACTIVE' ? 'Active' : 'Inactive',
         };
 
         await onSubmit(payload);
-        onClose();
     };
 
     const handleReset = () => {
