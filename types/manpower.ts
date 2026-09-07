@@ -30,4 +30,3 @@ export interface Manpower {
   currentProjectName?: string;
   createdAt?: string;
 }
-
