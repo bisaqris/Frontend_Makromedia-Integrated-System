@@ -3,9 +3,19 @@ export type ManpowerStatus = 'AVAILABLE' | 'ASSIGNED' | 'ON_LEAVE' | 'INACTIVE';
 export interface Skill {
   id: string;
   name: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  usedBy?: number; 
+  category?: string;
+  createdAt?: string;
+}
+
+export interface CreateSkillDTO {
+  name: string;
+  status?: 'ACTIVE' | 'INACTIVE';
   category?: string;
 }
 
+export type UpdateSkillDTO = Partial<CreateSkillDTO>;
 export interface Manpower {
   id: string;
   name: string;
@@ -20,3 +30,4 @@ export interface Manpower {
   currentProjectName?: string;
   createdAt?: string;
 }
+
