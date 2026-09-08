@@ -228,7 +228,7 @@ export default function SkillsPage() {
                     <tbody className="divide-y divide-zinc-200">
                       {paginatedSkills.map((skill) => (
                         <tr key={skill.id} className="hover:bg-zinc-50/50 transition-colors">
-                          <td className="px-4 py-3.5 font-medium text-zinc-900 text-center">
+                          <td className="px-4 py-3.5 font-medium text-zinc-900 text-left">
                             {skill.name}
                           </td>
                           <td className="px-4 py-3.5 text-center">
