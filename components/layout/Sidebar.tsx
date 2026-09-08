@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useSidebar } from '@/context/SidebarContext'; // 1. Import useSidebar
 import { Role } from '@/types/user';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -36,13 +37,21 @@ export interface SidebarProps {
   onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: propOnClose }) => {
   const pathname = usePathname();
   const { role } = useAuth();
 
+  // 2. Ambil state dan handler dari SidebarContext
+  const { isOpen: contextIsOpen, closeSidebar: contextCloseSidebar } = useSidebar();
+
+  // Gabungkan prop dan context (Context diutamakan)
+  const isSidebarOpen = propIsOpen !== undefined ? propIsOpen : contextIsOpen;
+  const handleClose = propOnClose || contextCloseSidebar;
+
+  // Tutup sidebar otomatis saat berpindah halaman di mobile
   useEffect(() => {
-    onClose?.();
-  }, [pathname, onClose]);
+    handleClose();
+  }, [pathname]);
 
   const getRoleMenuStructure = (userRole: Role | null): { standaloneItems: MenuItem[]; sections: MenuSection[] } => {
     const standaloneItems: MenuItem[] = [
@@ -134,19 +143,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
 
   return (
     <>
-      {isOpen && (
+      {/* Backdrop Gelap untuk Mobile saat Sidebar Terbuka */}
+      {isSidebarOpen && (
         <div
-          onClick={onClose}
+          onClick={handleClose}
           className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 lg:hidden transition-opacity duration-300"
           aria-hidden="true"
         />
       )}
 
+      {/* Container Sidebar */}
       <aside
         className={twMerge(
           clsx(
-            'fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-slate-200/80 flex flex-col z-50 select-none transition-transform duration-300 ease-in-out',
-            isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+            // Styling dasar & animasi mobile (fixed)
+            'fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-slate-200/80 flex flex-col z-50 select-none transition-transform duration-300 ease-in-out shrink-0',
+            // Styling khusus desktop lg: ke atas (static/sticky supaya tidak menimpa konten)
+            'lg:static lg:translate-x-0 lg:z-auto',
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           )
         )}
       >
@@ -162,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden focus:outline-hidden"
           >
             <X className="w-5 h-5" />

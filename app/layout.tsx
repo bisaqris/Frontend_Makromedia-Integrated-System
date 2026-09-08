@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
+import { SidebarProvider } from '@/context/SidebarContext';
 import { ToastProvider } from '@/components/ui/Toast';
-import localFont from 'next/font/local'
+import localFont from 'next/font/local';
 
-const overused = localFont({ 
+const overused = localFont({
   src: '../public/fonts/OverusedGrotesk-VF.woff2',
   display: 'swap',
   variable: '--font-overused',
@@ -24,8 +25,10 @@ export default function RootLayout({
     <html lang="id" className={`${overused.variable} font-sans h-full antialiased`}>
       <body className="min-h-full bg-white text-slate-900">
         <AuthProvider>
-          <ToastProvider />
-          {children}
+          <SidebarProvider>
+            <ToastProvider />
+            {children}
+          </SidebarProvider>
         </AuthProvider>
       </body>
     </html>
