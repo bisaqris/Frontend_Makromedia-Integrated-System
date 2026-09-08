@@ -12,9 +12,19 @@ export interface Skill {
 export interface CreateSkillDTO {
   name: string;
   status?: 'ACTIVE' | 'INACTIVE';
+  status?: 'ACTIVE' | 'INACTIVE';
+  usedBy?: number; 
+  category?: string;
+  createdAt?: string;
+}
+
+export interface CreateSkillDTO {
+  name: string;
+  status?: 'ACTIVE' | 'INACTIVE';
   category?: string;
 }
 
+export type UpdateSkillDTO = Partial<CreateSkillDTO>;
 export type UpdateSkillDTO = Partial<CreateSkillDTO>;
 export interface Manpower {
   id: string;
