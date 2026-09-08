@@ -169,7 +169,7 @@ export default function SkillsPage() {
           
           {/* Search Bar + Separated Filter Status */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
-            <div className="flex items-center gap-3 flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 shadow-sm">
+            <div className="flex items-center gap-3 flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5">
               <Search className="h-4 w-4 text-zinc-400 shrink-0" />
               <input
                 type="text"
@@ -180,7 +180,7 @@ export default function SkillsPage() {
               />
             </div>
 
-            <div className="relative flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm shrink-0">
+            <div className="relative flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 shrink-0">
               <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
@@ -195,7 +195,7 @@ export default function SkillsPage() {
           </div>
 
           {/* Table Container */}
-          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
             {loading ? (
               <div className="flex h-64 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -277,7 +277,7 @@ export default function SkillsPage() {
                   {paginatedSkills.map((skill) => (
                     <div
                       key={skill.id}
-                      className="p-3.5 rounded-xl bg-white space-y-3 border border-zinc-100 shadow-sm my-2"
+                      className="p-3.5 rounded-xl bg-white space-y-3 border border-zinc-100 my-2"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-sm text-zinc-900">
@@ -365,13 +365,13 @@ export default function SkillsPage() {
 
         {/* KOLOM KANAN - Form Inline */}
         <div className="lg:col-span-5 xl:col-span-5 space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-3 shadow-sm flex items-center justify-between">
+          <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-3 flex items-center justify-between">
             <h2 className="text-sm font-bold text-blue-600">
               {editingSkill ? 'Edit Skill' : 'Add Skill'}
             </h2>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-5">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-5">
             <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
@@ -469,7 +469,7 @@ export default function SkillsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-7 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                   Save
