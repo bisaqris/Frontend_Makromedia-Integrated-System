@@ -159,6 +159,8 @@ export default function SkillsPage() {
     }
   };
 
+  
+
   return (
     <div className="space-y-6">
       {/* Split Screen Grid Layout (Responsive) */}
