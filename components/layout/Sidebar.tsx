@@ -13,6 +13,7 @@ import {
   Contact2,
   Building2,
   X,
+  SquareUserRound
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext'; // 1. Import useSidebar
@@ -86,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: p
             items: [
               { title: 'List Data Employee', href: '/manpower', icon: <Users className="w-4 h-4" /> },
               { title: 'Data Skill', href: '/manpower/skills', icon: <Award className="w-4 h-4" /> },
+              { title: 'Data Position', href: '/manpower/positions', icon: <SquareUserRound className="w-4 h-4" /> },
             ],
           },
           {
