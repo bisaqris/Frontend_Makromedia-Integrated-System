@@ -151,10 +151,8 @@ export default function ListProjectPage() {
 
   return (
     <div className="space-y-6">
-      {/* Filter & Search Bar Outer Card */}
       <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Search Box */}
           <div className="relative w-full md:w-80">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
@@ -169,9 +167,7 @@ export default function ListProjectPage() {
             />
           </div>
 
-          {/* Select Filters & Add Project Button */}
           <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
-            {/* Category Filter (All roles) */}
             <div className="w-full sm:w-44">
               <Select
                 value={selectedCategory}
@@ -184,7 +180,6 @@ export default function ListProjectPage() {
               />
             </div>
 
-            {/* PM Filter (ONLY for DIREKTUR, SALES, FINANCE) */}
             {isFinancialRole && (
               <div className="w-full sm:w-52">
                 <Select
@@ -199,7 +194,6 @@ export default function ListProjectPage() {
               </div>
             )}
 
-            {/* Add Project Button (ONLY for DIREKTUR, SALES, FINANCE) */}
             {isFinancialRole && (
               <Link href="/projects/new" className="shrink-0">
                 <Button variant="primary" size="md" leftIcon={<Plus className="w-4 h-4" />}>
@@ -210,7 +204,6 @@ export default function ListProjectPage() {
           </div>
         </div>
 
-        {/* DataTable */}
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-slate-400">
             <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
@@ -222,82 +215,135 @@ export default function ListProjectPage() {
             message="Coba ubah kata kunci pencarian atau filter yang digunakan."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs font-semibold text-slate-800 text-center bg-white whitespace-nowrap">
-                  <th className="py-3.5 px-4">Project Name</th>
-                  <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4">Project Manager</th>
-                  <th className="py-3.5 px-4">Contract Value</th>
-                  <th className="py-3.5 px-4">Event Date</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {projects.map((proj) => (
-                  <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-4 px-4 text-slate-800">
-                      {proj.name}
-                    </td>
-                    <td className="py-4 px-4 text-center">
+          <>
+            {/* 1. TAMPILAN DESKTOP (TABLE) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-xs font-semibold text-slate-800 text-center bg-white whitespace-nowrap">
+                    <th className="py-3.5 px-4">Project Name</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Project Manager</th>
+                    <th className="py-3.5 px-4">Contract Value</th>
+                    <th className="py-3.5 px-4">Event Date</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                  {projects.map((proj) => (
+                    <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-4 px-4 text-slate-800">
+                        {proj.name}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <Badge variant={getCategoryBadgeVariant(proj.category)} size="sm">
+                          {proj.category || 'Event'}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-600">
+                        {proj.projectManagerName || '-'}
+                      </td>
+                      <td className="py-4 px-4 text-right text-slate-800">
+                        {formatRupiah(proj.budget || 0)}
+                      </td>
+                      <td className="py-4 px-4 text-slate-600 font-medium whitespace-nowrap">
+                        {formatEventDate(proj.startDate, proj.endDate)}
+                      </td>
+                      <td className="py-4 px-4 text-center">{getStatusBadge(proj.status)}</td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Link
+                            href={`/projects/${proj.id}`}
+                            className="p-1 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="View Detail"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                          {isFinancialRole && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => router.push(`/projects/${proj.id}`)}
+                                className="p-1 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+                                title="Edit Project"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteId(proj.id)}
+                                className="p-1 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Delete Project"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 2. TAMPILAN MOBILE (CARD VIEW) */}
+            <div className="block md:hidden divide-y divide-slate-100 -mx-2 px-2">
+              {projects.map((proj) => (
+                <div key={proj.id} className="p-4 rounded-xl bg-white space-y-3 border border-slate-100 my-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-semibold text-sm text-slate-900 leading-snug">{proj.name}</span>
+                    <div className="shrink-0">{getStatusBadge(proj.status)}</div>
+                  </div>
+                  <div className="flex flex-col gap-1 text-xs text-slate-500">
+                    <div className="flex justify-between items-center py-1">
+                      <span>Category:</span>
                       <Badge variant={getCategoryBadgeVariant(proj.category)} size="sm">
                         {proj.category || 'Event'}
                       </Badge>
-                    </td>
-                    <td className="py-4 px-4 font-medium text-slate-600">
-                      {proj.projectManagerName || '-'}
-                    </td>
-                    <td className="py-4 px-4 text-right text-slate-800">
-                      {formatRupiah(proj.budget || 0)}
-                    </td>
-                    <td className="py-4 px-4 text-slate-600 font-medium whitespace-nowrap">
-                      {formatEventDate(proj.startDate, proj.endDate)}
-                    </td>
-                    <td className="py-4 px-4 text-center">{getStatusBadge(proj.status)}</td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {/* Eye icon (Blue colored) */}
-                        <Link
-                          href={`/projects/${proj.id}`}
-                          className="p-1 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          title="View Detail"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-
-                        {/* Pencil (Amber) & Trash2 (Rose) icons (ONLY for DIREKTUR, SALES, FINANCE) */}
-                        {isFinancialRole && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/projects/${proj.id}`)}
-                              className="p-1 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
-                              title="Edit Project"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteId(proj.id)}
-                              className="p-1 rounded-lg text-rose-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Delete Project"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                    <div>PM: <span className="font-medium text-slate-700">{proj.projectManagerName || '-'}</span></div>
+                    <div>Date: <span className="text-slate-700">{formatEventDate(proj.startDate, proj.endDate)}</span></div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-50">
+                    <span>Value: <strong className="text-slate-800 text-[13px] ml-1">{formatRupiah(proj.budget || 0)}</strong></span>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/projects/${proj.id}`}
+                        className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors"
+                        title="View Detail"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                      {isFinancialRole && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/projects/${proj.id}`)}
+                            className="p-1.5 rounded-lg text-amber-500 bg-amber-50 hover:bg-amber-100 transition-colors"
+                            title="Edit Project"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteId(proj.id)}
+                            className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
+                            title="Delete Project"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
-        {/* Pagination Controls matching 02__Project_List.png */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
           <div>
             Showing <span className="font-semibold text-slate-700">{projects.length > 0 ? (page - 1) * limit + 1 : 0}</span> to{' '}
@@ -305,9 +351,9 @@ export default function ListProjectPage() {
             <span className="font-semibold text-slate-700">{total}</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <div className="flex items-center gap-2">
-              <span>Show</span>
+              <span className="hidden sm:inline">Show</span>
               <select
                 value={limit}
                 onChange={(e) => {
@@ -323,7 +369,7 @@ export default function ListProjectPage() {
               <span>data per page</span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
               <button
                 type="button"
                 disabled={page <= 1}
@@ -347,7 +393,6 @@ export default function ListProjectPage() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}

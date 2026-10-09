@@ -171,61 +171,97 @@ export default function HistoryProjectPage() {
             message="Belum ada proyek berstatus DONE yang sesuai dengan pencarian ini."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 bg-white">
-                  <th className="py-3.5 px-4">Project Name</th>
-                  <th className="py-3.5 px-4 text-center">Category</th>
-                  <th className="py-3.5 px-4">Project Manager</th>
-                  <th className="py-3.5 px-4 text-right">Contract Value</th>
-                  <th className="py-3.5 px-4 text-center">Status</th>
-                  <th className="py-3.5 px-4">Event Date</th>
-                  <th className="py-3.5 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                {projects.map((proj) => (
-                  <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-4 px-4 text-slate-800">
-                      {proj.name}
-                    </td>
-                    <td className="py-4 px-4 text-center">
+          <>
+            {/* 1. TAMPILAN DESKTOP (TABLE) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 bg-white">
+                    <th className="py-3.5 px-4">Project Name</th>
+                    <th className="py-3.5 px-4 text-center">Category</th>
+                    <th className="py-3.5 px-4">Project Manager</th>
+                    <th className="py-3.5 px-4 text-right">Contract Value</th>
+                    <th className="py-3.5 px-4 text-center">Status</th>
+                    <th className="py-3.5 px-4">Event Date</th>
+                    <th className="py-3.5 px-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                  {projects.map((proj) => (
+                    <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-4 px-4 text-slate-800">
+                        {proj.name}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <Badge variant={getCategoryBadgeVariant(proj.category)} size="sm">
+                          {proj.category || 'Event'}
+                        </Badge>
+                      </td>
+                      <td className="py-4 px-4 font-medium text-slate-600">
+                        {proj.projectManagerName || '-'}
+                      </td>
+                      <td className="py-4 px-4 text-right text-slate-800">
+                        {formatRupiah(proj.budget || 0)}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <Badge variant="success" size="sm">DONE</Badge>
+                      </td>
+                      <td className="py-4 px-4 text-slate-600 font-medium whitespace-nowrap">
+                        {formatEventDate(proj.startDate, proj.endDate)}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex items-center justify-center">
+                          <Link
+                            href={`/projects/${proj.id}`}
+                            className="p-1 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="View Detail (Read-Only)"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 2. TAMPILAN MOBILE (CARD VIEW) */}
+            <div className="block md:hidden divide-y divide-slate-100 -mx-2 px-2">
+              {projects.map((proj) => (
+                <div key={proj.id} className="p-4 rounded-xl bg-white space-y-3 border border-slate-100 my-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="font-semibold text-sm text-slate-900 leading-snug">{proj.name}</span>
+                    <div className="shrink-0">
+                      <Badge variant="success" size="sm">DONE</Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 text-xs text-slate-500">
+                    <div className="flex justify-between items-center py-1">
+                      <span>Category:</span>
                       <Badge variant={getCategoryBadgeVariant(proj.category)} size="sm">
                         {proj.category || 'Event'}
                       </Badge>
-                    </td>
-                    <td className="py-4 px-4 font-medium text-slate-600">
-                      {proj.projectManagerName || '-'}
-                    </td>
-                    <td className="py-4 px-4 text-right text-slate-800">
-                      {formatRupiah(proj.budget || 0)}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <Badge variant="success" size="sm">DONE</Badge>
-                    </td>
-                    <td className="py-4 px-4 text-slate-600 font-medium whitespace-nowrap">
-                      {formatEventDate(proj.startDate, proj.endDate)}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex items-center justify-center">
-                        <Link
-                          href={`/projects/${proj.id}`}
-                          className="p-1 rounded-lg text-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          title="View Detail (Read-Only)"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                    <div>PM: <span className="font-medium text-slate-700">{proj.projectManagerName || '-'}</span></div>
+                    <div>Date: <span className="text-slate-700">{formatEventDate(proj.startDate, proj.endDate)}</span></div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-50">
+                    <span>Value: <strong className="text-slate-800 text-[13px] ml-1">{formatRupiah(proj.budget || 0)}</strong></span>
+                    <Link
+                      href={`/projects/${proj.id}`}
+                      className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors"
+                      title="View Detail (Read-Only)"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
-        {/* Pagination Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs text-slate-500">
           <div>
             Showing <span className="font-semibold text-slate-700">{projects.length > 0 ? (page - 1) * limit + 1 : 0}</span> to{' '}
@@ -233,9 +269,9 @@ export default function HistoryProjectPage() {
             <span className="font-semibold text-slate-700">{total}</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <div className="flex items-center gap-2">
-              <span>Show</span>
+              <span className="hidden sm:inline">Show</span>
               <select
                 value={limit}
                 onChange={(e) => {
@@ -251,7 +287,7 @@ export default function HistoryProjectPage() {
               <span>data per page</span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
               <button
                 type="button"
                 disabled={page <= 1}

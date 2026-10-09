@@ -14,7 +14,6 @@ export default function ListClientCompanyPage() {
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Filtered data based on search query and city dropdown
   const filteredData = data.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,9 +50,7 @@ export default function ListClientCompanyPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Top Controls Bar (Search Input on Left, City Filter & Add Button on Right) */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Left: Search Input Box */}
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -68,7 +65,6 @@ export default function ListClientCompanyPage() {
           />
         </div>
 
-        {/* Right: City Select Filter & + Add Company Client Button */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <div className="relative">
             <select
@@ -108,9 +104,10 @@ export default function ListClientCompanyPage() {
         </div>
       </div>
 
-      {/* Main Table Card Container */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
-        <div className="overflow-x-auto">
+        
+        {/* 1. TAMPILAN DESKTOP (TABLE) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[750px] text-xs sm:text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-slate-500 font-semibold">
@@ -144,7 +141,6 @@ export default function ListClientCompanyPage() {
                     <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.email}</td>
                     <td className="py-5 px-6 text-center">
                       <div className="flex items-center justify-center gap-3">
-                        {/* Eye Icon (Blue) */}
                         <button
                           type="button"
                           onClick={() => showToast.info(`Detail Company: ${item.name} (${item.city})`)}
@@ -153,8 +149,6 @@ export default function ListClientCompanyPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-
-                        {/* Edit Icon (Yellow/Orange) */}
                         <button
                           type="button"
                           onClick={() => showToast.info(`Edit Company Client: ${item.name}`)}
@@ -163,8 +157,6 @@ export default function ListClientCompanyPage() {
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
-
-                        {/* Trash Icon (Red) */}
                         <button
                           type="button"
                           onClick={() => handleDelete(item.id, item.name)}
@@ -182,7 +174,59 @@ export default function ListClientCompanyPage() {
           </table>
         </div>
 
-        {/* Table Footer Pagination */}
+        {/* 2. TAMPILAN MOBILE (CARD VIEW) */}
+        <div className="block md:hidden divide-y divide-slate-100 -mx-2 px-2">
+          {displayedItems.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-sm">
+              Tidak ada data Client Company yang ditemukan.
+            </div>
+          ) : (
+            displayedItems.map((item) => (
+              <div key={item.id} className="p-4 rounded-xl bg-white space-y-3 border border-slate-100 my-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="font-semibold text-sm text-slate-900 leading-snug">{item.name}</span>
+                  <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                    {item.city}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1 text-xs text-slate-500">
+                  <span className="text-slate-700">{item.address}</span>
+                  <span>{item.email}</span>
+                  <span>{item.phone}</span>
+                </div>
+                <div className="flex items-center justify-end text-xs text-slate-500 pt-3 border-t border-slate-50">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => showToast.info(`Detail Company: ${item.name} (${item.city})`)}
+                      className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors"
+                      title="Lihat Detail Company Client"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => showToast.info(`Edit Company Client: ${item.name}`)}
+                      className="p-1.5 rounded-lg text-amber-500 bg-amber-50 hover:bg-amber-100 transition-colors"
+                      title="Edit Company Client"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id, item.name)}
+                      className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
+                      title="Hapus Company Client"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100 text-xs sm:text-sm text-slate-500 font-normal select-none">
           <div>
             <span>
@@ -191,9 +235,9 @@ export default function ListClientCompanyPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">Show</span>
+              <span className="text-slate-500 hidden sm:inline">Show</span>
               <div className="relative inline-block">
                 <select
                   value={dataPerPage}
@@ -209,8 +253,7 @@ export default function ListClientCompanyPage() {
               <span className="text-slate-500">data per page</span>
             </div>
 
-            {/* Pagination Navigation Arrows */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
               <button
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}

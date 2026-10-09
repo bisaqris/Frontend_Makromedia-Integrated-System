@@ -59,9 +59,7 @@ export default function ApplicationCostDetailPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Top Section: Info Project & 3 Metric Highlight Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Card: Info Project */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xs">
           <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-xs sm:text-sm">
             <div>
