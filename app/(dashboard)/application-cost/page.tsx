@@ -48,21 +48,21 @@ export default function ApplicationCostPage() {
   const renderStatusBadge = (status: ApplicationCostStatus) => {
     if (status === 'Revise') {
       return (
-        <span className="inline-block px-3.5 py-0.5 rounded-full text-xs font-medium bg-orange-50/80 text-orange-500 border border-orange-100/60">
+        <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-orange-50/80 text-orange-500 border border-orange-100/60">
           Revise
         </span>
       );
     }
     if (status === 'Pending') {
       return (
-        <span className="inline-block px-3.5 py-0.5 rounded-full text-xs font-medium bg-amber-50/80 text-amber-600 border border-amber-100/60">
+        <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-50/80 text-amber-600 border border-amber-100/60">
           Pending
         </span>
       );
     }
     // Approved
     return (
-      <span className="inline-block px-3.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50/80 text-emerald-600 border border-emerald-100/60">
+      <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-50/80 text-emerald-600 border border-emerald-100/60">
         Approved
       </span>
     );
@@ -70,9 +70,10 @@ export default function ApplicationCostPage() {
 
   return (
     <div className="pb-12">
-      {/* Main Table Card matching design 1:1 without header title */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-8 shadow-2xs space-y-6">
+        
+        {/* 1. TAMPILAN DESKTOP (TABLE) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[750px]">
             <thead>
               <tr className="border-b border-slate-100 text-xs sm:text-sm font-bold text-slate-700">
@@ -100,16 +101,51 @@ export default function ApplicationCostPage() {
                   <td className="py-6 px-6 text-center">
                     <Link
                       href={getApplicationDetailUrl(item.applicationDocument, item.id)}
-                      className="w-6 h-6 rounded-full text-blue-500 hover:bg-blue-50 transition-colors inline-flex items-center justify-center cursor-pointer"
+                      className="w-8 h-8 rounded-full text-blue-500 hover:bg-blue-50 transition-colors inline-flex items-center justify-center cursor-pointer"
                       title="Lihat Detail Application Cost"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-4 h-4" />
                     </Link>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 2. TAMPILAN MOBILE (CARD VIEW) */}
+        <div className="block md:hidden divide-y divide-slate-100 -mx-2 px-2">
+          {displayedItems.map((item) => (
+            <div
+              key={item.id}
+              className="p-4 rounded-xl bg-white space-y-3 border border-slate-100 my-3 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="font-semibold text-sm text-slate-900 leading-snug">
+                  {item.projectName}
+                </span>
+                <div className="shrink-0">{renderStatusBadge(item.status)}</div>
+              </div>
+
+              <div className="flex flex-col gap-1 text-xs text-slate-500">
+                <span className="font-medium text-slate-700">{item.applicationDocument}</span>
+                <span>Date: {item.applicationDate}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-50">
+                <span>Total: <strong className="text-slate-800 text-[13px] ml-1">{formatRupiahWithSpace(item.totalCost)}</strong></span>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={getApplicationDetailUrl(item.applicationDocument, item.id)}
+                    className="rounded-lg p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors inline-flex items-center justify-center"
+                    title="View Detail"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Table Footer Pagination matching design 1:1 */}
@@ -120,14 +156,14 @@ export default function ApplicationCostPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">Show</span>
+              <span className="text-slate-500 hidden sm:inline">Show</span>
               <div className="relative inline-block">
                 <select
                   value={dataPerPage}
                   onChange={(e) => handleDataPerPageChange(Number(e.target.value))}
-                  className="appearance-none bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-8 text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:border-primary"
+                  className="appearance-none bg-white border border-slate-200 rounded-xl px-3 py-1.5 pr-8 text-xs font-bold text-slate-800 cursor-pointer focus:outline-none focus:border-blue-500"
                 >
                   <option value={10}>10</option>
                   <option value={25}>25</option>
@@ -138,13 +174,12 @@ export default function ApplicationCostPage() {
               <span className="text-slate-500">data per page</span>
             </div>
 
-            {/* Pagination Navigation Arrows */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-end sm:self-auto mt-2 sm:mt-0">
               <button
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                 disabled={validCurrentPage === 1}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 title="Halaman Sebelumnya"
               >
                 <ArrowLeft className="w-4 h-4 text-slate-800" />
@@ -153,7 +188,7 @@ export default function ApplicationCostPage() {
                 type="button"
                 onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                 disabled={validCurrentPage >= totalPages}
-                className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 title="Halaman Selanjutnya"
               >
                 <ArrowRight className="w-4 h-4 text-slate-800" />
@@ -161,6 +196,7 @@ export default function ApplicationCostPage() {
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
