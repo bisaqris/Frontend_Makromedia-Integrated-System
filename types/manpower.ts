@@ -21,7 +21,24 @@ export interface CreateSkillDTO {
   category?: string;
 }
 
+export interface Position {
+  id: string;
+  name: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  usedBy?: number; 
+  category?: string;
+  createdAt?: string;
+}
+
+export interface CreatePositionDTO {
+  name: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  category?: string;
+}
+
+export type UpdatePositionDTO = Partial<CreatePositionDTO>;
 export type UpdateSkillDTO = Partial<CreateSkillDTO>;
+
 export interface Manpower {
   id: string;
   name: string;

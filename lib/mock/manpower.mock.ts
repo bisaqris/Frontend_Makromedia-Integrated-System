@@ -1,4 +1,4 @@
-import { Manpower, Skill } from '@/types/manpower';
+import { Manpower, Skill, Position } from '@/types/manpower';
 
 export const mockSkills: Skill[] = [
   { id: 'skl-1', name: 'Director of Photography (DoP)', category: 'Camera' },
@@ -8,6 +8,13 @@ export const mockSkills: Skill[] = [
   { id: 'skl-5', name: 'Audio Recordist / Sound Engineer', category: 'Audio' },
   { id: 'skl-6', name: 'Drone Pilot (Certified)', category: 'Special Equipment' },
 ];
+
+export const mockPositions: Position[] = [
+  { id: 'pos-1', name: 'Director', category: 'Board of Director' },
+  { id: 'pos-2', name: 'Finance', category: 'Finance' },
+  { id: 'pos-3', name: 'Sales', category: 'Sales' },
+  { id: 'pos-4', name: 'Production', category: 'Production' },
+]
 
 export const mockManpower: Manpower[] = [
   {
