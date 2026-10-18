@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { skillService } from '@/lib/services/skillService';
 import { Skill, CreateSkillDTO } from '@/types/manpower';
+import { getApiErrorMessage } from '@/lib/utils';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 import { toast } from 'react-hot-toast';
 import {
@@ -64,16 +65,27 @@ export default function SkillsPage() {
     try {
       setLoading(true);
       const data = await skillService.getAll();
-      setSkills(data || []);
+      const list = data || [];
+      setSkills(list);
+      // Synchronize dengan LocalStorage untuk form Add/Edit Manpower
+      if (list.length > 0) {
+        localStorage.setItem('skills_list', JSON.stringify(list));
+      }
     } catch {
-      setSkills([]);
-    } finally {
+      // Fallback ke LocalStorage jika API belum aktif
+      const stored = JSON.parse(localStorage.getItem('skills_list') || '[]');
+      setSkills(stored);
+    } 
+    finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSkills();
+    const timeoutId = window.setTimeout(() => {
+      void fetchSkills();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -107,10 +119,6 @@ export default function SkillsPage() {
     return filteredSkills.slice(start, start + pageSize);
   }, [filteredSkills, currentPage, pageSize]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedStatus, pageSize]);
-
   const handleReset = () => {
     setEditingSkill(null);
     reset({
@@ -129,14 +137,26 @@ export default function SkillsPage() {
       if (editingSkill) {
         await skillService.update(editingSkill.id, formData as CreateSkillDTO);
         toast.success('Skill berhasil diperbarui');
+
+        // Local Storage Update
+        const updated = skills.map((s) =>
+          s.id === editingSkill.id ? { ...s, ...formData } : s
+        );
+        setSkills(updated);
+        localStorage.setItem('skills_list', JSON.stringify(updated));
       } else {
-        await skillService.create(formData as CreateSkillDTO);
+        const newSkill = await skillService.create(formData as CreateSkillDTO);
         toast.success('Skill baru berhasil ditambahkan');
+
+        // Local Storage Add
+        const updated = [newSkill, ...skills];
+        setSkills(updated);
+        localStorage.setItem('skills_list', JSON.stringify(updated));
       }
       handleReset();
       fetchSkills();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Terjadi kesalahan');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Terjadi kesalahan'));
     } finally {
       setSubmitting(false);
     }
@@ -147,12 +167,18 @@ export default function SkillsPage() {
     try {
       await skillService.delete(deletingSkill.id);
       toast.success('Skill berhasil dihapus');
+
+      // Local Storage Delete
+      const updated = skills.filter((s) => s.id !== deletingSkill.id);
+      setSkills(updated);
+      localStorage.setItem('skills_list', JSON.stringify(updated));
+
       if (editingSkill?.id === deletingSkill.id) {
         handleReset();
       }
       fetchSkills();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus skill');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus skill'));
     } finally {
       setIsDeleteOpen(false);
       setDeletingSkill(null);
@@ -161,13 +187,9 @@ export default function SkillsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Split Screen Grid Layout (Responsive) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
         {/* KOLOM KIRI - Table & Mobile Cards */}
         <div className="lg:col-span-7 xl:col-span-7 space-y-4">
-          
-          {/* Search Bar + Separated Filter Status */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5">
               <Search className="h-4 w-4 text-zinc-400 shrink-0" />
@@ -175,7 +197,10 @@ export default function SkillsPage() {
                 type="text"
                 placeholder="Search skill..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full bg-transparent text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
               />
             </div>
@@ -183,7 +208,10 @@ export default function SkillsPage() {
             <div className="relative flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 shrink-0">
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="appearance-none bg-transparent pr-5 text-xs font-semibold text-zinc-700 focus:outline-none cursor-pointer text-center"
               >
                 <option value="ALL">All Status</option>
@@ -194,7 +222,6 @@ export default function SkillsPage() {
             </div>
           </div>
 
-          {/* Table Container */}
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
             {loading ? (
               <div className="flex h-64 items-center justify-center">
@@ -214,7 +241,6 @@ export default function SkillsPage() {
               </div>
             ) : (
               <>
-                {/* 1. TAMPILAN TABLE (Hanya muncul di Layar Desktop md ke atas) */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-center text-sm border-collapse">
                     <thead className="border-b border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-500">
@@ -272,7 +298,6 @@ export default function SkillsPage() {
                   </table>
                 </div>
 
-                {/* 2. TAMPILAN CARD VIEW (Khusus Layar Mobile di bawah md) */}
                 <div className="block md:hidden divide-y divide-zinc-100 p-2">
                   {paginatedSkills.map((skill) => (
                     <div
@@ -318,7 +343,6 @@ export default function SkillsPage() {
                   ))}
                 </div>
 
-                {/* Footer Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 bg-white text-xs">
                   <div className="text-zinc-500 font-medium">
                     Showing {paginatedSkills.length} data out of {totalData}
@@ -328,7 +352,10 @@ export default function SkillsPage() {
                     <div className="flex items-center gap-1.5 text-zinc-500">
                       <select
                         value={pageSize}
-                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
                         className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 focus:outline-none"
                       >
                         {[5, 10, 20, 50].map((size) => (
@@ -478,7 +505,6 @@ export default function SkillsPage() {
             </form>
           </div>
         </div>
-
       </div>
 
       <ConfirmModal

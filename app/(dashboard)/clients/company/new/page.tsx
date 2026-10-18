@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { addCompanyClient } from '@/lib/mock/clients.mock';
+import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 export default function AddNewCompanyClientPage() {
   const router = useRouter();
@@ -33,6 +34,17 @@ export default function AddNewCompanyClientPage() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const handleRegionChange = (values: Partial<typeof formData>) => {
+    setFormData((prev) => ({ ...prev, ...values }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(values) as (keyof typeof formData)[]) {
+        if (next[key]) next[key] = '';
+      }
+      return next;
+    });
   };
 
   const validate = (): boolean => {
@@ -215,143 +227,13 @@ export default function AddNewCompanyClientPage() {
             {errors.country && <p className="text-xs text-red-500 font-medium mt-1">{errors.country}</p>}
           </div>
 
-          <div className="md:col-span-6">
-            <label
-              htmlFor="province"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Province <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="province"
-                name="province"
-                value={formData.province}
-                onChange={handleInputChange}
-                className={`w-full appearance-none bg-white border ${
-                  errors.province ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                } rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm ${
-                  formData.province ? 'text-slate-800' : 'text-slate-400'
-                } focus:outline-none transition-colors cursor-pointer`}
-              >
-                <option value="" disabled hidden>
-                  Province
-                </option>
-                <option value="East Java">East Java</option>
-                <option value="DKI Jakarta">DKI Jakarta</option>
-                <option value="West Java">West Java</option>
-                <option value="Central Java">Central Java</option>
-                <option value="DI Yogyakarta">DI Yogyakarta</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            {errors.province && <p className="text-xs text-red-500 font-medium mt-1">{errors.province}</p>}
-          </div>
-
-          {/* Row 4: City & Subdistrict (Select Dropdowns) */}
-          <div className="md:col-span-6">
-            <label
-              htmlFor="city"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              City <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                className={`w-full appearance-none bg-white border ${
-                  errors.city ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                } rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm ${
-                  formData.city ? 'text-slate-800' : 'text-slate-400'
-                } focus:outline-none transition-colors cursor-pointer`}
-              >
-                <option value="" disabled hidden>
-                  City
-                </option>
-                <option value="Malang">Malang</option>
-                <option value="Surabaya">Surabaya</option>
-                <option value="Jakarta">Jakarta</option>
-                <option value="Bandung">Bandung</option>
-                <option value="Semarang">Semarang</option>
-                <option value="Solo">Solo</option>
-                <option value="Yogyakarta">Yogyakarta</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            {errors.city && <p className="text-xs text-red-500 font-medium mt-1">{errors.city}</p>}
-          </div>
-
-          <div className="md:col-span-6">
-            <label
-              htmlFor="subdistrict"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Subdistrict <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="subdistrict"
-                name="subdistrict"
-                value={formData.subdistrict}
-                onChange={handleInputChange}
-                className={`w-full appearance-none bg-white border ${
-                  errors.subdistrict ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                } rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm ${
-                  formData.subdistrict ? 'text-slate-800' : 'text-slate-400'
-                } focus:outline-none transition-colors cursor-pointer`}
-              >
-                <option value="" disabled hidden>
-                  Subdistrict
-                </option>
-                <option value="Blimbing">Blimbing</option>
-                <option value="Gubeng">Gubeng</option>
-                <option value="Kebayoran Baru">Kebayoran Baru</option>
-                <option value="Coblong">Coblong</option>
-                <option value="Gondomanan">Gondomanan</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            {errors.subdistrict && (
-              <p className="text-xs text-red-500 font-medium mt-1">{errors.subdistrict}</p>
-            )}
-          </div>
-
-          {/* Row 5: Village & Postal Code */}
-          <div className="md:col-span-6">
-            <label
-              htmlFor="village"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Village <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <select
-                id="village"
-                name="village"
-                value={formData.village}
-                onChange={handleInputChange}
-                className={`w-full appearance-none bg-white border ${
-                  errors.village ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                } rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm ${
-                  formData.village ? 'text-slate-800' : 'text-slate-400'
-                } focus:outline-none transition-colors cursor-pointer`}
-              >
-                <option value="" disabled hidden>
-                  Village
-                </option>
-                <option value="Purwantoro">Purwantoro</option>
-                <option value="Airlangga">Airlangga</option>
-                <option value="Senayan">Senayan</option>
-                <option value="Dago">Dago</option>
-                <option value="Ngupasan">Ngupasan</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-            {errors.village && <p className="text-xs text-red-500 font-medium mt-1">{errors.village}</p>}
-          </div>
+          {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
+          <AddressRegionFields
+            value={formData}
+            onChange={handleRegionChange}
+            fieldClassName="md:col-span-6"
+            errors={errors}
+          />
 
           <div className="md:col-span-6">
             <label
