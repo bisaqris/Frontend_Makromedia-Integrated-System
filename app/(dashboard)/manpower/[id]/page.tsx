@@ -3,27 +3,8 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit } from 'lucide-react';
-
-interface ManpowerDetail {
-  id: string;
-  fullName: string;
-  gender: string;
-  phoneNumber: string;
-  position: string;
-  employmentStatus: string;
-  joinDate: string;
-  dateOfBirth?: string;
-  email?: string;
-  skills: string[];
-  province: string;
-  city: string;
-  subdistrict: string;
-  village: string;
-  detailAddress: string;
-  bankName: string;
-  accountNumber: string;
-  accountHolder: string;
-}
+import { manpowerService } from '@/lib/services/manpowerService';
+import { ManpowerRecord } from '@/types/manpower';
 
 /** "1995-05-12" -> "12 May 1995"; nilai non-ISO ditampilkan apa adanya */
 const formatDate = (value: string) => {
@@ -38,67 +19,53 @@ const formatDate = (value: string) => {
 export default function DetailManpowerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const resolvedParams = use(params);
-  const [data, setData] = useState<ManpowerDetail | null>(null);
+  const [data, setData] = useState<ManpowerRecord | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      const existingData = JSON.parse(localStorage.getItem('manpower_list') || '[]');
-      const found = existingData.find((item: { id: string }) => item.id === resolvedParams.id);
+    let isMounted = true;
 
-      if (found) {
-        setData({
-          id: found.id,
-          fullName: found.fullName || found.name || '-',
-          gender: found.gender || 'Male',
-          phoneNumber: found.phoneNumber || found.phone || '-',
-          position: found.position || '-',
-          employmentStatus: found.employmentStatus || found.status || '-',
-          joinDate: found.joinDate || '-',
-          dateOfBirth: found.dateOfBirth || '-',
-          email: found.email || '-',
-          skills: Array.isArray(found.skills)
-            ? found.skills
-            : found.skill
-            ? [found.skill]
-            : [],
-          province: found.province || '-',
-          city: found.city || '-',
-          subdistrict: found.subdistrict || '-',
-          village: found.village || '-',
-          detailAddress: found.detailAddress || '-',
-          bankName: found.bankName || found.bankAccount || '-',
-          accountNumber: found.accountNumber || '-',
-          accountHolder: found.accountHolder || '-',
-        });
-      } else {
-        // Fallback Data untuk simulasi/testing jika ID tidak ditemukan di LocalStorage
-        setData({
-          id: resolvedParams.id,
-          fullName: 'Andy Setiawan',
-          gender: 'Male',
-          phoneNumber: '08123456789',
-          position: 'Senior Videographer',
-          employmentStatus: 'Parttime',
-          joinDate: '15 February 2025',
-          dateOfBirth: '12 May 1995',
-          email: 'andy.setiawan@makromedia.id',
-          skills: ['Videography', 'Color Grading'],
-          province: 'Jawa Barat',
-          city: 'Bandung',
-          subdistrict: 'Coblong',
-          village: 'Dago',
-          detailAddress: 'Jl. Simpang Surapati No. 12',
-          bankName: 'BCA',
-          accountNumber: '12345657',
-          accountHolder: 'Andy Setiawan',
-        });
-      }
-    }, 0);
+    manpowerService
+      .getById(resolvedParams.id)
+      .then((record) => {
+        if (isMounted) setData(record);
+      })
+      .catch(() => {
+        if (isMounted) setData(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      isMounted = false;
+    };
   }, [resolvedParams.id]);
 
-  if (!data) return <div className="p-8 text-center text-gray-500">Loading detail data...</div>;
+  if (isLoading) return <div className="p-8 text-center text-gray-500">Loading detail data...</div>;
+
+  if (!data) {
+    return (
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Detail Manpower</h1>
+          <p className="text-sm text-gray-400">Detail Manpower</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm text-center text-gray-500">
+          Data karyawan dengan ID &quot;{resolvedParams.id}&quot; tidak ditemukan.
+        </div>
+        <div className="flex items-center justify-start pt-2">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">

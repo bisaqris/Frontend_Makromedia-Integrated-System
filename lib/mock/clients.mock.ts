@@ -1,120 +1,89 @@
 import { ClientCompany, ClientPIC } from '@/types/client';
 
-export interface PicClientRecord {
-  id: string;
-  name: string;
-  company: string;
-  phone: string;
-  email: string;
-  companyAddress?: string;
-  country?: string;
-  province?: string;
-  city?: string;
-  subdistrict?: string;
-  village?: string;
-  postalCode?: string;
-}
-
-export const initialPicClientRecords: PicClientRecord[] = [
-  { id: '1', name: 'Agus T.', company: 'Director', phone: '0821 5410 7123', email: 'agus@makromedia.id', companyAddress: 'Jl. Simpang Sulfat No 12', country: 'Indonesia', province: 'East Java', city: 'Malang', subdistrict: 'Blimbing', village: 'Purwantoro', postalCode: '65126' },
-  { id: '2', name: 'Angga D.', company: 'Marketing', phone: '0823 5410 8129', email: 'angga@makromedia.id', companyAddress: 'Jl. Simpang Sulfat No 12', country: 'Indonesia', province: 'East Java', city: 'Malang', subdistrict: 'Blimbing', village: 'Purwantoro', postalCode: '65126' },
-  { id: '3', name: 'Fatur Rahman F.', company: 'Marketing', phone: '0822 9910 0987', email: 'fatur@makromedia.id', companyAddress: 'Jl. Raya Darmo No 45', country: 'Indonesia', province: 'East Java', city: 'Surabaya', subdistrict: 'Wonokromo', village: 'Darmo', postalCode: '60241' },
-  { id: '4', name: 'Sefin Meidi B. V.', company: 'Editor', phone: '0858 9081 7226', email: 'sefin@makromedia.id', companyAddress: 'Jl. Raya Darmo No 45', country: 'Indonesia', province: 'East Java', city: 'Surabaya', subdistrict: 'Wonokromo', village: 'Darmo', postalCode: '60241' },
-  { id: '5', name: 'Andi K.', company: 'Editor', phone: '0888 5422 6129', email: 'andi@gmail.com', companyAddress: 'Jl. Jendral Sudirman No. 45', country: 'Indonesia', province: 'DKI Jakarta', city: 'Jakarta Selatan', subdistrict: 'Kebayoran Baru', village: 'Senayan', postalCode: '12190' },
-  { id: '6', name: 'Nur Khoiru R.', company: 'Editor', phone: '0821 5422 7123', email: 'khoiru@gmail.com', companyAddress: 'Jl. Jendral Sudirman No. 45', country: 'Indonesia', province: 'DKI Jakarta', city: 'Jakarta Selatan', subdistrict: 'Kebayoran Baru', village: 'Senayan', postalCode: '12190' },
-  { id: '7', name: 'Fania Eka H. W.', company: 'Motion Graphic', phone: '0898 9611 7120', email: 'fania@gmail.com', companyAddress: 'Gedung Nusantara Lt 12', country: 'Indonesia', province: 'DKI Jakarta', city: 'Jakarta Pusat', subdistrict: 'Gambir', village: 'Petojo', postalCode: '10130' },
-  { id: '8', name: 'Dona K.', company: 'Motion Graphic', phone: '0858 1111 7121', email: 'dona@gmail.com', companyAddress: 'Gedung Nusantara Lt 12', country: 'Indonesia', province: 'DKI Jakarta', city: 'Jakarta Pusat', subdistrict: 'Gambir', village: 'Petojo', postalCode: '10130' },
-  { id: '9', name: 'Budi S.', company: 'Project Manager', phone: '0821 1902 7181', email: 'budi@gmail.com', companyAddress: 'Jl. Sulfat No 10', country: 'Indonesia', province: 'East Java', city: 'Malang', subdistrict: 'Blimbing', village: 'Purwantoro', postalCode: '65126' },
-  { id: '10', name: 'Febrian S.', company: 'Project Manager', phone: '0823 8011 3298', email: 'febrian@gmail.com', companyAddress: 'Jl. Sulfat No 10', country: 'Indonesia', province: 'East Java', city: 'Malang', subdistrict: 'Blimbing', village: 'Purwantoro', postalCode: '65126' },
-];
-
-export let picClientStore: PicClientRecord[] = [...initialPicClientRecords];
-
-export const getPicClients = () => picClientStore;
-
-export const addPicClient = (newRecord: Omit<PicClientRecord, 'id'>) => {
-  const newPic: PicClientRecord = {
-    id: `pic-${Date.now()}`,
-    ...newRecord,
-  };
-  picClientStore = [newPic, ...picClientStore];
-  return newPic;
-};
-
-export const deletePicClient = (id: string) => {
-  picClientStore = picClientStore.filter((item) => item.id !== id);
-};
-
-// --- Company Client Store & Types ---
-
-export interface CompanyClientRecord {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  phone: string;
-  email: string;
-  country?: string;
-  province?: string;
-  subdistrict?: string;
-  village?: string;
-  postalCode?: string;
-}
-
-export const initialCompanyClientRecords: CompanyClientRecord[] = [
-  { id: 'cmp-1', name: 'Agus T.', address: 'Director', city: 'Malang', phone: '0821 5410 7123', email: 'agus@makromedia.id', country: 'Indonesia', province: 'East Java', subdistrict: 'Blimbing', village: 'Purwantoro', postalCode: '65126' },
-  { id: 'cmp-2', name: 'Angga D.', address: 'Marketing', city: 'Surabaya', phone: '0823 5410 8129', email: 'angga@makromedia.id', country: 'Indonesia', province: 'East Java', subdistrict: 'Gubeng', village: 'Airlangga', postalCode: '60286' },
-  { id: 'cmp-3', name: 'Fatur Rahman F.', address: 'Marketing', city: 'Jakarta', phone: '0822 9910 0987', email: 'fatur@makromedia.id', country: 'Indonesia', province: 'DKI Jakarta', subdistrict: 'Kebayoran Baru', village: 'Senayan', postalCode: '12190' },
-  { id: 'cmp-4', name: 'Sefin Meidi B. V.', address: 'Editor', city: 'Bandung', phone: '0858 9081 7226', email: 'sefin@makromedia.id', country: 'Indonesia', province: 'West Java', subdistrict: 'Coblong', village: 'Dago', postalCode: '40135' },
-  { id: 'cmp-5', name: 'Andi K.', address: 'Editor', city: 'Semarang', phone: '0888 5422 6129', email: 'andi@gmail.com', country: 'Indonesia', province: 'Central Java', subdistrict: 'Semarang Selatan', village: 'Randusari', postalCode: '50244' },
-  { id: 'cmp-6', name: 'Nur Khoiru R.', address: 'Editor', city: 'Madiun', phone: '0821 5422 7123', email: 'khoiru@gmail.com', country: 'Indonesia', province: 'East Java', subdistrict: 'Kartoharjo', village: 'Oro Oro Ombo', postalCode: '63117' },
-  { id: 'cmp-7', name: 'Fania Eka H. W.', address: 'Motion Graphic', city: 'Solo', phone: '0898 9611 7120', email: 'fania@gmail.com', country: 'Indonesia', province: 'Central Java', subdistrict: 'Banjarsari', village: 'Kadipiro', postalCode: '57136' },
-  { id: 'cmp-8', name: 'Dona K.', address: 'Motion Graphic', city: 'Yogyakarta', phone: '0858 1111 7121', email: 'dona@gmail.com', country: 'Indonesia', province: 'DI Yogyakarta', subdistrict: 'Gondomanan', village: 'Ngupasan', postalCode: '55122' },
-  { id: 'cmp-9', name: 'Budi S.', address: 'Project Manager', city: 'Sukabumi', phone: '0821 1902 7181', email: 'budi@gmail.com', country: 'Indonesia', province: 'West Java', subdistrict: 'Cikole', village: 'Selabatu', postalCode: '43114' },
-  { id: 'cmp-10', name: 'Febrian S.', address: 'Project Manager', city: 'Tegal', phone: '0823 8011 3298', email: 'febrian@gmail.com', country: 'Indonesia', province: 'Central Java', subdistrict: 'Tegal Timur', village: 'Mangkukusuman', postalCode: '52125' },
-];
-
-export let companyClientStore: CompanyClientRecord[] = [...initialCompanyClientRecords];
-
-export const getCompanyClients = () => companyClientStore;
-
-export const addCompanyClient = (newRecord: Omit<CompanyClientRecord, 'id'>) => {
-  const newCmp: CompanyClientRecord = {
-    id: `cmp-${Date.now()}`,
-    ...newRecord,
-  };
-  companyClientStore = [newCmp, ...companyClientStore];
-  return newCmp;
-};
-
-export const deleteCompanyClient = (id: string) => {
-  companyClientStore = companyClientStore.filter((item) => item.id !== id);
-};
-
+/**
+ * Satu sumber data client. Dipakai halaman List Company/PIC Client
+ * maupun dropdown di form project.
+ */
 export const mockClientPICs: ClientPIC[] = [
   {
     id: 'pic-1',
     clientId: 'cli-1',
     name: 'Budi Santoso',
+    company: 'PT Innovate Indonesia',
     email: 'budi@innovate.co.id',
-    phone: '08111222333',
+    phone: '0811 1222 333',
     position: 'Marketing Manager',
+    companyAddress: 'Jl. Jendral Sudirman No. 45',
+    country: 'Indonesia',
+    province: 'DKI Jakarta',
+    city: 'Jakarta Selatan',
+    subdistrict: 'Kebayoran Baru',
+    village: 'Senayan',
+    postalCode: '12190',
   },
   {
     id: 'pic-2',
     clientId: 'cli-2',
     name: 'Siti Rahma',
+    company: 'Bank Nusantara',
     email: 'siti@banknusantara.co.id',
-    phone: '08122333444',
+    phone: '0812 2333 444',
     position: 'Head of Corporate Communications',
+    companyAddress: 'Gedung Nusantara Tower Lt. 12',
+    country: 'Indonesia',
+    province: 'DKI Jakarta',
+    city: 'Jakarta Pusat',
+    subdistrict: 'Gambir',
+    village: 'Petojo',
+    postalCode: '10130',
   },
   {
     id: 'pic-3',
     clientId: 'cli-3',
     name: 'Ahmad Fauzi',
+    company: 'Yayasan Seni Visual',
     email: 'ahmad@senivisual.org',
-    phone: '08133444555',
+    phone: '0813 3444 555',
     position: 'Program Director',
+    companyAddress: 'Jl. Dago No. 102',
+    country: 'Indonesia',
+    province: 'West Java',
+    city: 'Bandung',
+    subdistrict: 'Coblong',
+    village: 'Dago',
+    postalCode: '40135',
+  },
+  {
+    id: 'pic-4',
+    clientId: 'cli-4',
+    name: 'Dewi Lestari',
+    company: 'Brand Retail Utama',
+    email: 'dewi@brandretail.co.id',
+    phone: '0814 4555 666',
+    position: 'Brand Manager',
+    companyAddress: 'Jl. Raya Darmo No 45',
+    country: 'Indonesia',
+    province: 'East Java',
+    city: 'Surabaya',
+    subdistrict: 'Wonokromo',
+    village: 'Darmo',
+    postalCode: '60241',
+  },
+  {
+    id: 'pic-5',
+    clientId: 'cli-5',
+    name: 'Michael Henderson',
+    company: 'Keluarga Henderson',
+    email: 'henderson.family@gmail.com',
+    phone: '0815 5666 777',
+    position: 'Wedding Coordinator',
+    companyAddress: 'Jl. Simpang Sulfat No 12',
+    country: 'Indonesia',
+    province: 'East Java',
+    city: 'Malang',
+    subdistrict: 'Blimbing',
+    village: 'Purwantoro',
+    postalCode: '65126',
   },
 ];
 
@@ -128,6 +97,11 @@ export const mockClientCompanies: ClientCompany[] = [
     address: 'Jl. Jendral Sudirman No. 45',
     city: 'Jakarta Selatan',
     npwp: '01.234.567.8-012.000',
+    country: 'Indonesia',
+    province: 'DKI Jakarta',
+    subdistrict: 'Kebayoran Baru',
+    village: 'Senayan',
+    postalCode: '12190',
     pics: [mockClientPICs[0]],
   },
   {
@@ -139,6 +113,11 @@ export const mockClientCompanies: ClientCompany[] = [
     address: 'Gedung Nusantara Tower Lt. 12',
     city: 'Jakarta Pusat',
     npwp: '02.345.678.9-023.000',
+    country: 'Indonesia',
+    province: 'DKI Jakarta',
+    subdistrict: 'Gambir',
+    village: 'Petojo',
+    postalCode: '10130',
     pics: [mockClientPICs[1]],
   },
   {
@@ -150,6 +129,42 @@ export const mockClientCompanies: ClientCompany[] = [
     address: 'Jl. Dago No. 102',
     city: 'Bandung',
     npwp: '03.456.789.0-034.000',
+    country: 'Indonesia',
+    province: 'West Java',
+    subdistrict: 'Coblong',
+    village: 'Dago',
+    postalCode: '40135',
     pics: [mockClientPICs[2]],
+  },
+  {
+    id: 'cli-4',
+    name: 'Brand Retail Utama',
+    code: 'CLI-004',
+    email: 'hello@brandretail.co.id',
+    phone: '031-5550400',
+    address: 'Jl. Raya Darmo No 45',
+    city: 'Surabaya',
+    npwp: '04.567.890.1-045.000',
+    country: 'Indonesia',
+    province: 'East Java',
+    subdistrict: 'Wonokromo',
+    village: 'Darmo',
+    postalCode: '60241',
+    pics: [mockClientPICs[3]],
+  },
+  {
+    id: 'cli-5',
+    name: 'Keluarga Henderson',
+    code: 'CLI-005',
+    email: 'henderson.family@gmail.com',
+    phone: '0815-5666-777',
+    address: 'Jl. Simpang Sulfat No 12',
+    city: 'Malang',
+    country: 'Indonesia',
+    province: 'East Java',
+    subdistrict: 'Blimbing',
+    village: 'Purwantoro',
+    postalCode: '65126',
+    pics: [mockClientPICs[4]],
   },
 ];

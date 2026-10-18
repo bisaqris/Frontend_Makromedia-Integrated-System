@@ -1,4 +1,4 @@
-import { User, Role } from '@/types/user';
+import { User, UserProfile, Role } from '@/types/user';
 
 export const mockUsers: User[] = [
   {
@@ -49,4 +49,27 @@ export const mockUserByRole: Record<Role, User> = {
   SALES: mockUsers[2],
   PROJECT_MANAGER: mockUsers[3],
   PRODUKSI: mockUsers[4],
+};
+
+/** Profil user yang sedang login (halaman Profile). */
+export const mockUserProfile: UserProfile = {
+  id: 'usr-admin',
+  name: 'John Doe',
+  dateOfBirth: '10 January 2000',
+  phone: '081234567890',
+  email: 'john@makromedia.com',
+  detailAddress: 'Jl. Dharmawangsa No.74',
+  country: 'Indonesia',
+  province: 'East Java',
+  city: 'Surabaya',
+  subdistrict: 'Gubeng',
+  village: 'Airlangga',
+  postalCode: '60286',
+  position: 'Director',
+  skills: ['Leadership', 'Management'],
+  bankName: 'Bank Central Asia',
+  accountNumber: '7265189474',
+  accountHolder: 'John Doe',
+  photoUrl:
+    'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400',
 };

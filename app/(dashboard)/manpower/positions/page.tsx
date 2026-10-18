@@ -65,16 +65,10 @@ export default function PositionsPage() {
     try {
       setLoading(true);
       const data = await positionService.getAll();
-      const list = data || [];
-      setPositions(list);
-      // Synchronize dengan LocalStorage untuk form Add/Edit Manpower
-      if (list.length > 0) {
-        localStorage.setItem('positions_list', JSON.stringify(list));
-      }
-    } catch {
-      // Fallback ke LocalStorage jika API belum aktif
-      const stored = JSON.parse(localStorage.getItem('positions_list') || '[]');
-      setPositions(stored);
+      setPositions(data || []);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal memuat data position'));
+      setPositions([]);
     } finally {
       setLoading(false);
     }
@@ -136,21 +130,9 @@ export default function PositionsPage() {
       if (editingPosition) {
         await positionService.update(editingPosition.id, formData as CreatePositionDTO);
         toast.success('Position berhasil diperbarui');
-
-        // Local Storage Update
-        const updated = positions.map((p) =>
-          p.id === editingPosition.id ? { ...p, ...formData } : p
-        );
-        setPositions(updated);
-        localStorage.setItem('positions_list', JSON.stringify(updated));
       } else {
-        const newPosition = await positionService.create(formData as CreatePositionDTO);
+        await positionService.create(formData as CreatePositionDTO);
         toast.success('Position baru berhasil ditambahkan');
-
-        // Local Storage Add
-        const updated = [newPosition, ...positions];
-        setPositions(updated);
-        localStorage.setItem('positions_list', JSON.stringify(updated));
       }
       handleReset();
       fetchPositions();
@@ -166,11 +148,6 @@ export default function PositionsPage() {
     try {
       await positionService.delete(deletingPosition.id);
       toast.success('Position berhasil dihapus');
-
-      // Local Storage Delete
-      const updated = positions.filter((p) => p.id !== deletingPosition.id);
-      setPositions(updated);
-      localStorage.setItem('positions_list', JSON.stringify(updated));
 
       if (editingPosition?.id === deletingPosition.id) {
         handleReset();

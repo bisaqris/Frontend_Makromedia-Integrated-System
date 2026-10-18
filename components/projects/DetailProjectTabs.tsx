@@ -155,61 +155,14 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   // Local state for interactive editing of Brief, Tasks, Cost Items, Quotation Items, Invoice Items, Payment History
   const [generalBrief, setGeneralBrief] = useState(project.generalBrief || '');
 
-  // Tasks initial state matching design screenshot 1:1
-  const [tasks, setTasks] = useState<ProjectTask[]>(() => {
-    if (project.tasks && project.tasks.length > 0) return project.tasks;
-    return [
-      {
-        id: 'task-1',
-        title: 'Livestreaming platform setup',
-        description: 'Persiapan kamera, switcher, dan kabel di venue sebelum acara dimulai.',
-        dueDate: '2026-11-02',
-        status: 'DONE',
-        picName: 'Anton W.',
-      },
-      {
-        id: 'task-2',
-        title: 'Technical rundown draft',
-        description: 'Persiapan kamera, switcher, dan kabel di venue sebelum acara dimulai.',
-        dueDate: '2026-11-02',
-        status: 'TODO',
-        picName: 'Anton W.',
-      },
-      {
-        id: 'task-3',
-        title: 'Dress rehearsal & test stream',
-        description: 'Persiapan kamera, switcher, dan kabel di venue sebelum acara dimulai.',
-        dueDate: '2026-10-29',
-        status: 'TODO',
-        picName: 'Anton W.',
-      },
-    ];
-  });
+  // Tasks (sumber: data project; kosong jika project belum punya task)
+  const [tasks, setTasks] = useState<ProjectTask[]>(() => project.tasks || []);
 
   const [costItems, setCostItems] = useState<ProjectCostItem[]>(project.costItems || []);
   const [quotationItems, setQuotationItems] = useState<ProjectCostItem[]>(project.costItems || []);
 
-  // Invoice Items initial state matching design screenshot 1:1
-  const [invoiceItems, setInvoiceItems] = useState<ProjectCostItem[]>(() => {
-    if (project.costItems && project.costItems.length > 0) {
-      return project.costItems;
-    }
-    return [
-      {
-        id: 'inv-init-1',
-        projectId: project.id,
-        category: 'Event Telkomsel',
-        description: 'Full Production Package',
-        executor: 'Event Telkomsel Malang',
-        unitCost: 2000000,
-        quantity: 1,
-        unit: 'Paket',
-        freq: 1,
-        period: '1',
-        totalCost: 2000000,
-      },
-    ];
-  });
+  // Invoice Items (sumber: cost item project)
+  const [invoiceItems, setInvoiceItems] = useState<ProjectCostItem[]>(() => project.costItems || []);
 
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>(project.paymentHistory || []);
 
@@ -1250,7 +1203,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                               isDone ? 'bg-blue-50/50 text-blue-300' : 'bg-blue-50 text-blue-600'
                             }`}>
-                              {task.picName || 'Anton W.'}
+                              {task.picName || '-'}
                             </span>
                           </div>
                         </div>

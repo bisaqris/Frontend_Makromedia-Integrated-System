@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Project, ProjectCategory } from '@/types/project';
 import projectService from '@/lib/services/projectService';
+import { userService } from '@/lib/services/userService';
+import { User } from '@/types/user';
 import Select from '@/components/ui/Select';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/shared/EmptyState';
@@ -50,10 +52,7 @@ const CATEGORY_OPTIONS = [
   { value: 'Wedding', label: 'Wedding' },
 ];
 
-const PM_OPTIONS = [
-  { value: 'ALL', label: 'All Project Manager' },
-  { value: 'usr-project_manager', label: 'Andi PM (Project Manager)' },
-];
+const ALL_PM_OPTION = { value: 'ALL', label: 'All Project Manager' };
 
 export default function HistoryProjectPage() {
   const { role } = useAuth();
@@ -68,6 +67,31 @@ export default function HistoryProjectPage() {
   const [selectedPM, setSelectedPM] = useState<string>('ALL');
   const [page, setPage] = useState<number>(1);
   const [limit, setLimit] = useState<number>(10);
+
+  const [pmOptions, setPmOptions] = useState<{ value: string; label: string }[]>([
+    ALL_PM_OPTION,
+  ]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    userService
+      .getProjectManagers()
+      .then((managers: User[]) => {
+        if (!isMounted) return;
+        setPmOptions([
+          ALL_PM_OPTION,
+          ...managers.map((pm) => ({ value: pm.id, label: pm.name })),
+        ]);
+      })
+      .catch(() => {
+        // Biarkan hanya opsi "All" jika daftar PM gagal dimuat.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const fetchHistoryProjects = useCallback(async () => {
     try {
@@ -152,7 +176,7 @@ export default function HistoryProjectPage() {
                     setSelectedPM(e.target.value);
                     setPage(1);
                   }}
-                  options={PM_OPTIONS}
+                  options={pmOptions}
                   className="py-2 text-xs bg-white border-slate-200 rounded-xl font-medium"
                 />
               </div>

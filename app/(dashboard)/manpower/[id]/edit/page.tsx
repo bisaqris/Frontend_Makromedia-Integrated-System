@@ -3,14 +3,20 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
+import { showToast } from '@/components/ui/Toast';
+import { manpowerService } from '@/lib/services/manpowerService';
+import { positionService } from '@/lib/services/positionService';
+import { skillService } from '@/lib/services/skillService';
+import { EmploymentStatus, Gender } from '@/types/manpower';
 
 export default function EditManpowerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const resolvedParams = use(params);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Dynamic Options dari LocalStorage (Skill & Position)
+  // Opsi master data (Skill & Position)
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
 
@@ -34,98 +40,58 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
   });
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       try {
         setLoading(true);
 
-        // 1. Fetch Dynamic Positions
-        const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
-        if (storedPositions.length > 0) {
-          setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
-        } else {
-          setPositionOptions([
-            'Project Manager',
-            'Creative Director',
-            'Lead Editor',
-            'Senior Videographer',
-            'Junior Videographer',
-            'Cameraman',
-            'Audio Engineer',
-            'Video Editor',
-            'Lighting Specialist',
-            'Broadcast Engineer',
-            'Floor Director',
-          ]);
+        const [positions, skills, record] = await Promise.all([
+          positionService.getAll(),
+          skillService.getAll(),
+          manpowerService.getById(resolvedParams.id),
+        ]);
+
+        if (!isMounted) return;
+
+        setPositionOptions(positions.map((p) => p.name));
+        setSkillOptions(skills.map((s) => s.name));
+
+        if (!record) {
+          setNotFound(true);
+          return;
         }
 
-        // 2. Fetch Dynamic Skills
-        const storedSkills = JSON.parse(localStorage.getItem('skills_list') || '[]');
-        if (storedSkills.length > 0) {
-          setSkillOptions(storedSkills.map((s: { name: string }) => s.name));
-        } else {
-          setSkillOptions([
-            'Videography',
-            'Color Grading',
-            'Video Editing',
-            'Motion Graphic',
-            'Audio Mixing',
-            'Graphic Design',
-            'UI Design',
-          ]);
-        }
-
-        // 3. Load Data Existing Manpower dari LocalStorage
-        const existingList = JSON.parse(localStorage.getItem('manpower_list') || '[]');
-        const found = existingList.find((item: { id: string }) => item.id === resolvedParams.id);
-
-        if (found) {
-          setFormData({
-            name: found.fullName || found.name || '',
-            dateOfBirth: found.dateOfBirth || '',
-            phoneNumber: found.phoneNumber || found.phone || '',
-            email: found.email || '',
-            gender: found.gender || 'Male',
-            province: found.province || '',
-            city: found.city || '',
-            subdistrict: found.subdistrict || '',
-            village: found.village || '',
-            detailAddress: found.detailAddress || '',
-            skill: Array.isArray(found.skills) ? found.skills[0] || '' : found.skill || '',
-            employmentStatus: found.employmentStatus || found.status || 'Parttime',
-            position: found.position || '',
-            bankAccount: found.bankName || found.bankAccount || '',
-            accountNumber: found.accountNumber || '',
-            accountHolder: found.accountHolder || '',
-          });
-        } else {
-          // Fallback Mock Data jika data tidak ditemukan di LocalStorage
-          setFormData({
-            name: 'Andy Setiawan',
-            dateOfBirth: '1995-05-12',
-            phoneNumber: '08123456789',
-            email: 'andy.setiawan@makromedia.id',
-            gender: 'Male',
-            province: 'Jawa Barat',
-            city: 'Bandung',
-            subdistrict: 'Coblong',
-            village: 'Dago',
-            detailAddress: 'Jl. Simpang Surapati No. 12',
-            skill: 'Videography',
-            employmentStatus: 'Parttime',
-            position: 'Senior Videographer',
-            bankAccount: 'BCA',
-            accountNumber: '12345657',
-            accountHolder: 'Andy Setiawan',
-          });
-        }
-      } catch (err) {
-        console.error('Error loading manpower data:', err);
+        setFormData({
+          name: record.fullName,
+          dateOfBirth: record.dateOfBirth || '',
+          phoneNumber: record.phoneNumber,
+          email: record.email || '',
+          gender: record.gender,
+          province: record.province,
+          city: record.city,
+          subdistrict: record.subdistrict,
+          village: record.village,
+          detailAddress: record.detailAddress,
+          skill: record.skills[0] || '',
+          employmentStatus: record.employmentStatus,
+          position: record.position,
+          bankAccount: record.bankName,
+          accountNumber: record.accountNumber,
+          accountHolder: record.accountHolder,
+        });
+      } catch {
+        if (isMounted) setNotFound(true);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [resolvedParams.id]);
 
   const handleChange = (
@@ -144,48 +110,48 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
     try {
       setSubmitting(true);
 
-      const existingList = JSON.parse(localStorage.getItem('manpower_list') || '[]');
-
-      const updatedList = existingList.map((item: { id: string }) => {
-        if (item.id === resolvedParams.id) {
-          return {
-            ...item,
-            fullName: formData.name,
-            name: formData.name,
-            status: formData.employmentStatus.toUpperCase(),
-            employmentStatus: formData.employmentStatus,
-            skill: formData.skill || '-',
-            skills: formData.skill ? [formData.skill] : [],
-            position: formData.position || '-',
-            phone: formData.phoneNumber || '-',
-            phoneNumber: formData.phoneNumber || '-',
-            email: formData.email || '-',
-            dateOfBirth: formData.dateOfBirth || '-',
-            gender: formData.gender || 'Male',
-            province: formData.province || '-',
-            city: formData.city || '-',
-            subdistrict: formData.subdistrict || '-',
-            village: formData.village || '-',
-            detailAddress: formData.detailAddress || '-',
-            bankName: formData.bankAccount || '-',
-            bankAccount: formData.bankAccount || '-',
-            accountNumber: formData.accountNumber || '-',
-            accountHolder: formData.accountHolder || '-',
-          };
-        }
-        return item;
+      await manpowerService.update(resolvedParams.id, {
+        fullName: formData.name,
+        gender: formData.gender as Gender,
+        dateOfBirth: formData.dateOfBirth,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        position: formData.position,
+        employmentStatus: formData.employmentStatus as EmploymentStatus,
+        skills: formData.skill ? [formData.skill] : [],
+        province: formData.province,
+        city: formData.city,
+        subdistrict: formData.subdistrict,
+        village: formData.village,
+        detailAddress: formData.detailAddress,
+        bankName: formData.bankAccount,
+        accountNumber: formData.accountNumber,
+        accountHolder: formData.accountHolder,
       });
 
-      localStorage.setItem('manpower_list', JSON.stringify(updatedList));
       router.push(`/manpower/${resolvedParams.id}`);
-    } catch (err) {
-      console.error('Failed to update manpower:', err);
+    } catch {
+      showToast.error('Gagal memperbarui data karyawan.');
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Loading data manpower...</div>;
+
+  if (notFound) {
+    return (
+      <div className="max-w-5xl mx-auto p-6 space-y-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Edit Manpower</h1>
+          <p className="text-sm text-gray-400">Edit Manpower Information</p>
+        </div>
+        <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm text-center text-gray-500">
+          Data karyawan dengan ID &quot;{resolvedParams.id}&quot; tidak ditemukan.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">

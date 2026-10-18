@@ -65,16 +65,10 @@ export default function SkillsPage() {
     try {
       setLoading(true);
       const data = await skillService.getAll();
-      const list = data || [];
-      setSkills(list);
-      // Synchronize dengan LocalStorage untuk form Add/Edit Manpower
-      if (list.length > 0) {
-        localStorage.setItem('skills_list', JSON.stringify(list));
-      }
-    } catch {
-      // Fallback ke LocalStorage jika API belum aktif
-      const stored = JSON.parse(localStorage.getItem('skills_list') || '[]');
-      setSkills(stored);
+      setSkills(data || []);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal memuat data skill'));
+      setSkills([]);
     } 
     finally {
       setLoading(false);
@@ -137,21 +131,9 @@ export default function SkillsPage() {
       if (editingSkill) {
         await skillService.update(editingSkill.id, formData as CreateSkillDTO);
         toast.success('Skill berhasil diperbarui');
-
-        // Local Storage Update
-        const updated = skills.map((s) =>
-          s.id === editingSkill.id ? { ...s, ...formData } : s
-        );
-        setSkills(updated);
-        localStorage.setItem('skills_list', JSON.stringify(updated));
       } else {
-        const newSkill = await skillService.create(formData as CreateSkillDTO);
+        await skillService.create(formData as CreateSkillDTO);
         toast.success('Skill baru berhasil ditambahkan');
-
-        // Local Storage Add
-        const updated = [newSkill, ...skills];
-        setSkills(updated);
-        localStorage.setItem('skills_list', JSON.stringify(updated));
       }
       handleReset();
       fetchSkills();
@@ -167,11 +149,6 @@ export default function SkillsPage() {
     try {
       await skillService.delete(deletingSkill.id);
       toast.success('Skill berhasil dihapus');
-
-      // Local Storage Delete
-      const updated = skills.filter((s) => s.id !== deletingSkill.id);
-      setSkills(updated);
-      localStorage.setItem('skills_list', JSON.stringify(updated));
 
       if (editingSkill?.id === deletingSkill.id) {
         handleReset();

@@ -1,23 +1,49 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Eye, Pencil, Trash2, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { getPicClients, deletePicClient, PicClientRecord } from '@/lib/mock/clients.mock';
+import { clientService } from '@/lib/services/clientService';
+import { ClientPIC } from '@/types/client';
 
 export default function DataPicClientPage() {
-  const [data, setData] = useState<PicClientRecord[]>(() => getPicClients());
+  const [data, setData] = useState<ClientPIC[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('All Company');
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
+  const loadData = useCallback(async () => {
+    try {
+      setData(await clientService.getPICs());
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData().catch(() => {
+      showToast.error('Gagal memuat data PIC Client.');
+    });
+  }, [loadData]);
+
+  const companyOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          data.map((item) => item.company).filter((company): company is string => Boolean(company))
+        )
+      ).sort(),
+    [data]
+  );
+
   const filteredData = data.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.company ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.phone.includes(searchQuery);
 
@@ -34,11 +60,15 @@ export default function DataPicClientPage() {
   const endIndex = Math.min(startIndex + dataPerPage, totalFilteredCount);
   const displayedItems = filteredData.slice(startIndex, endIndex);
 
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus PIC Client "${name}"?`)) {
-      deletePicClient(id);
-      setData([...getPicClients()]);
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus PIC Client "${name}"?`)) return;
+
+    try {
+      await clientService.deletePIC(id);
+      await loadData();
       showToast.success(`PIC Client "${name}" berhasil dihapus.`);
+    } catch {
+      showToast.error(`Gagal menghapus PIC Client "${name}".`);
     }
   };
 
@@ -75,15 +105,11 @@ export default function DataPicClientPage() {
               className="appearance-none bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:border-primary transition-colors cursor-pointer shadow-2xs"
             >
               <option value="All Company">All Company</option>
-              <option value="Director">Director</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Editor">Editor</option>
-              <option value="Motion Graphic">Motion Graphic</option>
-              <option value="Project Manager">Project Manager</option>
-              <option value="CV. Makromedia Visual">CV. Makromedia Visual</option>
-              <option value="PT Innovate Indonesia">PT Innovate Indonesia</option>
-              <option value="Bank Nusantara">Bank Nusantara</option>
-              <option value="82 PRO">82 PRO</option>
+              {companyOptions.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -120,7 +146,7 @@ export default function DataPicClientPage() {
               {displayedItems.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-400">
-                    Tidak ada data PIC Client yang ditemukan.
+                    {isLoading ? 'Memuat data...' : 'Tidak ada data PIC Client yang ditemukan.'}
                   </td>
                 </tr>
               ) : (
@@ -174,7 +200,7 @@ export default function DataPicClientPage() {
         <div className="block md:hidden divide-y divide-slate-100 -mx-2 px-2">
           {displayedItems.length === 0 ? (
             <div className="py-8 text-center text-slate-400 text-sm">
-              Tidak ada data PIC Client yang ditemukan.
+              {isLoading ? 'Memuat data...' : 'Tidak ada data PIC Client yang ditemukan.'}
             </div>
           ) : (
             displayedItems.map((item) => (

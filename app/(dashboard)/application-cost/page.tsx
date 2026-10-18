@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Eye, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
-import { mockApplicationCosts } from '@/lib/mock/application-cost.mock';
-import { ApplicationCostStatus } from '@/types/application-cost';
+import { applicationCostService } from '@/lib/services/applicationCostService';
+import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -27,10 +27,28 @@ const getApplicationDetailUrl = (
 };
 
 export default function ApplicationCostPage() {
+  const [items, setItems] = useState<ApplicationCostItem[]>([]);
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const totalData = mockApplicationCosts.length;
+  useEffect(() => {
+    let isMounted = true;
+
+    applicationCostService
+      .getAll()
+      .then((data) => {
+        if (isMounted) setItems(data);
+      })
+      .catch(() => {
+        if (isMounted) setItems([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const totalData = items.length;
   const totalPages = Math.max(1, Math.ceil(totalData / dataPerPage));
 
   // Ensure current page is bounded
@@ -38,7 +56,7 @@ export default function ApplicationCostPage() {
   const startIndex = (validCurrentPage - 1) * dataPerPage;
   const endIndex = Math.min(startIndex + dataPerPage, totalData);
 
-  const displayedItems = mockApplicationCosts.slice(startIndex, endIndex);
+  const displayedItems = items.slice(startIndex, endIndex);
 
   const handleDataPerPageChange = (newLimit: number) => {
     setDataPerPage(newLimit);

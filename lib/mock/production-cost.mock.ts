@@ -2,7 +2,7 @@ import { ProjectCostItem } from '@/types/project';
 
 export const mockProductionCosts: ProjectCostItem[] = [
   {
-    id: 'cost-1',
+    id: 'pcost-1',
     projectId: 'proj-1',
     category: 'Equipment Rental',
     description: 'Sewa Kamera Sony FX6 & Lensa Cine Set (4 Hari)',
@@ -12,7 +12,7 @@ export const mockProductionCosts: ProjectCostItem[] = [
     totalCost: 30000000,
   },
   {
-    id: 'cost-2',
+    id: 'pcost-2',
     projectId: 'proj-1',
     category: 'Manpower / Crew',
     description: 'Honor Director of Photography & Cameraman (5 Hari)',
@@ -22,7 +22,7 @@ export const mockProductionCosts: ProjectCostItem[] = [
     totalCost: 60000000,
   },
   {
-    id: 'cost-3',
+    id: 'pcost-3',
     projectId: 'proj-1',
     category: 'Catering & Akomodasi',
     description: 'Konsumsi Tim Lapangan & Transportasi Crew',

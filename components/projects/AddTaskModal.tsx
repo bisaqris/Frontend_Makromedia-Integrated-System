@@ -37,7 +37,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(getTodayDateString());
-  const [picName, setPicName] = useState('Anton W.');
+  const [picName, setPicName] = useState('');
   const [status, setStatus] = useState<'TODO' | 'IN_PROGRESS' | 'DONE'>('TODO');
 
   // React 19 / Next 16 clean prop sync during render
@@ -60,13 +60,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           setDueDate(getTodayDateString());
         }
 
-        setPicName(editTask.picName || 'Anton W.');
+        setPicName(editTask.picName || '');
         setStatus(editTask.status || 'TODO');
       } else {
         setTitle('');
         setDescription('');
         setDueDate(getTodayDateString());
-        setPicName('Anton W.');
+        setPicName('');
         setStatus('TODO');
       }
     }
@@ -80,7 +80,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       title: title.trim(),
       description: description.trim(),
       dueDate: dueDate || getTodayDateString(),
-      picName: picName.trim() || 'Anton W.',
+      picName: picName.trim(),
       status,
     });
 
@@ -141,7 +141,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
               PIC / Penanggung Jawab <span className="text-red-500">*</span>
             </label>
             <Input
-              placeholder="misal: Anton W."
+              placeholder="misal: Nama PIC"
               value={picName}
               onChange={(e) => setPicName(e.target.value)}
               required

@@ -1,20 +1,10 @@
-import { ProjectCategory } from '@/types/project';
+import { ProjectCategoryCounts } from '@/types/dashboard';
 
-export interface FinancialDashboardSummary {
-  totalContractValue: number;
-  totalPaid: number;
-  restOfBill: number;
-  totalProjectCost: number;
-}
-
-export const mockDashboardFinance: FinancialDashboardSummary = {
-  totalContractValue: 1200000000,
-  totalPaid: 750000000,
-  restOfBill: 450000000,
-  totalProjectCost: 620000000,
-};
-
-export const mockDashboardCategories: Record<ProjectCategory, number> = {
+/**
+ * Jumlah baseline project per kategori (data historis sebelum daftar project berjalan).
+ * Dashboard menambahkan jumlah project aktif di atas angka ini.
+ */
+export const mockDashboardCategories: ProjectCategoryCounts = {
   Event: 10,
   'Corporate Video': 4,
   'Film Production': 2,
