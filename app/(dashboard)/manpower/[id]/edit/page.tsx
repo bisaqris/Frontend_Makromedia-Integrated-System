@@ -1,385 +1,432 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
-import { Employee } from '@/types/manpower';
 
-interface EditManpowerPageProps {
-  params: Promise<{ id: string }>;
-}
-
-export default function EditManpowerPage({ params }: EditManpowerPageProps) {
+export default function EditManpowerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
+  const resolvedParams = use(params);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Daftar skill opsi
-  const availableSkills = [
-    'Project Manager',
-    'Live Streamer',
-    'Cameraman',
-    'Audio Engineer',
-    'Video Editor',
-    'Lighting Specialist',
-    'Broadcast Engineer',
-    'FD / Floor Director',
-  ];
+  // Dynamic Options dari LocalStorage (Skill & Position)
+  const [positionOptions, setPositionOptions] = useState<string[]>([]);
+  const [skillOptions, setSkillOptions] = useState<string[]>([]);
 
-  // State Form
-  const [formData, setFormData] = useState<Partial<Employee>>({
-    fullName: '',
-    role: '',
+  const [formData, setFormData] = useState({
+    name: '',
+    dateOfBirth: '',
+    phoneNumber: '',
     email: '',
-    phone: '',
-    dailyRate: 0,
-    joinDate: '',
-    employmentStatus: 'Karyawan Tetap',
-    status: 'Active',
-    bankName: '',
+    gender: 'Male',
+    province: '',
+    city: '',
+    subdistrict: '',
+    village: '',
+    detailAddress: '',
+    skill: '',
+    employmentStatus: '',
+    position: '',
     bankAccount: '',
+    accountNumber: '',
     accountHolder: '',
-    skills: [],
   });
 
-  // 1. Fetch data manpower & pre-fill ke form
   useEffect(() => {
-    async function fetchManpowerData() {
+    async function loadData() {
       try {
         setLoading(true);
-        const { id } = await params;
 
-        // Ganti baris ini dengan call service/API backend Anda:
-        // const mockData = await manpowerService.getById(id);
-        
-        const mockData: Employee = {
-          id,
-          employeeId: 'EMP-001',
-          fullName: 'Budi Santoso',
-          role: 'Cameraman',
-          email: 'budi@example.com',
-          phone: '081234567890',
-          dailyRate: 350000,
-          joinDate: '2024-01-15',
-          employmentStatus: 'Karyawan Tetap',
-          status: 'Active',
-          bankName: 'BCA',
-          bankAccount: '1234567890',
-          accountHolder: 'Budi Santoso',
-          skills: ['Cameraman', 'Video Editor'],
-        };
+        // 1. Fetch Dynamic Positions
+        const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
+        if (storedPositions.length > 0) {
+          setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
+        } else {
+          setPositionOptions([
+            'Project Manager',
+            'Creative Director',
+            'Lead Editor',
+            'Senior Videographer',
+            'Junior Videographer',
+            'Cameraman',
+            'Audio Engineer',
+            'Video Editor',
+            'Lighting Specialist',
+            'Broadcast Engineer',
+            'Floor Director',
+          ]);
+        }
 
-        // Otomatis isi data yang akan di-edit
-        setFormData({
-          fullName: mockData.fullName || '',
-          role: mockData.role || '',
-          email: mockData.email || '',
-          phone: mockData.phone || '',
-          dailyRate: mockData.dailyRate || 0,
-          joinDate: mockData.joinDate || '',
-          employmentStatus: mockData.employmentStatus || 'Karyawan Tetap',
-          status: mockData.status || 'Active',
-          bankName: mockData.bankName || '',
-          bankAccount: mockData.bankAccount || '',
-          accountHolder: mockData.accountHolder || '',
-          skills: mockData.skills || [],
-        });
-      } catch (error) {
-        console.error('Gagal mengambil data manpower:', error);
+        // 2. Fetch Dynamic Skills
+        const storedSkills = JSON.parse(localStorage.getItem('skills_list') || '[]');
+        if (storedSkills.length > 0) {
+          setSkillOptions(storedSkills.map((s: { name: string }) => s.name));
+        } else {
+          setSkillOptions([
+            'Videography',
+            'Color Grading',
+            'Video Editing',
+            'Motion Graphic',
+            'Audio Mixing',
+            'Graphic Design',
+            'UI Design',
+          ]);
+        }
+
+        // 3. Load Data Existing Manpower dari LocalStorage
+        const existingList = JSON.parse(localStorage.getItem('manpower_list') || '[]');
+        const found = existingList.find((item: { id: string }) => item.id === resolvedParams.id);
+
+        if (found) {
+          setFormData({
+            name: found.fullName || found.name || '',
+            dateOfBirth: found.dateOfBirth || '',
+            phoneNumber: found.phoneNumber || found.phone || '',
+            email: found.email || '',
+            gender: found.gender || 'Male',
+            province: found.province || '',
+            city: found.city || '',
+            subdistrict: found.subdistrict || '',
+            village: found.village || '',
+            detailAddress: found.detailAddress || '',
+            skill: Array.isArray(found.skills) ? found.skills[0] || '' : found.skill || '',
+            employmentStatus: found.employmentStatus || found.status || 'Parttime',
+            position: found.position || '',
+            bankAccount: found.bankName || found.bankAccount || '',
+            accountNumber: found.accountNumber || '',
+            accountHolder: found.accountHolder || '',
+          });
+        } else {
+          // Fallback Mock Data jika data tidak ditemukan di LocalStorage
+          setFormData({
+            name: 'Andy Setiawan',
+            dateOfBirth: '1995-05-12',
+            phoneNumber: '08123456789',
+            email: 'andy.setiawan@makromedia.id',
+            gender: 'Male',
+            province: 'Jawa Barat',
+            city: 'Bandung',
+            subdistrict: 'Coblong',
+            village: 'Dago',
+            detailAddress: 'Jl. Simpang Surapati No. 12',
+            skill: 'Videography',
+            employmentStatus: 'Parttime',
+            position: 'Senior Videographer',
+            bankAccount: 'BCA',
+            accountNumber: '12345657',
+            accountHolder: 'Andy Setiawan',
+          });
+        }
+      } catch (err) {
+        console.error('Error loading manpower data:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchManpowerData();
-  }, [params]);
+    loadData();
+  }, [resolvedParams.id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'dailyRate' ? Number(value) : value,
-    }));
-  };
-
-  const handleSkillToggle = (skillName: string) => {
-    setFormData((prev) => {
-      const currentSkills = prev.skills || [];
-      const isSelected = currentSkills.includes(skillName);
-      return {
-        ...prev,
-        skills: isSelected
-          ? currentSkills.filter((s) => s !== skillName)
-          : [...currentSkills, skillName],
-      };
-    });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setSubmitting(true);
-      // Panggil API Update Backend:
-      // await manpowerService.update(id, formData);
-      console.log('Updated Manpower Data:', formData);
-      router.push('/manpower');
-    } catch (error) {
-      console.error('Gagal menyimpan perubahan:', error);
+
+      const existingList = JSON.parse(localStorage.getItem('manpower_list') || '[]');
+
+      const updatedList = existingList.map((item: { id: string }) => {
+        if (item.id === resolvedParams.id) {
+          return {
+            ...item,
+            fullName: formData.name,
+            name: formData.name,
+            status: formData.employmentStatus.toUpperCase(),
+            employmentStatus: formData.employmentStatus,
+            skill: formData.skill || '-',
+            skills: formData.skill ? [formData.skill] : [],
+            position: formData.position || '-',
+            phone: formData.phoneNumber || '-',
+            phoneNumber: formData.phoneNumber || '-',
+            email: formData.email || '-',
+            dateOfBirth: formData.dateOfBirth || '-',
+            gender: formData.gender || 'Male',
+            province: formData.province || '-',
+            city: formData.city || '-',
+            subdistrict: formData.subdistrict || '-',
+            village: formData.village || '-',
+            detailAddress: formData.detailAddress || '-',
+            bankName: formData.bankAccount || '-',
+            bankAccount: formData.bankAccount || '-',
+            accountNumber: formData.accountNumber || '-',
+            accountHolder: formData.accountHolder || '-',
+          };
+        }
+        return item;
+      });
+
+      localStorage.setItem('manpower_list', JSON.stringify(updatedList));
+      router.push(`/manpower/${resolvedParams.id}`);
+    } catch (err) {
+      console.error('Failed to update manpower:', err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-8 text-center text-gray-500 font-medium">
-        Memuat data manpower...
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading data manpower...</div>;
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Edit Data Manpower</h1>
-          <p className="text-sm text-gray-500">Perbarui informasi dan kredensial tenaga kerja</p>
-        </div>
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Edit Manpower</h1>
+        <p className="text-sm text-gray-400">Edit Manpower Information</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Section 1: Informasi Utama */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 pb-2 border-b border-gray-100">
-            Informasi Utama
-          </h2>
+        {/* Card 1: Personal Data */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+          <h2 className="text-base font-bold text-blue-600">Manpower Personal Data</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nama Lengkap <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
               <input
                 type="text"
-                name="fullName"
-                value={formData.fullName}
+                name="name"
+                value={formData.name}
                 onChange={handleChange}
+                placeholder="Name"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="Masukkan nama lengkap"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Role / Posisi <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Date of Birth</label>
               <input
-                type="text"
-                name="role"
-                value={formData.role}
+                type="date"
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="Contoh: Cameraman, Project Manager"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Phone Number</label>
+              <input
+                type="tel"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                placeholder="08..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Gender</label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="nama@email.com"
+                placeholder="user@gmail.com"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
 
+            {/* Input Manual Alamat */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nomor Telepon <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Province</label>
               <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
+                type="text"
+                name="province"
+                value={formData.province}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="08xxxxxxxxxx"
+                placeholder="Province"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rate per Hari (Rp) <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
               <input
-                type="number"
-                name="dailyRate"
-                value={formData.dailyRate}
+                type="text"
+                name="city"
+                value={formData.city}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="350000"
+                placeholder="City"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tanggal Bergabung <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Subdistrict</label>
               <input
-                type="date"
-                name="joinDate"
-                value={formData.joinDate}
+                type="text"
+                name="subdistrict"
+                value={formData.subdistrict}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                placeholder="Subdistrict"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status Kepegawaian <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="employmentStatus"
-                value={formData.employmentStatus}
+              <label className="block text-xs font-medium text-gray-500 mb-1">Village</label>
+              <input
+                type="text"
+                name="village"
+                value={formData.village}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-white"
-              >
-                <option value="Karyawan Tetap">Karyawan Tetap</option>
-                <option value="Karyawan Kontrak">Karyawan Kontrak</option>
-                <option value="Internship">Internship</option>
-                <option value="Freelance">Freelance</option>
-              </select>
+                placeholder="Village"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status SDM <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="status"
-                value={formData.status}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>
+              <input
+                type="text"
+                name="detailAddress"
+                value={formData.detailAddress}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm bg-white"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+                placeholder="Jl. Simpang Surapati..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
             </div>
           </div>
         </div>
 
-        {/* Section 2: Informasi Bank */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 pb-2 border-b border-gray-100">
-            Informasi Bank
-          </h2>
+        {/* Card 2: Status & Banking */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+          <h2 className="text-base font-bold text-blue-600">Manpower Status and Banking Information</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Bank</label>
-              <input
-                type="text"
-                name="bankName"
-                value={formData.bankName}
+              <label className="block text-xs font-medium text-gray-500 mb-1">Skill</label>
+              <select
+                name="skill"
+                value={formData.skill}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="BCA, Mandiri, BNI, dll"
-              />
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="">Choose Skill</option>
+                {skillOptions.map((sk) => (
+                  <option key={sk} value={sk}>
+                    {sk}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Rekening</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Employment Status</label>
+              <select
+                name="employmentStatus"
+                value={formData.employmentStatus}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="Fulltime">Fulltime</option>
+                <option value="Parttime">Part Time</option>
+                <option value="Freelance">Freelance</option>
+                <option value="Internship">Internship</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Position</label>
+              <select
+                name="position"
+                value={formData.position}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="">Select Position</option>
+                {positionOptions.map((pos) => (
+                  <option key={pos} value={pos}>
+                    {pos}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Input Manual Bank */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Bank Name</label>
               <input
                 type="text"
                 name="bankAccount"
                 value={formData.bankAccount}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="Masukkan nomor rekening"
+                placeholder="e.g. BCA, Mandiri, BNI"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nama Pemilik Rekening
-              </label>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Account Number</label>
+              <input
+                type="text"
+                name="accountNumber"
+                value={formData.accountNumber}
+                onChange={handleChange}
+                placeholder="Account number"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Account Holder</label>
               <input
                 type="text"
                 name="accountHolder"
                 value={formData.accountHolder}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
-                placeholder="Nama sesuai buku tabungan"
+                placeholder="Account holder name"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
             </div>
           </div>
         </div>
 
-        {/* Section 3: Skill & Keahlian */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-semibold text-gray-900 pb-2 border-b border-gray-100">
-            Skill & Keahlian
-          </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {availableSkills.map((skill) => {
-              const isChecked = formData.skills?.includes(skill);
-              return (
-                <label
-                  key={skill}
-                  className={`flex items-center gap-2 p-3 border rounded-lg cursor-pointer text-sm font-medium transition ${
-                    isChecked
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => handleSkillToggle(skill)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                  />
-                  <span>{skill}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {/* Buttons */}
+        <div className="flex items-center justify-between pt-2">
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition"
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition"
           >
-            Batal
+            Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium transition flex items-center gap-2"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
-            {submitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+            {submitting ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </form>

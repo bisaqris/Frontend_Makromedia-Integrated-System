@@ -64,10 +64,18 @@ export default function SkillsPage() {
     try {
       setLoading(true);
       const data = await skillService.getAll();
-      setSkills(data || []);
+      const list = data || [];
+      setSkills(list);
+      // Synchronize dengan LocalStorage untuk form Add/Edit Manpower
+      if (list.length > 0) {
+        localStorage.setItem('skills_list', JSON.stringify(list));
+      }
     } catch {
-      setSkills([]);
-    } finally {
+      // Fallback ke LocalStorage jika API belum aktif
+      const stored = JSON.parse(localStorage.getItem('skills_list') || '[]');
+      setSkills(stored);
+    } 
+    finally {
       setLoading(false);
     }
   };
@@ -129,9 +137,27 @@ export default function SkillsPage() {
       if (editingSkill) {
         await skillService.update(editingSkill.id, formData as CreateSkillDTO);
         toast.success('Skill berhasil diperbarui');
+
+        // Local Storage Update
+        const updated = skills.map((s) =>
+          s.id === editingSkill.id ? { ...s, ...formData } : s
+        );
+        setSkills(updated);
+        localStorage.setItem('skills_list', JSON.stringify(updated));
       } else {
-        await skillService.create(formData as CreateSkillDTO);
+        const newSkill = await skillService.create(formData as CreateSkillDTO);
         toast.success('Skill baru berhasil ditambahkan');
+
+        // Local Storage Add
+        const addedItem = newSkill || {
+          id: Date.now().toString(),
+          name: formData.name,
+          status: formData.status,
+          usedBy: 0,
+        };
+        const updated = [addedItem, ...skills];
+        setSkills(updated);
+        localStorage.setItem('skills_list', JSON.stringify(updated));
       }
       handleReset();
       fetchSkills();
@@ -147,6 +173,12 @@ export default function SkillsPage() {
     try {
       await skillService.delete(deletingSkill.id);
       toast.success('Skill berhasil dihapus');
+
+      // Local Storage Delete
+      const updated = skills.filter((s) => s.id !== deletingSkill.id);
+      setSkills(updated);
+      localStorage.setItem('skills_list', JSON.stringify(updated));
+
       if (editingSkill?.id === deletingSkill.id) {
         handleReset();
       }
@@ -159,17 +191,11 @@ export default function SkillsPage() {
     }
   };
 
-  
-
   return (
     <div className="space-y-6">
-      {/* Split Screen Grid Layout (Responsive) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
         {/* KOLOM KIRI - Table & Mobile Cards */}
         <div className="lg:col-span-7 xl:col-span-7 space-y-4">
-          
-          {/* Search Bar + Separated Filter Status */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5">
               <Search className="h-4 w-4 text-zinc-400 shrink-0" />
@@ -196,7 +222,6 @@ export default function SkillsPage() {
             </div>
           </div>
 
-          {/* Table Container */}
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
             {loading ? (
               <div className="flex h-64 items-center justify-center">
@@ -216,7 +241,6 @@ export default function SkillsPage() {
               </div>
             ) : (
               <>
-                {/* 1. TAMPILAN TABLE (Hanya muncul di Layar Desktop md ke atas) */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-center text-sm border-collapse">
                     <thead className="border-b border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-500">
@@ -274,7 +298,6 @@ export default function SkillsPage() {
                   </table>
                 </div>
 
-                {/* 2. TAMPILAN CARD VIEW (Khusus Layar Mobile di bawah md) */}
                 <div className="block md:hidden divide-y divide-zinc-100 p-2">
                   {paginatedSkills.map((skill) => (
                     <div
@@ -320,7 +343,6 @@ export default function SkillsPage() {
                   ))}
                 </div>
 
-                {/* Footer Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 bg-white text-xs">
                   <div className="text-zinc-500 font-medium">
                     Showing {paginatedSkills.length} data out of {totalData}
@@ -480,7 +502,6 @@ export default function SkillsPage() {
             </form>
           </div>
         </div>
-
       </div>
 
       <ConfirmModal

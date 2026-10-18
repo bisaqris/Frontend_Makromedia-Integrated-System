@@ -64,9 +64,16 @@ export default function PositionsPage() {
     try {
       setLoading(true);
       const data = await positionService.getAll();
-      setPositions(data || []);
+      const list = data || [];
+      setPositions(list);
+      // Synchronize dengan LocalStorage untuk form Add/Edit Manpower
+      if (list.length > 0) {
+        localStorage.setItem('positions_list', JSON.stringify(list));
+      }
     } catch {
-      setPositions([]);
+      // Fallback ke LocalStorage jika API belum aktif
+      const stored = JSON.parse(localStorage.getItem('positions_list') || '[]');
+      setPositions(stored);
     } finally {
       setLoading(false);
     }
@@ -129,9 +136,27 @@ export default function PositionsPage() {
       if (editingPosition) {
         await positionService.update(editingPosition.id, formData as CreatePositionDTO);
         toast.success('Position berhasil diperbarui');
+
+        // Local Storage Update
+        const updated = positions.map((p) =>
+          p.id === editingPosition.id ? { ...p, ...formData } : p
+        );
+        setPositions(updated);
+        localStorage.setItem('positions_list', JSON.stringify(updated));
       } else {
-        await positionService.create(formData as CreatePositionDTO);
+        const newPosition = await positionService.create(formData as CreatePositionDTO);
         toast.success('Position baru berhasil ditambahkan');
+
+        // Local Storage Add
+        const addedItem = newPosition || {
+          id: Date.now().toString(),
+          name: formData.name,
+          status: formData.status,
+          usedBy: 0,
+        };
+        const updated = [addedItem, ...positions];
+        setPositions(updated);
+        localStorage.setItem('positions_list', JSON.stringify(updated));
       }
       handleReset();
       fetchPositions();
@@ -147,6 +172,12 @@ export default function PositionsPage() {
     try {
       await positionService.delete(deletingPosition.id);
       toast.success('Position berhasil dihapus');
+
+      // Local Storage Delete
+      const updated = positions.filter((p) => p.id !== deletingPosition.id);
+      setPositions(updated);
+      localStorage.setItem('positions_list', JSON.stringify(updated));
+
       if (editingPosition?.id === deletingPosition.id) {
         handleReset();
       }
@@ -161,13 +192,9 @@ export default function PositionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Split Screen Grid Layout (Responsive) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
         {/* KOLOM KIRI - Table & Mobile Cards */}
         <div className="lg:col-span-7 xl:col-span-7 space-y-4">
-          
-          {/* Search Bar + Separated Filter Status */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
             <div className="flex items-center gap-3 flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5">
               <Search className="h-4 w-4 text-zinc-400 shrink-0" />
@@ -194,7 +221,6 @@ export default function PositionsPage() {
             </div>
           </div>
 
-          {/* Table Container */}
           <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
             {loading ? (
               <div className="flex h-64 items-center justify-center">
@@ -214,7 +240,6 @@ export default function PositionsPage() {
               </div>
             ) : (
               <>
-                {/* 1. TAMPILAN TABLE (Hanya muncul di Layar Desktop md ke atas) */}
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-center text-sm border-collapse">
                     <thead className="border-b border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-500">
@@ -272,7 +297,6 @@ export default function PositionsPage() {
                   </table>
                 </div>
 
-                {/* 2. TAMPILAN CARD VIEW (Khusus Layar Mobile di bawah md) */}
                 <div className="block md:hidden divide-y divide-zinc-100 p-2">
                   {paginatedPositions.map((position) => (
                     <div
@@ -318,7 +342,6 @@ export default function PositionsPage() {
                   ))}
                 </div>
 
-                {/* Footer Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 bg-white text-xs">
                   <div className="text-zinc-500 font-medium">
                     Showing {paginatedPositions.length} data out of {totalData}
@@ -478,7 +501,6 @@ export default function PositionsPage() {
             </form>
           </div>
         </div>
-
       </div>
 
       <ConfirmModal

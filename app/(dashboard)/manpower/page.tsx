@@ -36,7 +36,7 @@ export default function ManpowerPage() {
                     skill: 'Director',
                     position: 'BOD',
                     phone: '0821-5410-7123',
-                    email: 'agus@makromedia.id',
+                    email: 'agust@makromedia.id',
                 },
                 {
                     id: '2',
@@ -85,12 +85,12 @@ export default function ManpowerPage() {
         }
     };
 
-    // Filter Data berdasarkan Search dan Status Filter
+    // Filter Data
     const filteredEmployees = employees.filter((emp) => {
         const matchesSearch =
-            emp.name.toLowerCase().includes(search.toLowerCase()) ||
-            emp.email.toLowerCase().includes(search.toLowerCase()) ||
-            emp.position.toLowerCase().includes(search.toLowerCase());
+            (emp.name || '').toLowerCase().includes(search.toLowerCase()) ||
+            (emp.email || '').toLowerCase().includes(search.toLowerCase()) ||
+            (emp.position || '').toLowerCase().includes(search.toLowerCase());
 
         const matchesStatus = statusFilter ? emp.status === statusFilter : true;
 
@@ -106,9 +106,9 @@ export default function ManpowerPage() {
 
     return (
         <div className="p-6 space-y-6">
-            {/* Top Bar: Search Bar (Kotak Hijau) + Filter Status (Kotak Kuning) + Button */}
+            {/* Top Bar */}
             <div className="flex flex-col sm:flex-row items-center gap-3">
-                {/* Kotak Hijau: Search Bar Panjang (flex-1) */}
+                {/* Search Bar */}
                 <div className="relative flex-1 w-full">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -123,7 +123,7 @@ export default function ManpowerPage() {
                     />
                 </div>
 
-                {/* Kotak Kuning: Filter Status Dropdown */}
+                {/* Filter Status Dropdown */}
                 <select
                     value={statusFilter}
                     onChange={(e) => {
@@ -139,7 +139,7 @@ export default function ManpowerPage() {
                     <option value="FREELANCE">FREELANCE</option>
                 </select>
 
-                {/* Button Tambah Karyawan */}
+                {/* Button Tambah Karyawan (Diarahkan ke /manpower/new) */}
                 <Link
                     href="/manpower/new"
                     className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
@@ -168,7 +168,9 @@ export default function ManpowerPage() {
                             {currentData.length > 0 ? (
                                 currentData.map((emp) => (
                                     <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="py-4 px-6 font-medium text-gray-900">{emp.name}</td>
+                                        <td className="py-4 px-6 font-medium text-gray-900">
+                                            {emp.name || (emp as any).fullName || '-'}
+                                        </td>
                                         <td className="py-4 px-6">
                                             <span
                                                 className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadgeStyle(
@@ -178,10 +180,12 @@ export default function ManpowerPage() {
                                                 {emp.status}
                                             </span>
                                         </td>
-                                        <td className="py-4 px-6 text-gray-600">{emp.skill}</td>
-                                        <td className="py-4 px-6 text-gray-600">{emp.position}</td>
-                                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">{emp.phone}</td>
-                                        <td className="py-4 px-6 text-gray-600">{emp.email}</td>
+                                        <td className="py-4 px-6 text-gray-600">{emp.skill || '-'}</td>
+                                        <td className="py-4 px-6 text-gray-600">{emp.position || '-'}</td>
+                                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
+                                            {emp.phone || (emp as any).phoneNumber || '-'}
+                                        </td>
+                                        <td className="py-4 px-6 text-gray-600">{emp.email || '-'}</td>
                                         <td className="py-4 px-6">
                                             <div className="flex items-center justify-center gap-3">
                                                 <Link href={`/manpower/${emp.id}`} className="text-blue-500 hover:text-blue-700">
@@ -208,7 +212,7 @@ export default function ManpowerPage() {
                     </table>
                 </div>
 
-                {/* Kotak Ungu: Footer Showing Data & Pagination (5, 10, 20, 50) */}
+                {/* Footer & Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 text-sm text-gray-500">
                     <div className="flex items-center gap-3">
                         <span>Showing</span>
