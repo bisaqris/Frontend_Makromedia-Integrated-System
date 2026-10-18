@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 export default function EditManpowerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -134,6 +135,10 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleRegionChange = (values: Partial<typeof formData>) => {
+    setFormData((prev) => ({ ...prev, ...values }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -256,54 +261,8 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
               />
             </div>
 
-            {/* Input Manual Alamat */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Province</label>
-              <input
-                type="text"
-                name="province"
-                value={formData.province}
-                onChange={handleChange}
-                placeholder="Province"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                placeholder="City"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Subdistrict</label>
-              <input
-                type="text"
-                name="subdistrict"
-                value={formData.subdistrict}
-                onChange={handleChange}
-                placeholder="Subdistrict"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Village</label>
-              <input
-                type="text"
-                name="village"
-                value={formData.village}
-                onChange={handleChange}
-                placeholder="Village"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
+            {/* Alamat: Search Dropdown (data dari wilayah.id) */}
+            <AddressRegionFields value={formData} onChange={handleRegionChange} />
 
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>

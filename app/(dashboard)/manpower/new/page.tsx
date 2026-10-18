@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 export default function AddManpowerPage() {
   const router = useRouter();
@@ -31,42 +32,46 @@ export default function AddManpowerPage() {
   });
 
   useEffect(() => {
-    // Mengambil master data position dari localStorage (opsional fallback jika kosong)
-    const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
-    if (storedPositions.length > 0) {
-      setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
-    } else {
-      setPositionOptions([
-        'Project Manager',
-        'Creative Director',
-        'Lead Editor',
-        'Senior Videographer',
-        'Junior Videographer',
-        'Cameraman',
-        'Sound Engineer',
-        'Motion Graphic Artist',
-        'Graphic Designer',
-        'UI/UX Designer',
-      ]);
-    }
+    const timeoutId = window.setTimeout(() => {
+      // Mengambil master data position dari localStorage (opsional fallback jika kosong)
+      const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
+      if (storedPositions.length > 0) {
+        setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
+      } else {
+        setPositionOptions([
+          'Project Manager',
+          'Creative Director',
+          'Lead Editor',
+          'Senior Videographer',
+          'Junior Videographer',
+          'Cameraman',
+          'Sound Engineer',
+          'Motion Graphic Artist',
+          'Graphic Designer',
+          'UI/UX Designer',
+        ]);
+      }
 
-    // Mengambil master data skill dari localStorage
-    const storedSkills = JSON.parse(localStorage.getItem('skills_list') || '[]');
-    if (storedSkills.length > 0) {
-      setSkillOptions(storedSkills.map((s: { name: string }) => s.name));
-    } else {
-      setSkillOptions([
-        'Video Editing',
-        'Motion Graphic',
-        'Camera Operation',
-        'Audio Mixing',
-        'Graphic Design',
-        'UI Design',
-        'Color Grading',
-        'Videography',
-        'Director',
-      ]);
-    }
+      // Mengambil master data skill dari localStorage
+      const storedSkills = JSON.parse(localStorage.getItem('skills_list') || '[]');
+      if (storedSkills.length > 0) {
+        setSkillOptions(storedSkills.map((s: { name: string }) => s.name));
+      } else {
+        setSkillOptions([
+          'Video Editing',
+          'Motion Graphic',
+          'Camera Operation',
+          'Audio Mixing',
+          'Graphic Design',
+          'UI Design',
+          'Color Grading',
+          'Videography',
+          'Director',
+        ]);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   const handleChange = (
@@ -74,6 +79,10 @@ export default function AddManpowerPage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegionChange = (values: Partial<typeof formData>) => {
+    setFormData((prev) => ({ ...prev, ...values }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,54 +203,8 @@ export default function AddManpowerPage() {
               />
             </div>
 
-            {/* Input Manual Alamat */}
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Province</label>
-              <input
-                type="text"
-                name="province"
-                value={formData.province}
-                onChange={handleChange}
-                placeholder="Province"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
-              <input
-                type="text"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                placeholder="City"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Subdistrict</label>
-              <input
-                type="text"
-                name="subdistrict"
-                value={formData.subdistrict}
-                onChange={handleChange}
-                placeholder="Subdistrict"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Village</label>
-              <input
-                type="text"
-                name="village"
-                value={formData.village}
-                onChange={handleChange}
-                placeholder="Village"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-              />
-            </div>
+            {/* Alamat: Search Dropdown (data dari wilayah.id) */}
+            <AddressRegionFields value={formData} onChange={handleRegionChange} />
 
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>
@@ -327,7 +290,7 @@ export default function AddManpowerPage() {
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Account Number</label>
               <input
-                type="text"
+                type="number"
                 name="accountNumber"
                 value={formData.accountNumber}
                 onChange={handleChange}

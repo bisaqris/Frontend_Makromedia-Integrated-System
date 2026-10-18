@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { addPicClient } from '@/lib/mock/clients.mock';
+import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 export default function AddNewPicClientPage() {
   const router = useRouter();
@@ -34,6 +35,17 @@ export default function AddNewPicClientPage() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
+  };
+
+  const handleRegionChange = (values: Partial<typeof formData>) => {
+    setFormData((prev) => ({ ...prev, ...values }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(values) as (keyof typeof formData)[]) {
+        if (next[key]) next[key] = '';
+      }
+      return next;
+    });
   };
 
   const validate = (): boolean => {
@@ -274,95 +286,13 @@ export default function AddNewPicClientPage() {
             {errors.country && <p className="text-xs text-red-500 font-medium mt-1">{errors.country}</p>}
           </div>
 
-          <div className="md:col-span-6">
-            <label
-              htmlFor="province"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Province <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="province"
-              name="province"
-              value={formData.province}
-              onChange={handleInputChange}
-              placeholder="Province"
-              className={`w-full bg-white border ${
-                errors.province ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-              } rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors`}
-            />
-            {errors.province && (
-              <p className="text-xs text-red-500 font-medium mt-1">{errors.province}</p>
-            )}
-          </div>
-
-          {/* Row 5: City & Subdistrict */}
-          <div className="md:col-span-6">
-            <label
-              htmlFor="city"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              City <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="city"
-              name="city"
-              value={formData.city}
-              onChange={handleInputChange}
-              placeholder="City"
-              className={`w-full bg-white border ${
-                errors.city ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-              } rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors`}
-            />
-            {errors.city && <p className="text-xs text-red-500 font-medium mt-1">{errors.city}</p>}
-          </div>
-
-          <div className="md:col-span-6">
-            <label
-              htmlFor="subdistrict"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Subdistrict <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="subdistrict"
-              name="subdistrict"
-              value={formData.subdistrict}
-              onChange={handleInputChange}
-              placeholder="Subdistrict"
-              className={`w-full bg-white border ${
-                errors.subdistrict ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-              } rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors`}
-            />
-            {errors.subdistrict && (
-              <p className="text-xs text-red-500 font-medium mt-1">{errors.subdistrict}</p>
-            )}
-          </div>
-
-          {/* Row 6: Village & Postal Code */}
-          <div className="md:col-span-6">
-            <label
-              htmlFor="village"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Village <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="village"
-              name="village"
-              value={formData.village}
-              onChange={handleInputChange}
-              placeholder="Village"
-              className={`w-full bg-white border ${
-                errors.village ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-              } rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors`}
-            />
-            {errors.village && <p className="text-xs text-red-500 font-medium mt-1">{errors.village}</p>}
-          </div>
+          {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
+          <AddressRegionFields
+            value={formData}
+            onChange={handleRegionChange}
+            fieldClassName="md:col-span-6"
+            errors={errors}
+          />
 
           <div className="md:col-span-6">
             <label
