@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Eye, EyeOff, X, Search, Check } from 'lucide-react';
+import { ChevronDown, X, Search, Check } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
+import Combobox from '@/components/ui/Combobox';
+import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 const PRESET_SKILLS = [
   'Leadership',
@@ -28,7 +30,6 @@ export default function ProfilePage() {
     dateOfBirth: '10 January 2000',
     phone: '081234567890',
     email: 'john@makromedia.com',
-    password: 'password123',
     province: 'East Java',
     city: 'Surabaya',
     subdistrict: 'Gubeng',
@@ -40,7 +41,6 @@ export default function ProfilePage() {
   });
 
   const [skills, setSkills] = useState<string[]>(['Leadership', 'Management']);
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [photoPreview] = useState<string>(
     'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400'
   );
@@ -49,6 +49,33 @@ export default function ProfilePage() {
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState<boolean>(false);
   const [skillSearch, setSkillSearch] = useState<string>('');
   const skillDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Opsi position dari master data (localStorage positions_list), fallback sama dengan form manpower
+  const [positionOptions, setPositionOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
+      if (storedPositions.length > 0) {
+        setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
+      } else {
+        setPositionOptions([
+          'Project Manager',
+          'Creative Director',
+          'Lead Editor',
+          'Senior Videographer',
+          'Junior Videographer',
+          'Cameraman',
+          'Sound Engineer',
+          'Motion Graphic Artist',
+          'Graphic Designer',
+          'UI/UX Designer',
+        ]);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -68,6 +95,10 @@ export default function ProfilePage() {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleRegionChange = (values: Partial<typeof formData>) => {
+    setFormData((prev) => ({ ...prev, ...values }));
   };
 
   const handleToggleSkill = (skill: string) => {
@@ -202,128 +233,11 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-                placeholder="Enter password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                title={showPassword ? 'Sembunyikan Kata Sandi' : 'Tampilkan Kata Sandi'}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
+          {/* Password dihapus dari profil — alur ganti password dipindah ke backend
+              (jangan kirim password lewat form profil). */}
 
-          {/* Province */}
-          <div>
-            <label
-              htmlFor="province"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Province
-            </label>
-            <div className="relative">
-              <select
-                id="province"
-                name="province"
-                value={formData.province}
-                onChange={handleInputChange}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="East Java">East Java</option>
-                <option value="Central Java">Central Java</option>
-                <option value="West Java">West Java</option>
-                <option value="DKI Jakarta">DKI Jakarta</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* City */}
-          <div>
-            <label htmlFor="city" className="text-xs font-semibold text-slate-700 block mb-1.5">
-              City
-            </label>
-            <div className="relative">
-              <select
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="Surabaya">Surabaya</option>
-                <option value="Malang">Malang</option>
-                <option value="Sidoarjo">Sidoarjo</option>
-                <option value="Gresik">Gresik</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Subdistrict */}
-          <div>
-            <label
-              htmlFor="subdistrict"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Subdistrict
-            </label>
-            <div className="relative">
-              <select
-                id="subdistrict"
-                name="subdistrict"
-                value={formData.subdistrict}
-                onChange={handleInputChange}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="Gubeng">Gubeng</option>
-                <option value="Sukolilo">Sukolilo</option>
-                <option value="Tegalsari">Tegalsari</option>
-                <option value="Wonokromo">Wonokromo</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Village */}
-          <div>
-            <label htmlFor="village" className="text-xs font-semibold text-slate-700 block mb-1.5">
-              Village
-            </label>
-            <div className="relative">
-              <select
-                id="village"
-                name="village"
-                value={formData.village}
-                onChange={handleInputChange}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="Airlangga">Airlangga</option>
-                <option value="Kertajaya">Kertajaya</option>
-                <option value="Mojo">Mojo</option>
-                <option value="Pucang Sewu">Pucang Sewu</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
+          {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
+          <AddressRegionFields value={formData} onChange={handleRegionChange} />
 
           {/* Detail Address (Full Width) */}
           <div className="md:col-span-2">
@@ -455,30 +369,16 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Position */}
-          <div>
-            <label
-              htmlFor="position"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Position
-            </label>
-            <div className="relative">
-              <select
-                id="position"
-                name="position"
-                value={formData.position}
-                onChange={handleInputChange}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="BOD">BOD</option>
-                <option value="Director">Director</option>
-                <option value="Manager">Manager</option>
-                <option value="Staff">Staff</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
-          </div>
+          {/* Position: single-select search dropdown, opsi dari master data positions_list */}
+          <Combobox
+            id="position"
+            label="Position"
+            options={positionOptions.map((pos) => ({ value: pos, label: pos }))}
+            value={formData.position}
+            onChange={(value) => setFormData((prev) => ({ ...prev, position: value }))}
+            placeholder="Select position..."
+            emptyText="Position tidak ditemukan"
+          />
 
           {/* Bank Account */}
           <div>
@@ -488,21 +388,15 @@ export default function ProfilePage() {
             >
               Bank Account
             </label>
-            <div className="relative">
-              <select
-                id="bankAccount"
-                name="bankAccount"
-                value={formData.bankAccount}
-                onChange={handleInputChange}
-                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
-              >
-                <option value="Bank Central Asia">Bank Central Asia</option>
-                <option value="Bank Mandiri">Bank Mandiri</option>
-                <option value="Bank BNI">Bank BNI</option>
-                <option value="Bank BRI">Bank BRI</option>
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            </div>
+            <input
+              type="text"
+              id="bankAccount"
+              name="bankAccount"
+              value={formData.bankAccount}
+              onChange={handleInputChange}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
+              placeholder="Contoh: Bank Central Asia"
+            />
           </div>
 
           {/* Account Number */}
