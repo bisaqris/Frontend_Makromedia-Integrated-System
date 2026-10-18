@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { addCompanyClient } from '@/lib/mock/clients.mock';
+import { clientService } from '@/lib/services/clientService';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 export default function AddNewCompanyClientPage() {
@@ -91,15 +91,14 @@ export default function AddNewCompanyClientPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
       showToast.error('Mohon lengkapi seluruh field formulir dengan benar.');
       return;
     }
 
-    // Add to shared company store
-    addCompanyClient({
+    await clientService.createCompany({
       name: formData.name.trim(),
       phone: formData.phone.trim(),
       email: formData.email.trim(),

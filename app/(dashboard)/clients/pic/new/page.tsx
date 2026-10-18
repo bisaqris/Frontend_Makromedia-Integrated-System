@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { addPicClient } from '@/lib/mock/clients.mock';
+import { clientService } from '@/lib/services/clientService';
+import { ClientCompany } from '@/types/client';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
 
 export default function AddNewPicClientPage() {
@@ -26,6 +27,24 @@ export default function AddNewPicClientPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [companies, setCompanies] = useState<ClientCompany[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    clientService
+      .getCompanies()
+      .then((list) => {
+        if (isMounted) setCompanies(list);
+      })
+      .catch(() => {
+        if (isMounted) showToast.error('Gagal memuat daftar Company Client.');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -95,15 +114,14 @@ export default function AddNewPicClientPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
       showToast.error('Mohon lengkapi seluruh field formulir dengan benar.');
       return;
     }
 
-    // Add to shared store
-    addPicClient({
+    await clientService.createPIC({
       name: formData.name.trim(),
       company: formData.company,
       phone: formData.phone.trim(),
@@ -176,15 +194,11 @@ export default function AddNewPicClientPage() {
                 <option value="" disabled hidden>
                   Company
                 </option>
-                <option value="CV. Makromedia Visual">CV. Makromedia Visual</option>
-                <option value="PT Innovate Indonesia">PT Innovate Indonesia</option>
-                <option value="Bank Nusantara">Bank Nusantara</option>
-                <option value="82 PRO">82 PRO</option>
-                <option value="Director">Director</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Editor">Editor</option>
-                <option value="Motion Graphic">Motion Graphic</option>
-                <option value="Project Manager">Project Manager</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.name}>
+                    {company.name}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>

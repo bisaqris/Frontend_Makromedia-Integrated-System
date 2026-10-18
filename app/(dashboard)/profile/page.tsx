@@ -6,75 +6,75 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import Combobox from '@/components/ui/Combobox';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
-
-const PRESET_SKILLS = [
-  'Leadership',
-  'Management',
-  'Director of Photography (DoP)',
-  'Camera Operator / Cameraman',
-  'Video Editor (Premiere / DaVinci)',
-  'Lighting Technician / Gaffer',
-  'Audio Recordist / Sound Engineer',
-  'Drone Pilot (Certified)',
-  'Project Management',
-  'Strategic Planning',
-  'Public Speaking',
-  'Event Production',
-  'Budgeting & Finance',
-  'Client Relations',
-];
+import { positionService } from '@/lib/services/positionService';
+import { skillService } from '@/lib/services/skillService';
+import { userService } from '@/lib/services/userService';
 
 export default function ProfilePage() {
   const [formData, setFormData] = useState({
-    name: 'John Doe',
-    dateOfBirth: '10 January 2000',
-    phone: '081234567890',
-    email: 'john@makromedia.com',
-    province: 'East Java',
-    city: 'Surabaya',
-    subdistrict: 'Gubeng',
-    village: 'Airlangga',
-    detailAddress: 'Jl. Dharmawangsa No.74',
-    position: 'BOD',
-    bankAccount: 'Bank Central Asia',
-    accountNumber: '7265189474',
+    name: '',
+    dateOfBirth: '',
+    phone: '',
+    email: '',
+    province: '',
+    city: '',
+    subdistrict: '',
+    village: '',
+    detailAddress: '',
+    position: '',
+    bankName: '',
+    accountNumber: '',
   });
 
-  const [skills, setSkills] = useState<string[]>(['Leadership', 'Management']);
-  const [photoPreview] = useState<string>(
-    'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400'
-  );
+  const [skills, setSkills] = useState<string[]>([]);
+  const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [skillOptions, setSkillOptions] = useState<string[]>([]);
+  const [positionOptions, setPositionOptions] = useState<string[]>([]);
 
   // Skill Dropdown Search States & Ref
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState<boolean>(false);
   const [skillSearch, setSkillSearch] = useState<string>('');
   const skillDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Opsi position dari master data (localStorage positions_list), fallback sama dengan form manpower
-  const [positionOptions, setPositionOptions] = useState<string[]>([]);
-
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
-      if (storedPositions.length > 0) {
-        setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
-      } else {
-        setPositionOptions([
-          'Project Manager',
-          'Creative Director',
-          'Lead Editor',
-          'Senior Videographer',
-          'Junior Videographer',
-          'Cameraman',
-          'Sound Engineer',
-          'Motion Graphic Artist',
-          'Graphic Designer',
-          'UI/UX Designer',
-        ]);
-      }
-    }, 0);
+    let isMounted = true;
 
-    return () => window.clearTimeout(timeoutId);
+    const loadData = async () => {
+      const [profile, positions, masterSkills] = await Promise.all([
+        userService.getProfile(),
+        positionService.getAll(),
+        skillService.getAll(),
+      ]);
+
+      if (!isMounted) return;
+
+      setFormData({
+        name: profile.name,
+        dateOfBirth: profile.dateOfBirth || '',
+        phone: profile.phone,
+        email: profile.email,
+        province: profile.province || '',
+        city: profile.city || '',
+        subdistrict: profile.subdistrict || '',
+        village: profile.village || '',
+        detailAddress: profile.detailAddress || '',
+        position: profile.position || '',
+        bankName: profile.bankName || '',
+        accountNumber: profile.accountNumber || '',
+      });
+      setSkills(profile.skills);
+      setPhotoPreview(profile.photoUrl || '');
+      setPositionOptions(positions.map((p) => p.name));
+      setSkillOptions(masterSkills.map((s) => s.name));
+    };
+
+    loadData().catch(() => {
+      showToast.error('Gagal memuat data profil.');
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -121,13 +121,32 @@ export default function ProfilePage() {
     }
   };
 
-  const filteredSkills = PRESET_SKILLS.filter((s) =>
+  const filteredSkills = skillOptions.filter((s) =>
     s.toLowerCase().includes(skillSearch.toLowerCase())
   );
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    showToast.success('Profil berhasil diperbarui!');
+    try {
+      await userService.updateProfile({
+        name: formData.name,
+        dateOfBirth: formData.dateOfBirth,
+        phone: formData.phone,
+        email: formData.email,
+        province: formData.province,
+        city: formData.city,
+        subdistrict: formData.subdistrict,
+        village: formData.village,
+        detailAddress: formData.detailAddress,
+        position: formData.position,
+        skills,
+        bankName: formData.bankName,
+        accountNumber: formData.accountNumber,
+      });
+      showToast.success('Profil berhasil diperbarui!');
+    } catch {
+      showToast.error('Gagal memperbarui profil.');
+    }
   };
 
   const handleCancel = () => {
@@ -369,7 +388,7 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Position: single-select search dropdown, opsi dari master data positions_list */}
+          {/* Position: single-select search dropdown, opsi dari master data position */}
           <Combobox
             id="position"
             label="Position"
@@ -383,16 +402,16 @@ export default function ProfilePage() {
           {/* Bank Account */}
           <div>
             <label
-              htmlFor="bankAccount"
+              htmlFor="bankName"
               className="text-xs font-semibold text-slate-700 block mb-1.5"
             >
               Bank Account
             </label>
             <input
               type="text"
-              id="bankAccount"
-              name="bankAccount"
-              value={formData.bankAccount}
+              id="bankName"
+              name="bankName"
+              value={formData.bankName}
               onChange={handleInputChange}
               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
               placeholder="Contoh: Bank Central Asia"

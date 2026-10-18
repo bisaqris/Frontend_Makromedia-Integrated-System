@@ -1,29 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Eye, Pencil, Trash2, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { getCompanyClients, deleteCompanyClient, CompanyClientRecord } from '@/lib/mock/clients.mock';
+import { clientService } from '@/lib/services/clientService';
+import { ClientCompany } from '@/types/client';
 
 export default function ListClientCompanyPage() {
-  const [data, setData] = useState<CompanyClientRecord[]>(() => getCompanyClients());
+  const [data, setData] = useState<ClientCompany[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCityFilter, setSelectedCityFilter] = useState<string>('City');
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
+  const loadData = useCallback(async () => {
+    try {
+      setData(await clientService.getCompanies());
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData().catch(() => {
+      showToast.error('Gagal memuat data Company Client.');
+    });
+  }, [loadData]);
+
+  const cityOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(data.map((item) => item.city).filter((city): city is string => Boolean(city)))
+      ).sort(),
+    [data]
+  );
+
   const filteredData = data.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.phone.includes(searchQuery);
+      (item.address ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.city ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.email ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.phone ?? '').includes(searchQuery);
 
     const matchesCity =
-      selectedCityFilter === 'City' || item.city.toLowerCase() === selectedCityFilter.toLowerCase();
+      selectedCityFilter === 'City' ||
+      (item.city ?? '').toLowerCase() === selectedCityFilter.toLowerCase();
 
     return matchesSearch && matchesCity;
   });
@@ -35,11 +60,15 @@ export default function ListClientCompanyPage() {
   const endIndex = Math.min(startIndex + dataPerPage, totalFilteredCount);
   const displayedItems = filteredData.slice(startIndex, endIndex);
 
-  const handleDelete = (id: string, name: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus Company Client "${name}"?`)) {
-      deleteCompanyClient(id);
-      setData([...getCompanyClients()]);
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus Company Client "${name}"?`)) return;
+
+    try {
+      await clientService.deleteCompany(id);
+      await loadData();
       showToast.success(`Company Client "${name}" berhasil dihapus.`);
+    } catch {
+      showToast.error(`Gagal menghapus Company Client "${name}".`);
     }
   };
 
@@ -76,16 +105,11 @@ export default function ListClientCompanyPage() {
               className="appearance-none bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:border-primary transition-colors cursor-pointer shadow-2xs"
             >
               <option value="City">City</option>
-              <option value="Malang">Malang</option>
-              <option value="Surabaya">Surabaya</option>
-              <option value="Jakarta">Jakarta</option>
-              <option value="Bandung">Bandung</option>
-              <option value="Semarang">Semarang</option>
-              <option value="Madiun">Madiun</option>
-              <option value="Solo">Solo</option>
-              <option value="Yogyakarta">Yogyakarta</option>
-              <option value="Sukabumi">Sukabumi</option>
-              <option value="Tegal">Tegal</option>
+              {cityOptions.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -123,7 +147,7 @@ export default function ListClientCompanyPage() {
               {displayedItems.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-slate-400">
-                    Tidak ada data Client Company yang ditemukan.
+                    {isLoading ? 'Memuat data...' : 'Tidak ada data Client Company yang ditemukan.'}
                   </td>
                 </tr>
               ) : (
@@ -178,7 +202,7 @@ export default function ListClientCompanyPage() {
         <div className="block md:hidden divide-y divide-slate-100 -mx-2 px-2">
           {displayedItems.length === 0 ? (
             <div className="py-8 text-center text-slate-400 text-sm">
-              Tidak ada data Client Company yang ditemukan.
+              {isLoading ? 'Memuat data...' : 'Tidak ada data Client Company yang ditemukan.'}
             </div>
           ) : (
             displayedItems.map((item) => (

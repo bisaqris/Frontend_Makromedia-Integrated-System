@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Download, Printer, Minus, Plus } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { mockApplicationCosts } from '@/lib/mock/application-cost.mock';
+import { applicationCostService } from '@/lib/services/applicationCostService';
+import { companyService } from '@/lib/services/companyService';
+import { ApplicationCostItem, CompanyProfile } from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -16,10 +18,31 @@ export default function QuotationPreviewPage() {
   const router = useRouter();
 
   const id = params?.id as string;
-  const initialItem =
-    mockApplicationCosts.find((item) => item.id === id) ||
-    mockApplicationCosts[1] ||
-    mockApplicationCosts[0];
+
+  const [item, setItem] = useState<ApplicationCostItem | null>(null);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([applicationCostService.getById(id), companyService.getProfile()])
+      .then(([record, companyProfile]) => {
+        if (!isMounted) return;
+        setItem(record);
+        setProfile(companyProfile);
+      })
+      .catch(() => {
+        if (isMounted) setItem(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   const [zoomLevel, setZoomLevel] = useState<number>(100);
 
@@ -43,7 +66,7 @@ export default function QuotationPreviewPage() {
 
     const opt = {
       margin: [0, 0, 0, 0] as [number, number, number, number],
-      filename: `QUO-2026.11.001-${initialItem.projectName || 'Quotation'}.pdf`,
+      filename: `${(item?.documentNumber || 'Dokumen').replace(/[\\/]/g, '-')}-${item?.projectName || 'Quotation'}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -83,7 +106,30 @@ export default function QuotationPreviewPage() {
     router.push('/application-cost');
   };
 
-  const contractVal = initialItem.contractValue || 2000000;
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
+
+  if (!item) {
+    return (
+      <div className="space-y-6 pb-16">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-2xs text-center text-slate-500">
+          Data application cost dengan ID &quot;{id}&quot; tidak ditemukan.
+        </div>
+        <div className="flex items-center justify-start">
+          <Button type="button" variant="outline" size="md" onClick={() => router.back()}>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const contractVal = item.contractValue ?? 0;
+  const lineItems = item.lineItems ?? [];
+  const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
+  const discountPercent = item.discountPercent ?? 0;
+  const pph = item.pph ?? 0;
+  const grandTotal = subTotal - (subTotal * discountPercent) / 100 + pph;
+  const bankAccounts = item.bankAccounts ?? [];
 
   return (
     <div className="space-y-6 pb-16">
@@ -182,7 +228,7 @@ export default function QuotationPreviewPage() {
           <div className="flex items-center gap-3">
             <span className="text-slate-400 font-bold">≡</span>
             <span className="text-xs sm:text-sm font-bold text-slate-800">
-              QUO-2026.11.001 – Telkomsel / 82 Pro
+              {item.documentReference || '-'}
             </span>
           </div>
 
@@ -257,19 +303,19 @@ export default function QuotationPreviewPage() {
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
                     INFORMASI PROJECT
                   </span>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-800">82 PRO</h3>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-800">{item.mainClient || '-'}</h3>
                   <div className="space-y-1 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-medium">Event / Project</span>
-                      <span className="font-bold text-slate-800">Telkomsel</span>
+                      <span className="font-bold text-slate-800">{item.projectName}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-medium">Venue / Kota</span>
-                      <span className="font-bold text-slate-800">Malang, Jawa Timur</span>
+                      <span className="font-bold text-slate-800">{item.venue || '-'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-medium">Tanggal Event</span>
-                      <span className="font-bold text-slate-800">02 / 11 / 2026</span>
+                      <span className="font-bold text-slate-800">{item.eventDateShort || '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -279,19 +325,19 @@ export default function QuotationPreviewPage() {
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
                     INFORMASI KLIEN
                   </span>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-800">Makromedia Visual</h3>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-800">{profile?.name || '-'}</h3>
                   <div className="space-y-1 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-medium">Company Name</span>
-                      <span className="font-bold text-slate-800">Telkomsel</span>
+                      <span className="font-bold text-slate-800">{item.mainClient || '-'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-medium">Contact Person</span>
-                      <span className="font-bold text-slate-800">Malang, Jawa Timur</span>
+                      <span className="font-bold text-slate-800">{item.clientPIC || '-'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 font-medium">Email</span>
-                      <span className="font-bold text-slate-800 truncate">bayu@82pro.co.id</span>
+                      <span className="font-bold text-slate-800 truncate">{item.clientEmail || '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -300,10 +346,10 @@ export default function QuotationPreviewPage() {
                 <div className="md:col-span-4 space-y-2 flex flex-col justify-between">
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-[#f97316]">
-                      001/QUO.MAKROMEDIA/11/2026
+                      {item.documentNumber || '-'}
                     </p>
                     <p className="text-xs text-slate-500 font-normal mt-0.5">
-                      Diterbitkan: <span className="font-bold text-slate-700">02 November 2026</span>
+                      Diterbitkan: <span className="font-bold text-slate-700">{item.releaseDate || '-'}</span>
                     </p>
                   </div>
 
@@ -338,32 +384,34 @@ export default function QuotationPreviewPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    <tr className="align-top">
-                      <td className="py-2.5 px-3 font-normal text-slate-800">Livecam</td>
-                      <td className="py-2.5 px-3 text-slate-600 space-y-1">
-                        <p className="mt-2">2 Kamera</p>
-                        <p>Editing Livecam</p>
-                        <p>Switcher</p>
-                      </td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 1.000.000</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">hari</td>
-                      <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
-                        Rp 1.000.000
-                      </td>
-                    </tr>
-                    <tr className="align-top">
-                      <td className="py-2.5 px-3 font-normal text-slate-800">Foto Dokumentasi</td>
-                      <td className="py-2.5 px-3 text-slate-600"></td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 1.000.000</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">hari</td>
-                      <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
-                        Rp 1.000.000
-                      </td>
-                    </tr>
+                    {lineItems.map((lineItem) => (
+                      <tr key={lineItem.id} className="align-top">
+                        <td className="py-2.5 px-3 font-normal text-slate-800">
+                          {lineItem.itemName}
+                          {lineItem.categoryName && (
+                            <span className="block text-[11px] text-slate-400 font-normal">
+                              {lineItem.categoryName}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-600">
+                          {lineItem.descriptions?.map((description) => (
+                            <span key={description} className="block">
+                              {description}
+                            </span>
+                          ))}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {formatRupiahWithSpace(lineItem.unitPrice)}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">{lineItem.quantity}</td>
+                        <td className="py-2.5 px-3 text-center">{lineItem.freq}</td>
+                        <td className="py-2.5 px-3 text-center">{lineItem.period}</td>
+                        <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
+                          {formatRupiahWithSpace(lineItem.subTotal)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -392,16 +440,18 @@ export default function QuotationPreviewPage() {
                       <td className="py-2.5 px-3 font-normal text-slate-800">
                         Full Production Package
                         <span className="block text-[11px] text-slate-400 font-normal">
-                          Event Telkomsel
+                          {item.projectName}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-slate-600">Event Telkomsel Malang</td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 2.000.000</td>
+                      <td className="py-2.5 px-3 text-slate-600">{item.venue || '-'}</td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        {formatRupiahWithSpace(grandTotal)}
+                      </td>
                       <td className="py-2.5 px-3 text-center">1</td>
                       <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">hari</td>
+                      <td className="py-2.5 px-3 text-center">{lineItems.length} item</td>
                       <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
-                        Rp 2.000.000
+                        {formatRupiahWithSpace(grandTotal)}
                       </td>
                     </tr>
                   </tbody>
@@ -414,22 +464,22 @@ export default function QuotationPreviewPage() {
               <div className="space-y-1.5 border-b border-slate-200 pb-2.5 text-xs">
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>Sub Total</span>
-                  <span className="font-bold text-slate-800">Rp 2.000.000</span>
+                  <span className="font-bold text-slate-800">{formatRupiahWithSpace(subTotal)}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>Diskon</span>
-                  <span className="font-bold text-slate-800">0%</span>
+                  <span className="font-bold text-slate-800">{discountPercent}%</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>PPH</span>
-                  <span className="font-bold text-slate-800">Rp 0</span>
+                  <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
                 </div>
               </div>
 
               {/* Highlighted Orange Grand Total Box */}
               <div className="bg-[#fff7ed] border border-[#ffedd5] rounded-xl p-3 flex justify-between items-center">
                 <span className="text-sm font-bold text-orange-600">Grand Total</span>
-                <span className="text-base font-extrabold text-orange-600">Rp 2.000.000</span>
+                <span className="text-base font-extrabold text-orange-600">{formatRupiahWithSpace(grandTotal)}</span>
               </div>
             </div>
 
@@ -443,7 +493,9 @@ export default function QuotationPreviewPage() {
                   <li>
                     Penawaran ini masih bersifat <strong className="font-bold text-slate-800">customize</strong>, dapat berubah sesuai kebutuhan selama project berlangsung
                   </li>
-                  <li>Kesepakatan nilai kontrak dapat dikomunikasikan dengan pihak Makromedia</li>
+                  <li>
+                    Kesepakatan nilai kontrak dapat dikomunikasikan dengan pihak {profile?.name || '-'}
+                  </li>
                 </ol>
               </div>
 
@@ -453,37 +505,37 @@ export default function QuotationPreviewPage() {
                 </h4>
                 <ol className="list-decimal list-inside text-slate-600 space-y-0.5">
                   <li>
-                    Demi kelancaran produksi, kami mewajibkan <strong className="font-bold text-slate-800">Deposit / Down Payment (DP)</strong> sesuai kesepakatan dengan PIC Makromedia dengan due date <strong className="font-bold text-slate-800">H-1 sebelum event</strong>
+                    Demi kelancaran produksi, kami mewajibkan <strong className="font-bold text-slate-800">Deposit / Down Payment (DP)</strong> sesuai kesepakatan dengan PIC {profile?.name || '-'} dengan due date <strong className="font-bold text-slate-800">H-1 sebelum event</strong>
                   </li>
                   <li>
                     Pembayaran / pelunasan <strong className="font-bold text-slate-800">14 hari kalender</strong> sejak invoice kami kirim (invoice kami kirim setelah seluruh pekerjaan selesai kami lakukan)
                   </li>
-                  <li>Segala hal yang berkaitan dengan term & condition tambahan dapat didiskusikan lebih lanjut dengan PIC Makromedia</li>
+                  <li>
+                    Segala hal yang berkaitan dengan term & condition tambahan dapat didiskusikan lebih
+                    lanjut dengan PIC {profile?.name || '-'}
+                  </li>
                 </ol>
               </div>
             </div>
 
             {/* Bank Accounts Section */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5">
-                <span className="text-[11px] font-semibold text-blue-500 block">Bank Central Asia (BCA)</span>
-                <p className="text-xs text-slate-500 font-normal">
-                  a/n <span className="font-bold text-slate-800">Agus Tjahjono, SPD</span>
-                </p>
-                <p className="text-xs text-slate-500 font-medium">
-                  No. Rekening: <span className="font-bold text-slate-700">011–3075–764</span>
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5">
-                <span className="text-[11px] font-semibold text-blue-500 block">Bank Mandiri</span>
-                <p className="text-xs text-slate-500 font-normal">
-                  a/n <span className="font-bold text-slate-800">C.V Makromedia Visual</span>
-                </p>
-                <p className="text-xs text-slate-500 font-medium">
-                  No. Rekening: <span className="font-bold text-slate-700">144–000–010417–1</span>
-                </p>
-              </div>
+              {bankAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5"
+                >
+                  <span className="text-[11px] font-semibold text-blue-500 block">
+                    {account.bankName}
+                  </span>
+                  <p className="text-xs text-slate-500 font-normal">
+                    a/n <span className="font-bold text-slate-800">{account.accountHolder}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    No. Rekening: <span className="font-bold text-slate-700">{account.accountNumber}</span>
+                  </p>
+                </div>
+              ))}
             </div>
 
             {/* Signature & Social Footer Section matching screenshot 1:1 */}
@@ -491,13 +543,13 @@ export default function QuotationPreviewPage() {
               {/* Left: Signature Box Card */}
               <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
                 {/* 1. Name at top */}
-                <p className="font-bold text-slate-800 text-sm">Agus Tjahjono, SPD</p>
+                <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
 
                 {/* 2. Signature Graphic / Custom Signature Image (dynamic placeholder) */}
                 <div className="h-14 flex items-center justify-center">
-                  {initialItem.signatureUrl ? (
+                  {item.signatureUrl ? (
                     <img
-                      src={initialItem.signatureUrl}
+                      src={item.signatureUrl}
                       alt="Tanda Tangan Sales Manager"
                       className="max-h-12 w-auto object-contain"
                     />
@@ -531,13 +583,13 @@ export default function QuotationPreviewPage() {
                     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                   </svg>
-                  <span>@makromedia.visual</span>
+                  <span>{profile?.instagram || '@makromedia.visual'}</span>
                 </div>
                 <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
                   <svg className="w-4 h-4 text-red-600 fill-current" viewBox="0 0 24 24">
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                   </svg>
-                  <span>Makromedia Visual Creative</span>
+                  <span>{profile?.tagline || '-'}</span>
                 </div>
               </div>
             </div>

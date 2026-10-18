@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
+import { showToast } from '@/components/ui/Toast';
+import { manpowerService } from '@/lib/services/manpowerService';
+import { positionService } from '@/lib/services/positionService';
+import { skillService } from '@/lib/services/skillService';
+import { EmploymentStatus, Gender } from '@/types/manpower';
 
 export default function AddManpowerPage() {
   const router = useRouter();
@@ -32,46 +37,25 @@ export default function AddManpowerPage() {
   });
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      // Mengambil master data position dari localStorage (opsional fallback jika kosong)
-      const storedPositions = JSON.parse(localStorage.getItem('positions_list') || '[]');
-      if (storedPositions.length > 0) {
-        setPositionOptions(storedPositions.map((p: { name: string }) => p.name));
-      } else {
-        setPositionOptions([
-          'Project Manager',
-          'Creative Director',
-          'Lead Editor',
-          'Senior Videographer',
-          'Junior Videographer',
-          'Cameraman',
-          'Sound Engineer',
-          'Motion Graphic Artist',
-          'Graphic Designer',
-          'UI/UX Designer',
-        ]);
-      }
+    let isMounted = true;
 
-      // Mengambil master data skill dari localStorage
-      const storedSkills = JSON.parse(localStorage.getItem('skills_list') || '[]');
-      if (storedSkills.length > 0) {
-        setSkillOptions(storedSkills.map((s: { name: string }) => s.name));
-      } else {
-        setSkillOptions([
-          'Video Editing',
-          'Motion Graphic',
-          'Camera Operation',
-          'Audio Mixing',
-          'Graphic Design',
-          'UI Design',
-          'Color Grading',
-          'Videography',
-          'Director',
-        ]);
-      }
-    }, 0);
+    const loadOptions = async () => {
+      const [positions, skills] = await Promise.all([
+        positionService.getAll(),
+        skillService.getAll(),
+      ]);
+      if (!isMounted) return;
+      setPositionOptions(positions.map((p) => p.name));
+      setSkillOptions(skills.map((s) => s.name));
+    };
 
-    return () => window.clearTimeout(timeoutId);
+    loadOptions().catch(() => {
+      // Biarkan dropdown kosong jika master data gagal dimuat.
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleChange = (
@@ -90,40 +74,28 @@ export default function AddManpowerPage() {
     try {
       setSubmitting(true);
 
-      const existingData = JSON.parse(localStorage.getItem('manpower_list') || '[]');
-
-      const newEmployee = {
-        id: Date.now().toString(),
+      await manpowerService.create({
         fullName: formData.name,
-        name: formData.name,
-        status: formData.employmentStatus.toUpperCase(),
-        employmentStatus: formData.employmentStatus,
-        skill: formData.skill || '-',
+        gender: formData.gender as Gender,
+        dateOfBirth: formData.dateOfBirth,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        position: formData.position,
+        employmentStatus: formData.employmentStatus as EmploymentStatus,
         skills: formData.skill ? [formData.skill] : [],
-        position: formData.position || '-',
-        phone: formData.phoneNumber || '-',
-        phoneNumber: formData.phoneNumber || '-',
-        email: formData.email || '-',
-        dateOfBirth: formData.dateOfBirth || '-',
-        gender: formData.gender || 'Male',
-        province: formData.province || '-',
-        city: formData.city || '-',
-        subdistrict: formData.subdistrict || '-',
-        village: formData.village || '-',
-        detailAddress: formData.detailAddress || '-',
-        bankName: formData.bankAccount || '-',
-        bankAccount: formData.bankAccount || '-',
-        accountNumber: formData.accountNumber || '-',
-        accountHolder: formData.accountHolder || '-',
-        joinDate: new Date().toISOString().split('T')[0],
-      };
-
-      const updatedList = [newEmployee, ...existingData];
-      localStorage.setItem('manpower_list', JSON.stringify(updatedList));
+        province: formData.province,
+        city: formData.city,
+        subdistrict: formData.subdistrict,
+        village: formData.village,
+        detailAddress: formData.detailAddress,
+        bankName: formData.bankAccount,
+        accountNumber: formData.accountNumber,
+        accountHolder: formData.accountHolder,
+      });
 
       router.push('/manpower');
-    } catch (err) {
-      console.error('Gagal menyimpan data:', err);
+    } catch {
+      showToast.error('Gagal menyimpan data karyawan.');
     } finally {
       setSubmitting(false);
     }
@@ -251,7 +223,7 @@ export default function AddManpowerPage() {
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
               >
                 <option value="Fulltime">Fulltime</option>
-                <option value="Part-Time">Part Time</option>
+                <option value="Parttime">Part Time</option>
                 <option value="Freelance">Freelance</option>
                 <option value="Internship">Internship</option>
               </select>

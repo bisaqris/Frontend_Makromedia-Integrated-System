@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Download, Printer, Minus, Plus } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { mockApplicationCosts } from '@/lib/mock/application-cost.mock';
+import { applicationCostService } from '@/lib/services/applicationCostService';
+import { companyService } from '@/lib/services/companyService';
+import { ApplicationCostItem, CompanyProfile } from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -16,10 +18,31 @@ export default function InvoicePreviewPage() {
   const router = useRouter();
 
   const id = params?.id as string;
-  const initialItem =
-    mockApplicationCosts.find((item) => item.id === id) ||
-    mockApplicationCosts[2] ||
-    mockApplicationCosts[0];
+
+  const [item, setItem] = useState<ApplicationCostItem | null>(null);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([applicationCostService.getById(id), companyService.getProfile()])
+      .then(([record, companyProfile]) => {
+        if (!isMounted) return;
+        setItem(record);
+        setProfile(companyProfile);
+      })
+      .catch(() => {
+        if (isMounted) setItem(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   const [zoomLevel, setZoomLevel] = useState<number>(100);
 
@@ -43,7 +66,7 @@ export default function InvoicePreviewPage() {
 
     const opt = {
       margin: [0, 0, 0, 0] as [number, number, number, number],
-      filename: `INV-2026.11.001-${initialItem.projectName || 'Invoice'}.pdf`,
+      filename: `${(item?.documentNumber || 'Dokumen').replace(/[\\/]/g, '-')}-${item?.projectName || 'Invoice'}.pdf`,
       image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: {
         scale: 2,
@@ -83,7 +106,30 @@ export default function InvoicePreviewPage() {
     router.push('/application-cost');
   };
 
-  const contractVal = initialItem.contractValue || 2000000;
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
+
+  if (!item) {
+    return (
+      <div className="space-y-6 pb-16">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-2xs text-center text-slate-500">
+          Data application cost dengan ID &quot;{id}&quot; tidak ditemukan.
+        </div>
+        <div className="flex items-center justify-start">
+          <Button type="button" variant="outline" size="md" onClick={() => router.back()}>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const contractVal = item.contractValue ?? 0;
+  const lineItems = item.lineItems ?? [];
+  const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
+  const discountPercent = item.discountPercent ?? 0;
+  const pph = item.pph ?? 0;
+  const previousPayment = item.previousPayment ?? 0;
+  const bankAccounts = item.bankAccounts ?? [];
 
   return (
     <div className="space-y-6 pb-16">
@@ -182,7 +228,7 @@ export default function InvoicePreviewPage() {
           <div className="flex items-center gap-3">
             <span className="text-slate-400 font-bold">≡</span>
             <span className="text-xs sm:text-sm font-bold text-slate-800">
-              INV-2026.11.001 – Telkomsel / 82 Pro
+              {item.documentReference || '-'}
             </span>
           </div>
 
@@ -257,12 +303,12 @@ export default function InvoicePreviewPage() {
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
                     Bill To
                   </span>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-800">82 PRO</h3>
-                  <p className="text-xs font-bold text-[#0066ff]">Mr. Bayu</p>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-800">{item.mainClient || '-'}</h3>
+                  <p className="text-xs font-bold text-[#0066ff]">{item.clientPIC || '-'}</p>
                   <p className="text-xs text-slate-500 font-normal">
-                    Jalan Sulfat No 10, Malang, Jawa Timur
+                    {item.clientAddress || '-'}
                   </p>
-                  <p className="text-xs text-slate-500 font-normal">bayu@82pro.co.id</p>
+                  <p className="text-xs text-slate-500 font-normal">{item.clientEmail || '-'}</p>
                 </div>
 
                 {/* Column 2: Bill From */}
@@ -270,10 +316,10 @@ export default function InvoicePreviewPage() {
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
                     Bill From
                   </span>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-800">Makromedia Visual</h3>
-                  <p className="text-xs font-bold text-[#0066ff]">Agus Tjahjono</p>
-                  <p className="text-xs text-slate-500 font-normal">Malang, Jawa Timur</p>
-                  <p className="text-xs text-slate-500 font-normal">makromedia@gmail.com</p>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-800">{profile?.name || '-'}</h3>
+                  <p className="text-xs font-bold text-[#0066ff]">{item.projectOfficer || '-'}</p>
+                  <p className="text-xs text-slate-500 font-normal">{profile?.address || '-'}</p>
+                  <p className="text-xs text-slate-500 font-normal">{profile?.email || '-'}</p>
                 </div>
 
                 {/* Column 3: Invoice No. & Dates (vertical stacked layout) */}
@@ -283,18 +329,18 @@ export default function InvoicePreviewPage() {
                       Invoice No.
                     </span>
                     <p className="text-xs sm:text-sm font-bold text-[#f97316]">
-                      001/INV.MAKROMEDIA/11/2026
+                      {item.documentNumber || '-'}
                     </p>
                   </div>
 
                   <div>
                     <span className="text-xs text-slate-400 font-medium block mb-0.5">Release date</span>
-                    <p className="text-xs font-bold text-slate-800">02 November 2026</p>
+                    <p className="text-xs font-bold text-slate-800">{item.releaseDate || '-'}</p>
                   </div>
 
                   <div>
                     <span className="text-xs text-slate-400 font-medium block mb-0.5">Due date</span>
-                    <p className="text-xs font-bold text-slate-800">09 November 2026</p>
+                    <p className="text-xs font-bold text-slate-800">{item.dueDate || '-'}</p>
                   </div>
                 </div>
               </div>
@@ -315,7 +361,7 @@ export default function InvoicePreviewPage() {
                   <span className="text-xs font-semibold text-slate-400 block mb-0.5">
                     Previous Payment
                   </span>
-                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">Rp0</p>
+                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">{formatRupiahWithSpace(previousPayment)}</p>
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-slate-400 block mb-0.5">
@@ -347,22 +393,34 @@ export default function InvoicePreviewPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    <tr className="align-top">
-                      <td className="py-2.5 px-3 font-normal text-slate-800">
-                        Full Production Package
-                        <span className="block text-[11px] text-slate-400 font-normal">
-                          Event Telkomsel
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-600">Event Telkomsel Malang</td>
-                      <td className="py-2.5 px-3 text-center whitespace-nowrap">Rp 2.000.000</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center">1</td>
-                      <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
-                        Rp 2.000.000
-                      </td>
-                    </tr>
+                    {lineItems.map((lineItem) => (
+                      <tr key={lineItem.id} className="align-top">
+                        <td className="py-2.5 px-3 font-normal text-slate-800">
+                          {lineItem.itemName}
+                          {lineItem.categoryName && (
+                            <span className="block text-[11px] text-slate-400 font-normal">
+                              {lineItem.categoryName}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-600">
+                          {lineItem.descriptions?.map((description) => (
+                            <span key={description} className="block">
+                              {description}
+                            </span>
+                          ))}
+                        </td>
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {formatRupiahWithSpace(lineItem.unitPrice)}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">{lineItem.quantity}</td>
+                        <td className="py-2.5 px-3 text-center">{lineItem.freq}</td>
+                        <td className="py-2.5 px-3 text-center">{lineItem.period}</td>
+                        <td className="py-2.5 px-3 text-center font-normal whitespace-nowrap">
+                          {formatRupiahWithSpace(lineItem.subTotal)}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -373,26 +431,26 @@ export default function InvoicePreviewPage() {
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>Sub Total</span>
-                  <span className="font-bold text-slate-800">Rp 2.000.000</span>
+                  <span className="font-bold text-slate-800">{formatRupiahWithSpace(subTotal)}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>Diskon</span>
-                  <span className="font-bold text-slate-800">0%</span>
+                  <span className="font-bold text-slate-800">{discountPercent}%</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
                   <span>PPH</span>
-                  <span className="font-bold text-slate-800">Rp 0</span>
+                  <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
                 </div>
 
                 <div className="border-b border-slate-200 pt-1" />
 
                 <div className="flex justify-between items-center text-slate-800 font-bold pt-0.5">
                   <span>Contract Amount</span>
-                  <span>Rp 2.000.000</span>
+                  <span>{formatRupiahWithSpace(contractVal)}</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-400 font-medium">
                   <span>Previous Payment</span>
-                  <span>- Rp 0</span>
+                  <span>- {formatRupiahWithSpace(previousPayment)}</span>
                 </div>
               </div>
 
@@ -405,7 +463,7 @@ export default function InvoicePreviewPage() {
                   <span className="text-[11px] text-orange-400 font-normal">For This Period</span>
                 </div>
                 <span className="text-base sm:text-lg font-bold text-orange-600">
-                  Rp 2.000.000
+                  {formatRupiahWithSpace(contractVal)}
                 </span>
               </div>
             </div>
@@ -418,13 +476,13 @@ export default function InvoicePreviewPage() {
               <div className="text-slate-600 space-y-1.5 leading-relaxed text-[11px]">
                 <p>
                   Invoice ini adalah <strong className="font-bold text-slate-800">Proforma Invoice</strong>{' '}
-                  atau pengajuan DP (Payment Term 1) senilai{' '}
+                  atau pengajuan DP ({item.paymentTermLabel || '-'}) senilai{' '}
                   <strong className="font-bold text-slate-800">... % dari nilai kontrak</strong> sementara.
                   Apabila terdapat perubahan nilai kontrak saat event selesai, akan dikondisikan selanjutnya.
                 </p>
                 <p>
                   Pengajuan Term 1 senilai ... % sudah sesuai kesepakatan antara ... dengan{' '}
-                  <strong className="font-bold text-slate-800">Makromedia</strong>. Pembayaran dapat
+                  <strong className="font-bold text-slate-800">{profile?.name || '-'}</strong>. Pembayaran dapat
                   dilakukan secara transfer ke rekening yang tertera dibawah.
                 </p>
               </div>
@@ -432,25 +490,22 @@ export default function InvoicePreviewPage() {
 
             {/* Bank Accounts Section */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5">
-                <span className="text-[11px] font-semibold text-blue-500 block">Bank Central Asia (BCA)</span>
-                <p className="text-xs text-slate-500 font-normal">
-                  a/n <span className="font-bold text-slate-800">Agus Tjahjono, SPD</span>
-                </p>
-                <p className="text-xs text-slate-500 font-medium">
-                  No. Rekening: <span className="font-bold text-slate-700">011–3075–764</span>
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5">
-                <span className="text-[11px] font-semibold text-blue-500 block">Bank Mandiri</span>
-                <p className="text-xs text-slate-500 font-normal">
-                  a/n <span className="font-bold text-slate-800">C.V Makromedia Visual</span>
-                </p>
-                <p className="text-xs text-slate-500 font-medium">
-                  No. Rekening: <span className="font-bold text-slate-700">144–000–010417–1</span>
-                </p>
-              </div>
+              {bankAccounts.map((account) => (
+                <div
+                  key={account.id}
+                  className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5"
+                >
+                  <span className="text-[11px] font-semibold text-blue-500 block">
+                    {account.bankName}
+                  </span>
+                  <p className="text-xs text-slate-500 font-normal">
+                    a/n <span className="font-bold text-slate-800">{account.accountHolder}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    No. Rekening: <span className="font-bold text-slate-700">{account.accountNumber}</span>
+                  </p>
+                </div>
+              ))}
             </div>
 
             {/* Signature & Social Footer Section matching screenshot 1:1 */}
@@ -458,13 +513,13 @@ export default function InvoicePreviewPage() {
               {/* Left: Signature Box Card */}
               <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
                 {/* 1. Name at top */}
-                <p className="font-bold text-slate-800 text-sm">Agus Tjahjono, SPD</p>
+                <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
 
                 {/* 2. Signature Graphic / Custom Signature Image (dynamic placeholder) */}
                 <div className="h-14 flex items-center justify-center">
-                  {initialItem.signatureUrl ? (
+                  {item.signatureUrl ? (
                     <img
-                      src={initialItem.signatureUrl}
+                      src={item.signatureUrl}
                       alt="Tanda Tangan Sales Manager"
                       className="max-h-12 w-auto object-contain"
                     />
@@ -498,13 +553,13 @@ export default function InvoicePreviewPage() {
                     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                   </svg>
-                  <span>@makromedia.visual</span>
+                  <span>{profile?.instagram || '@makromedia.visual'}</span>
                 </div>
                 <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
                   <svg className="w-4 h-4 text-red-600 fill-current" viewBox="0 0 24 24">
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                   </svg>
-                  <span>Makromedia Visual Creative</span>
+                  <span>{profile?.tagline || '-'}</span>
                 </div>
               </div>
             </div>

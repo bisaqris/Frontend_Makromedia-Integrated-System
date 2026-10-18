@@ -1,6 +1,5 @@
 export type ManpowerStatus = 'AVAILABLE' | 'ASSIGNED' | 'ON_LEAVE' | 'INACTIVE';
 export type EmploymentStatus = 'Fulltime' | 'Parttime' | 'Internship' | 'Freelance';
-export type EmployeeStatus = 'Active' | 'Inactive';
 export type Gender = 'Male' | 'Female';
 
 export interface Skill {
@@ -51,24 +50,33 @@ export interface Manpower {
   createdAt?: string;
 }
 
-export interface Employee {
+/**
+ * Data karyawan (manpower) sebagaimana dipakai halaman List/Detail/Edit Employee.
+ * Satu sumber untuk seluruh halaman, diakses lewat manpowerService.
+ */
+export interface ManpowerRecord {
   id: string;
-  employeeId: string;
   fullName: string;
   gender: Gender;
-  role: string;
+  dateOfBirth?: string;
+  email?: string;
+  phoneNumber: string;
   position: string;
-  email: string;
-  phone: string;
-  joinDate: string;
   employmentStatus: EmploymentStatus;
-  status: EmployeeStatus;
   skills: string[];
   province: string;
   city: string;
   subdistrict: string;
   village: string;
+  detailAddress: string;
   bankName: string;
   accountNumber: string;
   accountHolder: string;
+  joinDate: string;
 }
+
+export type CreateManpowerDTO = Omit<ManpowerRecord, 'id' | 'joinDate'> & {
+  joinDate?: string;
+};
+
+export type UpdateManpowerDTO = Partial<CreateManpowerDTO>;

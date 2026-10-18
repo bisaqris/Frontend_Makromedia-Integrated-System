@@ -1,11 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Printer } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { mockApplicationCosts } from '@/lib/mock/application-cost.mock';
+import { applicationCostService } from '@/lib/services/applicationCostService';
+import { companyService } from '@/lib/services/companyService';
+import {
+  ApplicationCostItem,
+  ApplicationCostStatus,
+  CompanyProfile,
+} from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -16,38 +22,53 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
 
   const id = params?.id as string;
-  const initialItem =
-    mockApplicationCosts.find((item) => item.id === id) ||
-    mockApplicationCosts[2] ||
-    mockApplicationCosts[0];
 
-  const [notes, setNotes] = useState<string>(initialItem.notes || '');
+  const [item, setItem] = useState<ApplicationCostItem | null>(null);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [notes, setNotes] = useState<string>('');
 
-  const handleApprove = () => {
-    const targetIdx = mockApplicationCosts.findIndex((i) => i.id === initialItem.id);
-    if (targetIdx !== -1) {
-      mockApplicationCosts[targetIdx] = {
-        ...mockApplicationCosts[targetIdx],
-        status: 'Approved',
-        notes,
-      };
+  useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([applicationCostService.getById(id), companyService.getProfile()])
+      .then(([record, companyProfile]) => {
+        if (!isMounted) return;
+        setItem(record);
+        setProfile(companyProfile);
+        setNotes(record?.notes || '');
+      })
+      .catch(() => {
+        if (isMounted) setItem(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const handleStatusUpdate = async (
+    status: ApplicationCostStatus,
+    message: string,
+    tone: 'success' | 'info'
+  ) => {
+    try {
+      await applicationCostService.update(id, { status, notes });
+      showToast[tone](message);
+      router.push('/application-cost');
+    } catch {
+      showToast.error('Gagal memperbarui status pengajuan.');
     }
-    showToast.success(`Invoice (${initialItem.projectName}) berhasil disetujui!`);
-    router.push('/application-cost');
   };
 
-  const handleRevise = () => {
-    const targetIdx = mockApplicationCosts.findIndex((i) => i.id === initialItem.id);
-    if (targetIdx !== -1) {
-      mockApplicationCosts[targetIdx] = {
-        ...mockApplicationCosts[targetIdx],
-        status: 'Revise',
-        notes,
-      };
-    }
-    showToast.info(`Invoice (${initialItem.projectName}) diminta untuk direvisi.`);
-    router.push('/application-cost');
-  };
+  const handleApprove = () =>
+    handleStatusUpdate('Approved', `Invoice (${item?.projectName ?? ''}) berhasil disetujui!`, 'success');
+
+  const handleRevise = () =>
+    handleStatusUpdate('Revise', `Invoice (${item?.projectName ?? ''}) diminta untuk direvisi.`, 'info');
 
   const handlePreview = () => {
     router.push(`/application-cost/invoice/${id}/preview`);
@@ -57,7 +78,31 @@ export default function InvoiceDetailPage() {
     router.push('/application-cost');
   };
 
-  const contractVal = initialItem.contractValue || 2000000;
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
+
+  if (!item) {
+    return (
+      <div className="space-y-6 pb-16">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-2xs text-center text-slate-500">
+          Data application cost dengan ID &quot;{id}&quot; tidak ditemukan.
+        </div>
+        <div className="flex items-center justify-start">
+          <Button type="button" variant="outline" size="md" onClick={handleCancel}>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const contractVal = item.contractValue ?? 0;
+  const lineItems = item.lineItems ?? [];
+  const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
+  const discountPercent = item.discountPercent ?? 0;
+  const pph = item.pph ?? 0;
+  const previousPayment = item.previousPayment ?? 0;
+  const invoiceAmount = contractVal;
+  const bankAccounts = item.bankAccounts ?? [];
 
   return (
     <div className="space-y-6 pb-16">
@@ -69,12 +114,10 @@ export default function InvoiceDetailPage() {
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
               Bill To
             </span>
-            <h3 className="text-base font-bold text-slate-800">82 PRO</h3>
-            <p className="text-xs font-bold text-[#0066ff]">Mr. Bayu</p>
-            <p className="text-xs text-slate-500 font-normal">
-              Jalan Sulfat No 10, Malang, Jawa Timur
-            </p>
-            <p className="text-xs text-slate-500 font-normal">bayu@82pro.co.id</p>
+            <h3 className="text-base font-bold text-slate-800">{item.mainClient || '-'}</h3>
+            <p className="text-xs font-bold text-[#0066ff]">{item.clientPIC || '-'}</p>
+            <p className="text-xs text-slate-500 font-normal">{item.clientAddress || '-'}</p>
+            <p className="text-xs text-slate-500 font-normal">{item.clientEmail || '-'}</p>
           </div>
 
           {/* Column 2: Bill From */}
@@ -82,10 +125,10 @@ export default function InvoiceDetailPage() {
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
               Bill From
             </span>
-            <h3 className="text-base font-bold text-slate-800">Makromedia Visual</h3>
-            <p className="text-xs font-bold text-[#0066ff]">Agus Tjahjono</p>
-            <p className="text-xs text-slate-500 font-normal">Malang, Jawa Timur</p>
-            <p className="text-xs text-slate-500 font-normal">makromedia@gmail.com</p>
+            <h3 className="text-base font-bold text-slate-800">{profile?.name || '-'}</h3>
+            <p className="text-xs font-bold text-[#0066ff]">{item.projectOfficer || '-'}</p>
+            <p className="text-xs text-slate-500 font-normal">{profile?.address || '-'}</p>
+            <p className="text-xs text-slate-500 font-normal">{profile?.email || '-'}</p>
           </div>
 
           {/* Column 3: Invoice No. & Dates (vertical stacked layout) */}
@@ -95,18 +138,18 @@ export default function InvoiceDetailPage() {
                 Invoice No.
               </span>
               <p className="text-sm sm:text-base font-bold text-[#f97316]">
-                001/INV.MAKROMEDIA/11/2026
+                {item.documentNumber || '-'}
               </p>
             </div>
 
             <div>
               <span className="text-xs text-slate-400 font-medium block mb-0.5">Release date</span>
-              <p className="text-xs sm:text-sm font-bold text-slate-800">02 November 2026</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-800">{item.releaseDate || '-'}</p>
             </div>
 
             <div>
               <span className="text-xs text-slate-400 font-medium block mb-0.5">Due date</span>
-              <p className="text-xs sm:text-sm font-bold text-slate-800">09 November 2026</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-800">{item.dueDate || '-'}</p>
             </div>
           </div>
         </div>
@@ -117,15 +160,17 @@ export default function InvoiceDetailPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <span className="text-sm font-bold text-[#0066ff] block mb-1">Event / Project</span>
-            <p className="text-base sm:text-lg font-bold text-slate-800">Telkomsel</p>
+            <p className="text-base sm:text-lg font-bold text-slate-800">{item.projectName}</p>
           </div>
           <div>
             <span className="text-sm font-bold text-[#0066ff] block mb-1">Venue / Kota</span>
-            <p className="text-base sm:text-lg font-bold text-slate-800">Malang, Jawa Timur</p>
+            <p className="text-base sm:text-lg font-bold text-slate-800">{item.venue || '-'}</p>
           </div>
           <div>
             <span className="text-sm font-bold text-[#0066ff] block mb-1">Tanggal Pelaksanaan</span>
-            <p className="text-base sm:text-lg font-bold text-slate-800">Senin, 02 November 2026</p>
+            <p className="text-base sm:text-lg font-bold text-slate-800">
+              {item.eventDateLong || '-'}
+            </p>
           </div>
         </div>
       </div>
@@ -147,7 +192,9 @@ export default function InvoiceDetailPage() {
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
               PREVIOUS PAYMENT
             </span>
-            <p className="text-2xl font-bold text-slate-800">Rp 0</p>
+            <p className="text-2xl font-bold text-slate-800">
+              {formatRupiahWithSpace(previousPayment)}
+            </p>
             <p className="text-xs text-slate-400 font-normal mt-1">Sudah dibayarkan</p>
           </div>
 
@@ -156,8 +203,10 @@ export default function InvoiceDetailPage() {
             <span className="text-xs font-semibold text-[#f97316] uppercase tracking-wider block">
               INVOICE PERIODE INI
             </span>
-            <p className="text-2xl font-bold text-[#f97316]">{formatRupiahWithSpace(contractVal)}</p>
-            <p className="text-xs text-orange-400 font-normal mt-1">Payment Term 1</p>
+            <p className="text-2xl font-bold text-[#f97316]">{formatRupiahWithSpace(invoiceAmount)}</p>
+            <p className="text-xs text-orange-400 font-normal mt-1">
+              {item.paymentTermLabel || '-'}
+            </p>
           </div>
         </div>
       </div>
@@ -181,20 +230,34 @@ export default function InvoiceDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              <tr className="align-top">
-                <td className="py-4 px-4 font-normal text-slate-800">
-                  Full Production Package
-                  <span className="block text-xs text-slate-400 font-normal">Event Telkomsel</span>
-                </td>
-                <td className="py-4 px-4 text-slate-600">Event Telkomsel Malang</td>
-                <td className="py-4 px-4 text-center whitespace-nowrap">Rp 2.000.000</td>
-                <td className="py-4 px-4 text-center">1</td>
-                <td className="py-4 px-4 text-center">1</td>
-                <td className="py-4 px-4 text-center">1</td>
-                <td className="py-4 px-4 text-center font-normal whitespace-nowrap">
-                  Rp 2.000.000
-                </td>
-              </tr>
+              {lineItems.map((lineItem) => (
+                <tr key={lineItem.id} className="align-top">
+                  <td className="py-4 px-4 font-normal text-slate-800">
+                    {lineItem.itemName}
+                    {lineItem.categoryName && (
+                      <span className="block text-xs text-slate-400 font-normal">
+                        {lineItem.categoryName}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-4 px-4 text-slate-600">
+                    {lineItem.descriptions?.map((description) => (
+                      <span key={description} className="block">
+                        {description}
+                      </span>
+                    ))}
+                  </td>
+                  <td className="py-4 px-4 text-center whitespace-nowrap">
+                    {formatRupiahWithSpace(lineItem.unitPrice)}
+                  </td>
+                  <td className="py-4 px-4 text-center">{lineItem.quantity}</td>
+                  <td className="py-4 px-4 text-center">{lineItem.freq}</td>
+                  <td className="py-4 px-4 text-center">{lineItem.period}</td>
+                  <td className="py-4 px-4 text-center font-normal whitespace-nowrap">
+                    {formatRupiahWithSpace(lineItem.subTotal)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -205,26 +268,26 @@ export default function InvoiceDetailPage() {
         <div className="space-y-3 text-xs sm:text-sm">
           <div className="flex justify-between items-center text-slate-600 font-medium">
             <span>Sub Total</span>
-            <span className="font-bold text-slate-800">Rp 2.000.000</span>
+            <span className="font-bold text-slate-800">{formatRupiahWithSpace(subTotal)}</span>
           </div>
           <div className="flex justify-between items-center text-slate-600 font-medium">
             <span>Diskon</span>
-            <span className="font-bold text-slate-800">0%</span>
+            <span className="font-bold text-slate-800">{discountPercent}%</span>
           </div>
           <div className="flex justify-between items-center text-slate-600 font-medium">
             <span>PPH</span>
-            <span className="font-bold text-slate-800">Rp 0</span>
+            <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
           </div>
 
           <div className="border-b border-slate-200 pt-1" />
 
           <div className="flex justify-between items-center text-slate-800 font-bold pt-1">
             <span>Contract Amount</span>
-            <span>Rp 2.000.000</span>
+            <span>{formatRupiahWithSpace(contractVal)}</span>
           </div>
           <div className="flex justify-between items-center text-slate-400 font-medium">
             <span>Previous Payment</span>
-            <span>- Rp 0</span>
+            <span>- {formatRupiahWithSpace(previousPayment)}</span>
           </div>
         </div>
 
@@ -236,7 +299,9 @@ export default function InvoiceDetailPage() {
             </span>
             <span className="text-xs text-orange-400 font-normal">For This Period</span>
           </div>
-          <span className="text-lg sm:text-xl font-bold text-[#f97316]">Rp 2.000.000</span>
+          <span className="text-lg sm:text-xl font-bold text-[#f97316]">
+            {formatRupiahWithSpace(invoiceAmount)}
+          </span>
         </div>
       </div>
 
@@ -254,7 +319,7 @@ export default function InvoiceDetailPage() {
           </p>
           <p>
             Pengajuan Term 1 senilai ... % sudah sesuai kesepakatan antara ... dengan{' '}
-            <strong className="font-bold text-slate-800">Makromedia</strong>. Pembayaran dapat
+            <strong className="font-bold text-slate-800">{profile?.name || '-'}</strong>. Pembayaran dapat
             dilakukan secara transfer ke rekening yang tertera dibawah.
           </p>
         </div>
@@ -262,25 +327,20 @@ export default function InvoiceDetailPage() {
 
       {/* Card 7: Bank Accounts Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-1 shadow-2xs">
-          <span className="text-xs font-semibold text-[#0066ff] block">Bank Central Asia (BCA)</span>
-          <p className="text-xs sm:text-sm text-slate-500 font-normal">
-            a/n <span className="font-bold text-slate-800">Agus Tjahjono, SPD</span>
-          </p>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            No. Rekening: <span className="font-bold text-slate-700">011–3075–764</span>
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-1 shadow-2xs">
-          <span className="text-xs font-semibold text-[#0066ff] block">Bank Mandiri</span>
-          <p className="text-xs sm:text-sm text-slate-500 font-normal">
-            a/n <span className="font-bold text-slate-800">C.V Makromedia Visual</span>
-          </p>
-          <p className="text-xs sm:text-sm text-slate-500 font-medium">
-            No. Rekening: <span className="font-bold text-slate-700">144–000–010417–1</span>
-          </p>
-        </div>
+        {bankAccounts.map((account) => (
+          <div
+            key={account.id}
+            className="bg-white rounded-2xl border border-slate-200 p-5 space-y-1 shadow-2xs"
+          >
+            <span className="text-xs font-semibold text-[#0066ff] block">{account.bankName}</span>
+            <p className="text-xs sm:text-sm text-slate-500 font-normal">
+              a/n <span className="font-bold text-slate-800">{account.accountHolder}</span>
+            </p>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">
+              No. Rekening: <span className="font-bold text-slate-700">{account.accountNumber}</span>
+            </p>
+          </div>
+        ))}
       </div>
 
       {/* Card 8: Notes Textarea Box */}

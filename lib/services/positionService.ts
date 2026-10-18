@@ -1,78 +1,62 @@
 import { apiClient } from '@/lib/apiClient';
 import { Position, CreatePositionDTO, UpdatePositionDTO } from '@/types/manpower';
-import { mockPositions } from '@/lib/mock/manpower.mock'; 
+import { mockPositions } from '@/lib/mock/manpower.mock';
+import { USE_MOCK, cloneMock } from './mockFlag';
 
-let localPositions: Position[] = (mockPositions || []).map((p, i) => ({
-    ...p,
-    status: (i % 2 === 0 ? 'ACTIVE' : 'INACTIVE') as 'ACTIVE' | 'INACTIVE',
-    usedBy: [2, 1, 0, 3, 1, 2][i] ?? 0,
-}));
+// Store in-memory untuk mode mock (direset saat halaman di-reload).
+let mockStore: Position[] | null = null;
+const getMockStore = (): Position[] => (mockStore ??= cloneMock(mockPositions));
 
 export const positionService = {
-    async getAll(): Promise<Position[]> {
-        try {
-            const response = await apiClient.get('/positions');
-            if (response.data && Array.isArray(response.data)) {
-                return response.data;
-            }
-        } catch {
-            // Silently fallback to mock data
-        }
-        return [...localPositions];
-    },
+  async getAll(): Promise<Position[]> {
+    if (USE_MOCK) return cloneMock(getMockStore());
+    const response = await apiClient.get<Position[]>('/positions');
+    return response.data;
+  },
 
-    async getById(id: string): Promise<Position> {
-        try {
-            const response = await apiClient.get(`/positions/${id}`);
-            return response.data;
-        } catch {
-            // fallback to mock data
-        }
-        const position = localPositions.find((p) => p.id === id);
-        if (!position) throw new Error(`Position with id "${id}" not found`);
-        return { ...position };
-    },
+  async getById(id: string): Promise<Position> {
+    if (USE_MOCK) {
+      const position = getMockStore().find((p) => p.id === id);
+      if (!position) throw new Error(`Position dengan id "${id}" tidak ditemukan.`);
+      return cloneMock(position);
+    }
+    const response = await apiClient.get<Position>(`/positions/${id}`);
+    return response.data;
+  },
 
-    async create(data: CreatePositionDTO): Promise<Position> {
-        try {
-            const response = await apiClient.post('/positions', data);
-            return response.data;
-        } catch {
-            // fallback to mock data
-        }
-        const newPosition: Position = {
-            id: crypto.randomUUID(),
-            name: data.name,
-            status: data.status ?? 'ACTIVE',
-            usedBy: 0,
-            createdAt: new Date().toISOString(),
-        };
-        localPositions = [...localPositions, newPosition];
-        return { ...newPosition };
-    },
+  async create(data: CreatePositionDTO): Promise<Position> {
+    if (USE_MOCK) {
+      const newPosition: Position = {
+        ...data,
+        id: crypto.randomUUID(),
+        status: data.status ?? 'ACTIVE',
+        usedBy: 0,
+        createdAt: new Date().toISOString(),
+      };
+      getMockStore().push(newPosition);
+      return cloneMock(newPosition);
+    }
+    const response = await apiClient.post<Position>('/positions', data);
+    return response.data;
+  },
 
-    async update(id: string, data: UpdatePositionDTO): Promise<Position> {
-        try {
-            const response = await apiClient.patch(`/positions/${id}`, data);
-            return response.data;
-        } catch {
-            // fallback to mock data
-        }
-        const index = localPositions.findIndex((p) => p.id === id);
-        if (index === -1) throw new Error(`Position with id "${id}" not found`);
-        const updated: Position = { ...localPositions[index], ...data };
-        localPositions = localPositions.map((p) => (p.id === id ? updated : p));
-        return { ...updated };
-    },
+  async update(id: string, data: UpdatePositionDTO): Promise<Position> {
+    if (USE_MOCK) {
+      const store = getMockStore();
+      const index = store.findIndex((p) => p.id === id);
+      if (index === -1) throw new Error(`Position dengan id "${id}" tidak ditemukan.`);
+      store[index] = { ...store[index], ...data };
+      return cloneMock(store[index]);
+    }
+    const response = await apiClient.patch<Position>(`/positions/${id}`, data);
+    return response.data;
+  },
 
-    async delete(id: string): Promise<void> {
-        try {
-            await apiClient.delete(`/positions/${id}`);
-            localPositions = localPositions.filter((p) => p.id !== id);
-            return;
-        } catch {
-            // fallback to mock data
-        }
-        localPositions = localPositions.filter((p) => p.id !== id);
-    },
+  async delete(id: string): Promise<void> {
+    if (USE_MOCK) {
+      mockStore = getMockStore().filter((p) => p.id !== id);
+      return;
+    }
+    await apiClient.delete(`/positions/${id}`);
+  },
 };

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
-import { mockApplicationCosts } from '@/lib/mock/application-cost.mock';
+import { applicationCostService } from '@/lib/services/applicationCostService';
+import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -15,47 +16,83 @@ export default function ApplicationCostDetailPage() {
   const router = useRouter();
 
   const id = params?.id as string;
-  const initialItem = mockApplicationCosts.find((item) => item.id === id) || mockApplicationCosts[0];
 
-  const [notes, setNotes] = useState<string>(initialItem.notes || '');
+  const [item, setItem] = useState<ApplicationCostItem | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [notes, setNotes] = useState<string>('');
 
-  const handleApprove = () => {
-    const targetIdx = mockApplicationCosts.findIndex((i) => i.id === initialItem.id);
-    if (targetIdx !== -1) {
-      mockApplicationCosts[targetIdx] = {
-        ...mockApplicationCosts[targetIdx],
-        status: 'Approved',
-        notes,
-      };
+  useEffect(() => {
+    let isMounted = true;
+
+    applicationCostService
+      .getById(id)
+      .then((record) => {
+        if (!isMounted) return;
+        setItem(record);
+        setNotes(record?.notes || '');
+      })
+      .catch(() => {
+        if (isMounted) setItem(null);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const handleStatusUpdate = async (status: ApplicationCostStatus, message: string) => {
+    try {
+      await applicationCostService.update(id, { status, notes });
+      showToast.success(message);
+      router.push('/application-cost');
+    } catch {
+      showToast.error('Gagal memperbarui status pengajuan.');
     }
-    showToast.success(`Pengajuan Biaya Produksi (${initialItem.projectName}) berhasil disetujui!`);
-    router.push('/application-cost');
   };
 
-  const handleRevise = () => {
-    const targetIdx = mockApplicationCosts.findIndex((i) => i.id === initialItem.id);
-    if (targetIdx !== -1) {
-      mockApplicationCosts[targetIdx] = {
-        ...mockApplicationCosts[targetIdx],
-        status: 'Revise',
-        notes,
-      };
-    }
-    showToast.info(`Pengajuan Biaya Produksi (${initialItem.projectName}) diminta untuk direvisi.`);
-    router.push('/application-cost');
-  };
+  const handleApprove = () =>
+    handleStatusUpdate(
+      'Approved',
+      `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) berhasil disetujui!`
+    );
+
+  const handleRevise = () =>
+    handleStatusUpdate(
+      'Revise',
+      `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) diminta untuk direvisi.`
+    );
 
   const handleCancel = () => {
     router.push('/application-cost');
   };
 
-  const contractVal = initialItem.contractValue || 2000000;
-  const estimateCostVal = initialItem.estimateCost || 800000;
-  const costPercentVal = initialItem.costPercent || 40;
-  const estimateProfitVal = initialItem.estimateProfit || 1200000;
-  const profitMarginVal = initialItem.profitMargin || 60;
+  if (isLoading) return <div className="p-8 text-center text-slate-500">Loading data...</div>;
 
-  const categories = initialItem.categories || [];
+  if (!item) {
+    return (
+      <div className="space-y-6 pb-16">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-2xs text-center text-slate-500">
+          Data application cost dengan ID &quot;{id}&quot; tidak ditemukan.
+        </div>
+        <div className="flex items-center justify-start">
+          <Button type="button" variant="outline" size="md" onClick={handleCancel}>
+            Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const contractVal = item.contractValue ?? 0;
+  const estimateCostVal = item.estimateCost ?? 0;
+  const costPercentVal = item.costPercent ?? 0;
+  const estimateProfitVal = item.estimateProfit ?? 0;
+  const profitMarginVal = item.profitMargin ?? 0;
+
+  const categories = item.categories ?? [];
 
   return (
     <div className="space-y-6 pb-16">
@@ -65,42 +102,42 @@ export default function ApplicationCostDetailPage() {
             <div>
               <span className="text-slate-400 font-medium block mb-1">Nama Project Officer</span>
               <p className="text-sm sm:text-base font-bold text-slate-800">
-                {initialItem.projectOfficer || 'Agus Tjahjono'}
+                {item.projectOfficer || '-'}
               </p>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block mb-1">Venue / Lokasi</span>
               <p className="text-sm sm:text-base font-bold text-slate-800">
-                {initialItem.venue || 'Malang, East Java'}
+                {item.venue || '-'}
               </p>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block mb-1">Nama Project / Event</span>
               <p className="text-sm sm:text-base font-bold text-slate-800">
-                {initialItem.projectName || 'Telkomsel'}
+                {item.projectName}
               </p>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block mb-1">Tanggal Pelaksanaan</span>
               <p className="text-sm sm:text-base font-bold text-slate-800">
-                {initialItem.eventDate || '02 Oktober 2026'}
+                {item.eventDate || '-'}
               </p>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block mb-1">Nama Klien Utama</span>
               <p className="text-sm sm:text-base font-bold text-slate-800">
-                {initialItem.mainClient || 'Mr. Bayu'}
+                {item.mainClient || '-'}
               </p>
             </div>
 
             <div>
               <span className="text-slate-400 font-medium block mb-1">Nama EO / Instansi</span>
               <p className="text-sm sm:text-base font-bold text-slate-800">
-                {initialItem.eoInstance || '82 Pro'}
+                {item.eoInstance || '-'}
               </p>
             </div>
           </div>

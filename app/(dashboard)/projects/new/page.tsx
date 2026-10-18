@@ -1,14 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import RoleGuard from '@/components/auth/RoleGuard';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import projectService from '@/lib/services/projectService';
-import { mockClientCompanies, mockClientPICs } from '@/lib/mock/clients.mock';
+import { clientService } from '@/lib/services/clientService';
+import { userService } from '@/lib/services/userService';
 import { ProjectCategory } from '@/types/project';
+import { ClientCompany, ClientPIC } from '@/types/client';
+import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';
 import {
   Plus,
@@ -52,10 +55,6 @@ const CATEGORY_OPTIONS = [
   { value: 'Wedding', label: 'Wedding' },
 ];
 
-const PM_OPTIONS = [
-  { value: 'usr-project_manager', label: 'Andi PM (Project Manager)' },
-];
-
 const CLIENT_TYPE_OPTIONS = [
   { value: 'Corporate', label: 'Corporate' },
   { value: 'Government', label: 'Government' },
@@ -85,6 +84,38 @@ export default function AddProjectPage() {
   const [companyId, setCompanyId] = useState('cli-1');
   const [picId, setPicId] = useState('pic-1');
 
+  const [companies, setCompanies] = useState<ClientCompany[]>([]);
+  const [pics, setPics] = useState<ClientPIC[]>([]);
+  const [projectManagers, setProjectManagers] = useState<User[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadReferenceData = async () => {
+      const [companyList, picList, pmList] = await Promise.all([
+        clientService.getCompanies(),
+        clientService.getPICs(),
+        userService.getProjectManagers(),
+      ]);
+
+      if (!isMounted) return;
+
+      setCompanies(companyList);
+      setPics(picList);
+      setProjectManagers(pmList);
+      if (companyList.length > 0) setCompanyId(companyList[0].id);
+      if (pmList.length > 0) setPmId(pmList[0].id);
+    };
+
+    loadReferenceData().catch(() => {
+      showToast.error('Gagal memuat data referensi client / project manager.');
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const [projectName, setProjectName] = useState('');
   const [eventDate, setEventDate] = useState('2026-05-04');
   const [projectStarts, setProjectStarts] = useState('2026-04-20');
@@ -96,9 +127,10 @@ export default function AddProjectPage() {
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
 
   // Selected company and filtered PICs
-  const selectedCompany = mockClientCompanies.find((c) => c.id === companyId) || mockClientCompanies[0];
-  const filteredPics = mockClientPICs.filter((p) => p.clientId === companyId);
-  const selectedPic = mockClientPICs.find((p) => p.id === picId) || filteredPics[0];
+  const selectedCompany = companies.find((c) => c.id === companyId);
+  const filteredPics = pics.filter((p) => p.clientId === companyId);
+  const selectedPic = pics.find((p) => p.id === picId) || filteredPics[0];
+  const selectedPM = projectManagers.find((pm) => pm.id === pmId);
 
   const handleAddLink = () => {
     setAdditionalLinks((prev) => [
@@ -126,13 +158,15 @@ export default function AddProjectPage() {
         name: projectName,
         category: category as ProjectCategory,
         clientId: companyId,
-        clientName: selectedCompany.name,
+        clientName: selectedCompany?.name || '',
         clientType,
         partnershipModel,
         picClientId: picId,
-        picClientName: selectedPic ? `${selectedPic.name} (${selectedPic.position})` : '',
+        picClientName: selectedPic
+          ? `${selectedPic.name}${selectedPic.position ? ` (${selectedPic.position})` : ''}`
+          : '',
         projectManagerId: pmId,
-        projectManagerName: 'Andi PM (Project Manager)',
+        projectManagerName: selectedPM?.name || '',
         startDate: eventDate,
         endDate: eventDate,
         projectStarts,
@@ -219,7 +253,7 @@ export default function AddProjectPage() {
                   label="Project Manager"
                   value={pmId}
                   onChange={(e) => setPmId(e.target.value)}
-                  options={PM_OPTIONS}
+                  options={projectManagers.map((pm) => ({ value: pm.id, label: pm.name }))}
                 />
               </div>
             </div>
@@ -245,14 +279,22 @@ export default function AddProjectPage() {
                 <Select
                   label="Company Name"
                   value={companyId}
-                  onChange={(e) => setCompanyId(e.target.value)}
-                  options={mockClientCompanies.map((c) => ({ value: c.id, label: c.name }))}
+                  onChange={(e) => {
+                    const nextCompanyId = e.target.value;
+                    setCompanyId(nextCompanyId);
+                    const firstPic = pics.find((p) => p.clientId === nextCompanyId);
+                    setPicId(firstPic ? firstPic.id : '');
+                  }}
+                  options={companies.map((c) => ({ value: c.id, label: c.name }))}
                 />
                 <Select
                   label="PIC Client"
                   value={picId}
                   onChange={(e) => setPicId(e.target.value)}
-                  options={filteredPics.map((p) => ({ value: p.id, label: `${p.name} (${p.position})` }))}
+                  options={filteredPics.map((p) => ({
+                    value: p.id,
+                    label: p.position ? `${p.name} (${p.position})` : p.name,
+                  }))}
                 />
               </div>
             </div>
@@ -465,7 +507,7 @@ export default function AddProjectPage() {
                     </div>
                     <div>
                       <span className="text-slate-400 font-medium block mb-1">Project Manager</span>
-                      <p className="text-sm font-bold text-slate-800">Andi PM (Project Manager)</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedPM?.name || '-'}</p>
                     </div>
                   </div>
                 </div>
@@ -486,7 +528,7 @@ export default function AddProjectPage() {
                     </div>
                     <div>
                       <span className="text-slate-400 font-medium block mb-1">Company Name</span>
-                      <p className="text-sm font-bold text-slate-800">{selectedCompany.name}</p>
+                      <p className="text-sm font-bold text-slate-800">{selectedCompany?.name || '-'}</p>
                     </div>
                     <div>
                       <span className="text-slate-400 font-medium block mb-1">PIC Client</span>

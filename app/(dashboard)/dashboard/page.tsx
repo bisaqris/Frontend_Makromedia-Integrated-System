@@ -4,15 +4,23 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { CalendarView } from "@/components/shared/CalendarView";
 import Select from "@/components/ui/Select";
-import { apiClient } from "@/lib/apiClient";
 import { Project, ProjectCategory } from "@/types/project";
-import { mockProjects } from "@/lib/mock/projects.mock";
-import { mockDashboardCategories } from "@/lib/mock/dashboard.mock";
+import { ProjectCategoryCounts } from "@/types/dashboard";
+import { dashboardService } from "@/lib/services/dashboardService";
 import {
   ChevronLeft,
   ChevronRight,
   Loader2,
 } from "lucide-react";
+
+/** Nilai awal sebelum baseline kategori dari service termuat. */
+const EMPTY_CATEGORY_COUNTS: ProjectCategoryCounts = {
+  Event: 0,
+  'Corporate Video': 0,
+  'Film Production': 0,
+  'Content Video/Marketing': 0,
+  Wedding: 0,
+};
 
 const formatRupiah = (value: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -39,9 +47,18 @@ const MONTH_OPTIONS = [
 
 export default function DashboardPage() {
   const { role } = useAuth();
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 4, 1));
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [categoryBaseline, setCategoryBaseline] =
+    useState<ProjectCategoryCounts>(EMPTY_CATEGORY_COUNTS);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    dashboardService
+      .getCategoryCounts()
+      .then(setCategoryBaseline)
+      .catch(() => setCategoryBaseline(EMPTY_CATEGORY_COUNTS));
+  }, []);
 
   useEffect(() => {
     const fetchCalendarData = async () => {
@@ -58,15 +75,9 @@ export default function DashboardPage() {
           0,
         ).toISOString();
 
-        const response = await apiClient.get("/projects/calendar", {
-          params: { start, end },
-        });
-
-        if (response.data && Array.isArray(response.data)) {
-          setProjects(response.data);
-        }
+        setProjects(await dashboardService.getCalendarProjects({ start, end }));
       } catch {
-        setProjects(mockProjects);
+        setProjects([]);
       } finally {
         setIsLoading(false);
       }
@@ -100,7 +111,7 @@ export default function DashboardPage() {
 
   const categoryCounts = useMemo(() => {
     const counts: Record<ProjectCategory, number> = {
-      ...mockDashboardCategories,
+      ...categoryBaseline,
     };
 
     projects.forEach((p) => {
@@ -110,7 +121,7 @@ export default function DashboardPage() {
     });
 
     return counts;
-  }, [projects]);
+  }, [projects, categoryBaseline]);
 
   const isFinancialView =
     role === "DIREKTUR" || role === "FINANCE" || role === "SALES";
@@ -252,7 +263,7 @@ export default function DashboardPage() {
               Event
             </span>
             <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              {categoryCounts["Event"] !== undefined ? categoryCounts["Event"] : 10}
+              {categoryCounts["Event"]}
             </p>
           </div>
 
@@ -262,7 +273,7 @@ export default function DashboardPage() {
               Corporate Video
             </span>
             <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              {categoryCounts["Corporate Video"] !== undefined ? categoryCounts["Corporate Video"] : 4}
+              {categoryCounts["Corporate Video"]}
             </p>
           </div>
 
@@ -272,7 +283,7 @@ export default function DashboardPage() {
               Film Production
             </span>
             <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              {categoryCounts["Film Production"] !== undefined ? categoryCounts["Film Production"] : 6}
+              {categoryCounts["Film Production"]}
             </p>
           </div>
 
@@ -282,7 +293,7 @@ export default function DashboardPage() {
               Content Video/Marketing
             </span>
             <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              {categoryCounts["Content Video/Marketing"] !== undefined ? categoryCounts["Content Video/Marketing"] : 26}
+              {categoryCounts["Content Video/Marketing"]}
             </p>
           </div>
 
@@ -292,7 +303,7 @@ export default function DashboardPage() {
               Wedding
             </span>
             <p className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
-              {categoryCounts["Wedding"] !== undefined ? categoryCounts["Wedding"] : 21}
+              {categoryCounts["Wedding"]}
             </p>
           </div>
         </div>
