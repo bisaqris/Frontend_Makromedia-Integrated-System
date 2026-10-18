@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { skillService } from '@/lib/services/skillService';
 import { Skill, CreateSkillDTO } from '@/types/manpower';
+import { getApiErrorMessage } from '@/lib/utils';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 import { toast } from 'react-hot-toast';
 import {
@@ -81,7 +82,10 @@ export default function SkillsPage() {
   };
 
   useEffect(() => {
-    fetchSkills();
+    const timeoutId = window.setTimeout(() => {
+      void fetchSkills();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -115,10 +119,6 @@ export default function SkillsPage() {
     return filteredSkills.slice(start, start + pageSize);
   }, [filteredSkills, currentPage, pageSize]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedStatus, pageSize]);
-
   const handleReset = () => {
     setEditingSkill(null);
     reset({
@@ -149,20 +149,14 @@ export default function SkillsPage() {
         toast.success('Skill baru berhasil ditambahkan');
 
         // Local Storage Add
-        const addedItem = newSkill || {
-          id: Date.now().toString(),
-          name: formData.name,
-          status: formData.status,
-          usedBy: 0,
-        };
-        const updated = [addedItem, ...skills];
+        const updated = [newSkill, ...skills];
         setSkills(updated);
         localStorage.setItem('skills_list', JSON.stringify(updated));
       }
       handleReset();
       fetchSkills();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Terjadi kesalahan');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Terjadi kesalahan'));
     } finally {
       setSubmitting(false);
     }
@@ -183,8 +177,8 @@ export default function SkillsPage() {
         handleReset();
       }
       fetchSkills();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus skill');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus skill'));
     } finally {
       setIsDeleteOpen(false);
       setDeletingSkill(null);
@@ -203,7 +197,10 @@ export default function SkillsPage() {
                 type="text"
                 placeholder="Search skill..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full bg-transparent text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
               />
             </div>
@@ -211,7 +208,10 @@ export default function SkillsPage() {
             <div className="relative flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 shrink-0">
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="appearance-none bg-transparent pr-5 text-xs font-semibold text-zinc-700 focus:outline-none cursor-pointer text-center"
               >
                 <option value="ALL">All Status</option>
@@ -352,7 +352,10 @@ export default function SkillsPage() {
                     <div className="flex items-center gap-1.5 text-zinc-500">
                       <select
                         value={pageSize}
-                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
                         className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 focus:outline-none"
                       >
                         {[5, 10, 20, 50].map((size) => (

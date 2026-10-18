@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { positionService } from '@/lib/services/positionService';
 import { Position, CreatePositionDTO } from '@/types/manpower';
+import { getApiErrorMessage } from '@/lib/utils';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 import { toast } from 'react-hot-toast';
 import {
@@ -80,7 +81,10 @@ export default function PositionsPage() {
   };
 
   useEffect(() => {
-    fetchPositions();
+    const timeoutId = window.setTimeout(() => {
+      void fetchPositions();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
@@ -114,10 +118,6 @@ export default function PositionsPage() {
     return filteredPositions.slice(start, start + pageSize);
   }, [filteredPositions, currentPage, pageSize]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedStatus, pageSize]);
-
   const handleReset = () => {
     setEditingPosition(null);
     reset({
@@ -148,20 +148,14 @@ export default function PositionsPage() {
         toast.success('Position baru berhasil ditambahkan');
 
         // Local Storage Add
-        const addedItem = newPosition || {
-          id: Date.now().toString(),
-          name: formData.name,
-          status: formData.status,
-          usedBy: 0,
-        };
-        const updated = [addedItem, ...positions];
+        const updated = [newPosition, ...positions];
         setPositions(updated);
         localStorage.setItem('positions_list', JSON.stringify(updated));
       }
       handleReset();
       fetchPositions();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Terjadi kesalahan');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Terjadi kesalahan'));
     } finally {
       setSubmitting(false);
     }
@@ -182,8 +176,8 @@ export default function PositionsPage() {
         handleReset();
       }
       fetchPositions();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Gagal menghapus position');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Gagal menghapus position'));
     } finally {
       setIsDeleteOpen(false);
       setDeletingPosition(null);
@@ -202,7 +196,10 @@ export default function PositionsPage() {
                 type="text"
                 placeholder="Search position..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="w-full bg-transparent text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
               />
             </div>
@@ -210,7 +207,10 @@ export default function PositionsPage() {
             <div className="relative flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 shrink-0">
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="appearance-none bg-transparent pr-5 text-xs font-semibold text-zinc-700 focus:outline-none cursor-pointer text-center"
               >
                 <option value="ALL">All Status</option>
@@ -351,7 +351,10 @@ export default function PositionsPage() {
                     <div className="flex items-center gap-1.5 text-zinc-500">
                       <select
                         value={pageSize}
-                        onChange={(e) => setPageSize(Number(e.target.value))}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
                         className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 focus:outline-none"
                       >
                         {[5, 10, 20, 50].map((size) => (

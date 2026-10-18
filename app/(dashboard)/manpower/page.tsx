@@ -12,6 +12,9 @@ interface Employee {
     position: string;
     phone: string;
     email: string;
+    /** Field tambahan dari form Add Manpower yang mungkin belum ada di data lama */
+    fullName?: string;
+    phoneNumber?: string;
 }
 
 export default function ManpowerPage() {
@@ -24,42 +27,46 @@ export default function ManpowerPage() {
     const [entriesPerPage, setEntriesPerPage] = useState(5);
 
     useEffect(() => {
-        const savedData = localStorage.getItem('manpower_list');
-        if (savedData) {
-            setEmployees(JSON.parse(savedData));
-        } else {
-            const initialData: Employee[] = [
-                {
-                    id: '1',
-                    name: 'Agus T.',
-                    status: 'FULLTIME',
-                    skill: 'Director',
-                    position: 'BOD',
-                    phone: '0821-5410-7123',
-                    email: 'agust@makromedia.id',
-                },
-                {
-                    id: '2',
-                    name: 'Gusan',
-                    status: 'INTERNSHIP',
-                    skill: 'Editor Manager',
-                    position: 'Head Manager',
-                    phone: '0898-7654-321',
-                    email: 'gusan123@gmail.com',
-                },
-                {
-                    id: '3',
-                    name: 'John Doe',
-                    status: 'FREELANCE',
-                    skill: 'Videographer',
-                    position: 'Staff',
-                    phone: '0812-3456-7890',
-                    email: 'john@yahoo.com',
-                },
-            ];
-            setEmployees(initialData);
-            localStorage.setItem('manpower_list', JSON.stringify(initialData));
-        }
+        const timeoutId = window.setTimeout(() => {
+            const savedData = localStorage.getItem('manpower_list');
+            if (savedData) {
+                setEmployees(JSON.parse(savedData));
+            } else {
+                const initialData: Employee[] = [
+                    {
+                        id: '1',
+                        name: 'Agus T.',
+                        status: 'FULLTIME',
+                        skill: 'Director',
+                        position: 'BOD',
+                        phone: '0821-5410-7123',
+                        email: 'agust@makromedia.id',
+                    },
+                    {
+                        id: '2',
+                        name: 'Gusan',
+                        status: 'INTERNSHIP',
+                        skill: 'Editor Manager',
+                        position: 'Head Manager',
+                        phone: '0898-7654-321',
+                        email: 'gusan123@gmail.com',
+                    },
+                    {
+                        id: '3',
+                        name: 'John Doe',
+                        status: 'FREELANCE',
+                        skill: 'Videographer',
+                        position: 'Staff',
+                        phone: '0812-3456-7890',
+                        email: 'john@yahoo.com',
+                    },
+                ];
+                setEmployees(initialData);
+                localStorage.setItem('manpower_list', JSON.stringify(initialData));
+            }
+        }, 0);
+
+        return () => window.clearTimeout(timeoutId);
     }, []);
 
     const handleDelete = (id: string) => {
@@ -169,7 +176,7 @@ export default function ManpowerPage() {
                                 currentData.map((emp) => (
                                     <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors">
                                         <td className="py-4 px-6 font-medium text-gray-900">
-                                            {emp.name || (emp as any).fullName || '-'}
+                                            {emp.name || emp.fullName || '-'}
                                         </td>
                                         <td className="py-4 px-6">
                                             <span
@@ -183,7 +190,7 @@ export default function ManpowerPage() {
                                         <td className="py-4 px-6 text-gray-600">{emp.skill || '-'}</td>
                                         <td className="py-4 px-6 text-gray-600">{emp.position || '-'}</td>
                                         <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
-                                            {emp.phone || (emp as any).phoneNumber || '-'}
+                                            {emp.phone || emp.phoneNumber || '-'}
                                         </td>
                                         <td className="py-4 px-6 text-gray-600">{emp.email || '-'}</td>
                                         <td className="py-4 px-6">
