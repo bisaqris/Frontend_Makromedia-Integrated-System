@@ -160,8 +160,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: p
           clsx(
             // Styling dasar & animasi mobile (fixed)
             'fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-slate-200/80 flex flex-col z-50 select-none transition-transform duration-300 ease-in-out shrink-0',
-            // Styling khusus desktop lg: ke atas (static/sticky supaya tidak menimpa konten)
-            'lg:static lg:translate-x-0 lg:z-auto',
+            // Desktop: sidebar tetap fixed di kiri, konten di-offset lewat lg:pl-64 di layout
+            'lg:fixed lg:top-0 lg:left-0 lg:h-screen lg:translate-x-0 lg:z-auto',
             isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
           )
         )}
