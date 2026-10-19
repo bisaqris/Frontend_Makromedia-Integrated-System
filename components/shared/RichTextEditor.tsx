@@ -38,7 +38,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onSave,
   readOnly = false,
 }) => {
-  // Modal states for Image & Link insertion
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
 
@@ -335,7 +334,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* Main Editor Container matching project design system */}
       <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
         {/* Sleek Toolbar Navigation */}
         <div className="flex items-center gap-1.5 p-3 bg-white border-b border-slate-100 flex-wrap text-slate-700 text-xs sm:text-sm select-none">
@@ -439,7 +437,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
           <div className="h-4 w-px bg-slate-200 mx-1" />
 
-          {/* Add Link */}
           <button
             type="button"
             onClick={handleOpenLinkModal}
@@ -453,7 +450,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             <LinkIcon className="w-4 h-4" />
           </button>
 
-          {/* Add Image */}
           <button
             type="button"
             onClick={() => setIsImageModalOpen(true)}

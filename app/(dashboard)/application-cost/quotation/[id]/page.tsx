@@ -102,10 +102,8 @@ export default function QuotationApprovalDetailPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Top Information Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Column 1: INFORMASI PROJECT */}
           <div className="md:col-span-4 space-y-3">
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
               INFORMASI PROJECT
@@ -131,7 +129,6 @@ export default function QuotationApprovalDetailPage() {
             </div>
           </div>
 
-          {/* Column 2: INFORMASI KLIEN */}
           <div className="md:col-span-4 space-y-3">
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
               INFORMASI KLIEN
@@ -157,7 +154,6 @@ export default function QuotationApprovalDetailPage() {
             </div>
           </div>
 
-          {/* Column 3: DOCUMENT NO & CONTRACT AMOUNT */}
           <div className="md:col-span-4 space-y-3 flex flex-col justify-between">
             <div>
               <p className="text-sm font-bold text-orange-500">{item.documentNumber || '-'}</p>
@@ -288,7 +284,6 @@ export default function QuotationApprovalDetailPage() {
         </div>
       </div>
 
-      {/* Bank Accounts Card */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {bankAccounts.map((account) => (
           <div

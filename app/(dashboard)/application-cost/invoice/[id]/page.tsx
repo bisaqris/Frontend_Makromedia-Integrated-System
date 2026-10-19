@@ -106,10 +106,8 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Card 1: Top 3-Column Info (Bill To, Bill From, Invoice No.) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8">
-          {/* Column 1: Bill To */}
           <div className="md:col-span-4 space-y-2">
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
               Bill To
@@ -120,7 +118,6 @@ export default function InvoiceDetailPage() {
             <p className="text-xs text-slate-500 font-normal">{item.clientEmail || '-'}</p>
           </div>
 
-          {/* Column 2: Bill From */}
           <div className="md:col-span-4 space-y-2">
             <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
               Bill From
@@ -131,7 +128,6 @@ export default function InvoiceDetailPage() {
             <p className="text-xs text-slate-500 font-normal">{profile?.email || '-'}</p>
           </div>
 
-          {/* Column 3: Invoice No. & Dates (vertical stacked layout) */}
           <div className="md:col-span-4 space-y-3 flex flex-col justify-between">
             <div>
               <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block mb-1">
@@ -155,7 +151,6 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Card 2: Middle 3-Column Project Info */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
@@ -175,10 +170,8 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Card 3: Metric Cards Row (3 Cards) wrapped in container */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: CONTRACT AMOUNT */}
           <div className="bg-[#0066ff] rounded-xl p-6 text-white space-y-1 shadow-2xs">
             <span className="text-xs font-semibold text-white/90 uppercase tracking-wider block">
               CONTRACT AMOUNT
@@ -187,7 +180,6 @@ export default function InvoiceDetailPage() {
             <p className="text-xs text-white/80 font-normal mt-1">Nilai kontrak total</p>
           </div>
 
-          {/* Card 2: PREVIOUS PAYMENT */}
           <div className="bg-white rounded-xl border border-slate-200 p-6 text-slate-800 space-y-1 shadow-2xs">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
               PREVIOUS PAYMENT
@@ -198,7 +190,6 @@ export default function InvoiceDetailPage() {
             <p className="text-xs text-slate-400 font-normal mt-1">Sudah dibayarkan</p>
           </div>
 
-          {/* Card 3: INVOICE PERIODE INI */}
           <div className="bg-orange-50/80 border border-orange-200 rounded-xl p-6 space-y-1 shadow-2xs">
             <span className="text-xs font-semibold text-[#f97316] uppercase tracking-wider block">
               INVOICE PERIODE INI
@@ -211,7 +202,6 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Card 4: RINCIAN PEKERJAAN Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 space-y-4 shadow-2xs">
         <h4 className="text-xs font-bold text-[#0066ff] tracking-wider uppercase">
           RINCIAN PEKERJAAN
@@ -263,7 +253,6 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Card 5: Totals Section Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 space-y-4 shadow-2xs">
         <div className="space-y-3 text-xs sm:text-sm">
           <div className="flex justify-between items-center text-slate-600 font-medium">
@@ -305,7 +294,6 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Card 6: TERM OF CONDITION Card */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 space-y-3 shadow-2xs text-xs sm:text-sm">
         <h4 className="font-bold text-[#0066ff] tracking-wider uppercase text-xs">
           TERM OF CONDITION
@@ -325,7 +313,6 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      {/* Card 7: Bank Accounts Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {bankAccounts.map((account) => (
           <div
@@ -357,7 +344,6 @@ export default function InvoiceDetailPage() {
         />
       </div>
 
-      {/* Bottom Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
         <Button
           type="button"

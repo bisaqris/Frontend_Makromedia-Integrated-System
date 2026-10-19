@@ -94,9 +94,7 @@ export default function ProductionCostDetailPage() {
 
   return (
     <div className="space-y-6 pb-16">
-      {/* Top Section: Info Project & 3 Metric Highlight Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Card: Info Project */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-4 shadow-2xs">
           <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-xs sm:text-sm">
             <div>
@@ -143,11 +141,9 @@ export default function ProductionCostDetailPage() {
           </div>
         </div>
 
-        {/* Right Card: 3 Highlight Metrics */}
         <div className="lg:col-span-6 bg-white rounded-2xl border border-slate-200/80 p-6 space-y-3.5 shadow-2xs">
           {/* Baris 1: 2 Cards Side-by-Side */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Metric 1: Contract Value */}
             <div className="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4 space-y-1">
               <span className="text-xs text-slate-500 font-medium block">Contract Value</span>
               <p className="text-base sm:text-lg font-extrabold text-slate-900">
@@ -155,7 +151,6 @@ export default function ProductionCostDetailPage() {
               </p>
             </div>
 
-            {/* Metric 2: Estimate Production Cost */}
             <div className="bg-red-50/60 border border-red-200/80 rounded-xl p-4 space-y-1">
               <span className="text-xs text-slate-500 font-medium block">Estimate Production Cost</span>
               <p className="text-base sm:text-lg font-extrabold text-slate-900">
@@ -176,7 +171,6 @@ export default function ProductionCostDetailPage() {
         </div>
       </div>
 
-      {/* Main Table Card (9 Numbered Categories) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-4">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[750px]">
@@ -232,7 +226,6 @@ export default function ProductionCostDetailPage() {
           </table>
         </div>
 
-        {/* Footer Summary Table matching design 1:1 */}
         <div className="pt-6 border-t border-slate-100 space-y-3">
           <div className="flex justify-end gap-12 text-xs font-semibold text-slate-700 pb-2 border-b border-slate-200">
             <span className="w-24 text-right">Presentase</span>
