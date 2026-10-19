@@ -96,8 +96,7 @@ export default function QuotationPreviewPage() {
       const html2pdf = (await import('html2pdf.js')).default;
       await html2pdf().set(opt).from(element).save();
       showToast.success('PDF Quotation berhasil diunduh!');
-    } catch (err) {
-      console.error(err);
+    } catch {
       window.print();
     }
   };
@@ -224,7 +223,6 @@ export default function QuotationPreviewPage() {
       <div className="space-y-0">
         {/* PDF Preview Toolbar Bar */}
         <div className="print-hide bg-white rounded-t-2xl border border-slate-200 p-4 flex flex-wrap items-center justify-between gap-4 shadow-2xs select-none">
-          {/* Left: Document Title */}
           <div className="flex items-center gap-3">
             <span className="text-slate-400 font-bold">≡</span>
             <span className="text-xs sm:text-sm font-bold text-slate-800">
@@ -253,7 +251,6 @@ export default function QuotationPreviewPage() {
             </button>
           </div>
 
-          {/* Right: Unduh & Cetak Buttons */}
           <div className="flex items-center gap-3">
             <Button
               type="button"
@@ -286,7 +283,6 @@ export default function QuotationPreviewPage() {
             className="pdf-preview-sheet bg-white w-full max-w-4xl shadow-2xl p-6 sm:p-8 space-y-4 text-slate-800 transition-transform duration-200 origin-top rounded-xl overflow-hidden"
             style={{ transform: `scale(${zoomLevel / 100})` }}
           >
-            {/* Top Header Banner Image */}
             <div className="pdf-banner-top w-full rounded-none overflow-hidden mb-3">
               <img
                 src="/images/application-cost/quotation-header-banner.png"
@@ -295,10 +291,8 @@ export default function QuotationPreviewPage() {
               />
             </div>
 
-            {/* Top Info Section Card matching design screenshot 1:1 */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6">
-                {/* Column 1: INFORMASI PROJECT */}
                 <div className="md:col-span-4 space-y-2">
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
                     INFORMASI PROJECT
@@ -320,7 +314,6 @@ export default function QuotationPreviewPage() {
                   </div>
                 </div>
 
-                {/* Column 2: INFORMASI KLIEN */}
                 <div className="md:col-span-4 space-y-2">
                   <span className="text-xs font-bold text-slate-400 tracking-wider uppercase block">
                     INFORMASI KLIEN
@@ -342,7 +335,6 @@ export default function QuotationPreviewPage() {
                   </div>
                 </div>
 
-                {/* Column 3: DOCUMENT NO & CONTRACT AMOUNT */}
                 <div className="md:col-span-4 space-y-2 flex flex-col justify-between">
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-[#f97316]">
@@ -518,7 +510,6 @@ export default function QuotationPreviewPage() {
               </div>
             </div>
 
-            {/* Bank Accounts Section */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {bankAccounts.map((account) => (
                 <div
@@ -538,9 +529,7 @@ export default function QuotationPreviewPage() {
               ))}
             </div>
 
-            {/* Signature & Social Footer Section matching screenshot 1:1 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              {/* Left: Signature Box Card */}
               <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
                 {/* 1. Name at top */}
                 <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
@@ -575,7 +564,6 @@ export default function QuotationPreviewPage() {
                 </div>
               </div>
 
-              {/* Right: Social Media Contacts Card */}
               <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 flex flex-col justify-end">
                 <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
                   <svg className="w-4 h-4 text-slate-800 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -594,7 +582,6 @@ export default function QuotationPreviewPage() {
               </div>
             </div>
 
-            {/* Bottom Footer Banner Image */}
             <div className="pdf-banner-bottom w-full rounded-none overflow-hidden mt-2">
               <img
                 src="/images/application-cost/quotation-footer-banner.png"
@@ -606,7 +593,6 @@ export default function QuotationPreviewPage() {
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
       <div className="print-hide flex items-center justify-start pt-2">
         <Button
           type="button"

@@ -149,7 +149,6 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           </div>
         </div>
 
-        {/* Status Dropdown */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">
             Status Task

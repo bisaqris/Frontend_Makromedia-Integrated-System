@@ -75,7 +75,6 @@ export default function DetailManpowerPage({ params }: { params: Promise<{ id: s
         <p className="text-sm text-gray-400">Detail Manpower</p>
       </div>
 
-      {/* Main Card */}
       <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm space-y-6">
         <h2 className="text-base font-bold text-blue-600 pb-2">Manpower Information</h2>
 

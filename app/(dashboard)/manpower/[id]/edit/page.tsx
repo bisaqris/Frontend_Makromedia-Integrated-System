@@ -16,7 +16,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Opsi master data (Skill & Position)
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
 
@@ -161,7 +160,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Card 1: Personal Data */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-blue-600">Manpower Personal Data</h2>
 
@@ -244,7 +242,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
 
-        {/* Card 2: Status & Banking */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-blue-600">Manpower Status and Banking Information</h2>
 

@@ -13,7 +13,6 @@ export default function AddManpowerPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
-  // Dynamic Options dari Master Data (skills & positions)
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
 
@@ -109,7 +108,6 @@ export default function AddManpowerPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Card 1: Personal Data */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-blue-600">Manpower Personal Data</h2>
 
@@ -192,7 +190,6 @@ export default function AddManpowerPage() {
           </div>
         </div>
 
-        {/* Card 2: Status & Banking */}
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-blue-600">Manpower Status and Banking Information</h2>
 

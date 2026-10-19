@@ -43,7 +43,6 @@ export default function SkillsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Delete State
   const [deletingSkill, setDeletingSkill] = useState<Skill | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 

@@ -155,11 +155,8 @@ export default function ProfilePage() {
 
   return (
     <form onSubmit={handleSave} className="space-y-6 pb-16">
-      {/* Card 1: General Profile Information */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
-        {/* Top Section: Inputs on Left, Profile Photo on Right */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-          {/* Left Column Fields */}
           <div className="md:col-span-8 space-y-4">
             <div>
               <label
@@ -216,7 +213,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Right Column: Profile Photo */}
           <div className="md:col-span-4 flex flex-col justify-start items-center md:items-start space-y-2">
             <span className="text-xs font-semibold text-slate-700 block mb-1.5">
               Profile Photo
@@ -279,7 +275,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Card 2: Manpower Status and Banking Information */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         <h3 className="text-sm sm:text-base font-bold text-[#0066ff]">
           Manpower Status and Banking Information
@@ -399,7 +394,6 @@ export default function ProfilePage() {
             emptyText="Position tidak ditemukan"
           />
 
-          {/* Bank Account */}
           <div>
             <label
               htmlFor="bankName"
@@ -439,7 +433,6 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
       <div className="flex items-center justify-between gap-4 pt-2">
         <Button
           type="button"

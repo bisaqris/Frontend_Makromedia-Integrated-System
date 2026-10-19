@@ -257,7 +257,6 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
-          {/* Card 1: Event */}
           <div className="bg-[#0066ff] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
             <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
               Event
@@ -267,7 +266,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Card 2: Corporate Video */}
           <div className="bg-[#0fab63] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
             <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
               Corporate Video
@@ -277,7 +275,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Card 3: Film Production */}
           <div className="bg-[#e5a900] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
             <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
               Film Production
@@ -287,7 +284,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Card 4: Content Video/Marketing */}
           <div className="bg-[#ff6818] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
             <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
               Content Video/Marketing
@@ -297,7 +293,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Card 5: Wedding */}
           <div className="bg-[#ef3838] text-white rounded-xl p-4 sm:p-5 flex flex-col justify-between shadow-2xs">
             <span className="text-xs sm:text-sm font-normal text-white mb-2 block truncate">
               Wedding

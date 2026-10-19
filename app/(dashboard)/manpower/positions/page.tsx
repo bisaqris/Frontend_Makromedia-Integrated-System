@@ -43,7 +43,6 @@ export default function PositionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Delete State
   const [deletingPosition, setDeletingPosition] = useState<Position | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 

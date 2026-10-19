@@ -121,14 +121,12 @@ export default function AddNewCompanyClientPage() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-16">
-      {/* Main Card Container */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         <h3 className="text-sm sm:text-base font-bold text-[#0066ff]">
           New Company Client
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Row 1: Company Name (Full Width) */}
           <div className="md:col-span-12">
             <label
               htmlFor="name"
@@ -150,7 +148,6 @@ export default function AddNewCompanyClientPage() {
             {errors.name && <p className="text-xs text-red-500 font-medium mt-1">{errors.name}</p>}
           </div>
 
-          {/* Row 2: Phone Number & Company Email */}
           <div className="md:col-span-6">
             <label
               htmlFor="phone"
@@ -193,7 +190,6 @@ export default function AddNewCompanyClientPage() {
             {errors.email && <p className="text-xs text-red-500 font-medium mt-1">{errors.email}</p>}
           </div>
 
-          {/* Row 3: Country & Province (Select Dropdowns) */}
           <div className="md:col-span-6">
             <label
               htmlFor="country"
@@ -257,7 +253,6 @@ export default function AddNewCompanyClientPage() {
             )}
           </div>
 
-          {/* Row 6: Company Address (Full Width) */}
           <div className="md:col-span-12">
             <label
               htmlFor="companyAddress"
@@ -283,7 +278,6 @@ export default function AddNewCompanyClientPage() {
         </div>
       </div>
 
-      {/* Bottom Action Bar */}
       <div className="flex items-center justify-between gap-4 pt-2">
         <Button
           type="button"

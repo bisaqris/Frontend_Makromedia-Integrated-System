@@ -90,7 +90,6 @@ interface DetailProjectTabsProps {
 }
 
 export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, role }) => {
-  // Active Main Tab state
   const isProduksi = role === 'PRODUKSI';
   const isPM = role === 'PROJECT_MANAGER';
   const isFinancialRole = role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES';
@@ -123,36 +122,29 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   // SubTab state inside Payment Status (for DIREKTUR, SALES, FINANCE)
   const [activePaymentSubTab, setActivePaymentSubTab] = useState<'cost' | 'quotation' | 'invoice'>('cost');
 
-  // Modal & Item Editing States (Production Cost)
   const [isAddCostModalOpen, setIsAddCostModalOpen] = useState<boolean>(false);
   const [editingCostItem, setEditingCostItem] = useState<ProjectCostItem | null>(null);
   const [deleteCostItemId, setDeleteCostItemId] = useState<string | null>(null);
 
-  // Modal & Item Editing States (Quotation)
   const [isAddQuotationModalOpen, setIsAddQuotationModalOpen] = useState<boolean>(false);
   const [editingQuotationItem, setEditingQuotationItem] = useState<ProjectCostItem | null>(null);
   const [deleteQuotationItemId, setDeleteQuotationItemId] = useState<string | null>(null);
 
-  // Modal & Item Editing States (Invoice)
   const [isAddInvoiceModalOpen, setIsAddInvoiceModalOpen] = useState<boolean>(false);
   const [editingInvoiceItem, setEditingInvoiceItem] = useState<ProjectCostItem | null>(null);
   const [deleteInvoiceItemId, setDeleteInvoiceItemId] = useState<string | null>(null);
   const [isConfirmImportOpen, setIsConfirmImportOpen] = useState<boolean>(false);
 
-  // Modal & Item Editing States (Production Task)
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState<boolean>(false);
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
-  // Modal & Item Editing States (Payment History)
   const [isAddPaymentModalOpen, setIsAddPaymentModalOpen] = useState<boolean>(false);
   const [editingPayment, setEditingPayment] = useState<PaymentHistoryItem | null>(null);
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
 
-  // Production Cost Submission Status State
   const [costSubmissionStatus, setCostSubmissionStatus] = useState<'DRAFT' | 'PENDING'>('DRAFT');
 
-  // Local state for interactive editing of Brief, Tasks, Cost Items, Quotation Items, Invoice Items, Payment History
   const [generalBrief, setGeneralBrief] = useState(project.generalBrief || '');
 
   // Tasks (sumber: data project; kosong jika project belum punya task)
@@ -182,7 +174,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.info('Status task diperbarui.');
   };
 
-  // Production Task Handlers
   const handleSaveTask = (taskData: Omit<ProjectTask, 'id'>) => {
     if (editingTask) {
       setTasks((prev) =>
@@ -207,7 +198,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.success('Task berhasil dihapus.');
   };
 
-  // Production Cost Handlers
   const handleAddCostItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
     const item: ProjectCostItem = {
       ...newItem,
@@ -288,7 +278,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.success('Item invoice berhasil dihapus.');
   };
 
-  // Refined Import From Quotation Logic
   const handleTriggerImportFromQuotation = () => {
     if (quotationItems.length === 0) {
       showToast.error('Belum ada item quotation untuk di-import.');
@@ -312,7 +301,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.success(`${imported.length} item Quotation berhasil di-import ke Invoice!`);
   };
 
-  // Payment History Handlers
   const handleSavePayment = (item: Omit<PaymentHistoryItem, 'id'>) => {
     if (editingPayment) {
       setPaymentHistory((prev) =>
@@ -342,7 +330,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.success('Production Cost berhasil diajukan untuk approval Direktur.');
   };
 
-  // Dynamic Financial calculations
   const contractValue = project.budget || 0;
   const totalPaid = paymentHistory.reduce((acc, p) => acc + (p.amount || 0), 0);
   const restOfBill = Math.max(0, contractValue - totalPaid);
@@ -357,14 +344,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const profitPercent = contractValue ? Math.round((totalProfit / contractValue) * 100) : 0;
   const costPercent = contractValue ? Math.round((totalProjectCost / contractValue) * 100) : 0;
 
-  // Task progress stats
   const completedTasksCount = tasks.filter((t) => t.status === 'DONE').length;
   const totalTasksCount = tasks.length;
   const taskProgressPercent = totalTasksCount ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs overflow-hidden space-y-6">
-      {/* Main Tab Bar Navigation directly inside single container */}
       <Tabs
         tabs={mainTabOptions}
         activeTab={activeMainTab}
@@ -372,12 +357,8 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         variant="pills"
       />
 
-      {/* ========================================================================= */}
-      {/* TAB 1: PROJECT INFORMATION */}
-      {/* ========================================================================= */}
       {activeMainTab === 'info' && (
         <div className="space-y-6">
-          {/* Box 1: Internal Data */}
           <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Internal Data
@@ -396,7 +377,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             </div>
           </div>
 
-          {/* Box 2: Client Data */}
           <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Client Data
@@ -421,7 +401,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             </div>
           </div>
 
-          {/* Box 3: Project Data */}
           <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Project Data
@@ -456,7 +435,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             </div>
           </div>
 
-          {/* Box 4: Progress Link */}
           <div className="border border-slate-200 rounded-xl p-5 space-y-4">
             <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
               Progress Link
@@ -501,12 +479,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         </div>
       )}
 
-      {/* ========================================================================= */}
       {/* TAB 2 (ROLE DIREKTUR, SALES, FINANCE): PAYMENT STATUS */}
-      {/* ========================================================================= */}
       {activeMainTab === 'payment' && isFinancialRole && (
         <div className="space-y-6">
-          {/* Top Card: Payment History */}
           <div className="border border-slate-200 rounded-xl p-5 space-y-4 bg-white">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -590,7 +565,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   </table>
                 </div>
 
-                {/* Payment Summary Footer matching design 1:1 */}
                 <div className="pt-4 space-y-2 text-sm">
                   <div className="flex items-center gap-6">
                     <span className="text-slate-500 font-semibold min-w-[140px]">
@@ -615,7 +589,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             )}
           </div>
 
-          {/* SubTabs Card: Production Cost / Quotation / Invoice */}
           <div className="border border-slate-200 rounded-xl p-5 space-y-6 bg-white overflow-hidden">
             <Tabs
               tabs={paymentSubTabOptions}
@@ -624,7 +597,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               variant="pills"
             />
 
-            {/* SubTab Content: Production Cost */}
             {activePaymentSubTab === 'cost' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -684,7 +656,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       readOnly={costSubmissionStatus === 'PENDING'}
                     />
 
-                    {/* Redesigned Summary Table for Production Cost */}
                     <div className="pt-4">
                       <div className="flex justify-end gap-12 text-xs font-semibold text-slate-700 pb-2 border-b border-slate-200">
                         <span className="w-20 text-right">Presentase</span>
@@ -709,7 +680,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               </div>
             )}
 
-            {/* SubTab Content: Quotation */}
             {activePaymentSubTab === 'quotation' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -812,7 +782,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </div>
                   )}
 
-                  {/* Summary Footer with increased vertical spacing */}
                   <div className="pt-6 border-t border-slate-100 space-y-6 text-sm sm:text-base">
                     <div className="flex justify-between items-center text-slate-600 font-medium">
                       <span>Sub Total</span>
@@ -836,7 +805,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               </div>
             )}
 
-            {/* SubTab Content: Invoice */}
             {activePaymentSubTab === 'invoice' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -954,7 +922,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </div>
                   )}
 
-                  {/* Invoice Summary Footer */}
                   <div className="pt-6 border-t border-slate-100 space-y-6 text-sm sm:text-base">
                     <div className="flex justify-between items-center text-slate-600 font-medium">
                       <span>Sub Total</span>
@@ -995,9 +962,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         </div>
       )}
 
-      {/* ========================================================================= */}
       {/* TAB 2 (ROLE PROJECT_MANAGER): PRODUCTION COST (STANDALONE TAB) */}
-      {/* ========================================================================= */}
       {activeMainTab === 'production_cost' && isPM && (
         <div className="space-y-6">
           <div className="border border-slate-200 rounded-xl p-5 space-y-6 bg-white">
@@ -1058,7 +1023,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   readOnly={costSubmissionStatus === 'PENDING'}
                 />
 
-                {/* Redesigned Summary Table for Production Cost */}
                 <div className="pt-4">
                   <div className="flex justify-end gap-12 text-xs font-semibold text-slate-700 pb-2 border-b border-slate-200">
                     <span className="w-20 text-right">Presentase</span>
@@ -1084,12 +1048,8 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* TAB PRODUCTION TASK */}
-      {/* ========================================================================= */}
       {activeMainTab === 'task' && (
         <div className="space-y-6">
-          {/* Card 1: Task Progress matching screenshot 1:1 */}
           <div className="border border-slate-200/80 rounded-xl p-5 bg-white space-y-3">
             <h3 className="text-base sm:text-lg font-bold text-primary">
               Task Progress
@@ -1103,7 +1063,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               </p>
             </div>
 
-            {/* Thin Blue Progress Bar */}
             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden my-3">
               <div
                 className="h-full bg-primary transition-all duration-300"
@@ -1111,7 +1070,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               />
             </div>
 
-            {/* Horizontal Status Badges below progress bar */}
             <div className="flex items-center gap-2 pt-1">
               <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] sm:text-xs font-bold border border-emerald-100">
                 {completedTasksCount} DONE
@@ -1125,7 +1083,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             </div>
           </div>
 
-          {/* Card 2: Task Checklist matching screenshot 1:1 */}
           <div className="border border-slate-200/80 rounded-xl p-5 bg-white space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-base sm:text-lg font-bold text-primary">
@@ -1191,7 +1148,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                               <span>{formatDateID(task.dueDate)}</span>
                             </span>
 
-                            {/* Overdue Alert Badge */}
                             {idx === 2 && !isDone && (
                               <span className="flex items-center gap-1.5 text-red-500 font-semibold bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
                                 <Clock className="w-3.5 h-3.5 text-red-500 shrink-0" />
@@ -1240,7 +1196,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             )}
           </div>
 
-          {/* Card 3: General Brief matching screenshot 1:1 */}
           <div className="border border-slate-200/80 rounded-xl p-5 bg-white space-y-4">
             <h3 className="text-base sm:text-lg font-bold text-primary">
               General Brief
@@ -1255,7 +1210,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         </div>
       )}
 
-      {/* Add Production Cost Item Modal */}
       <AddCostItemModal
         isOpen={isAddCostModalOpen}
         onClose={() => setIsAddCostModalOpen(false)}
@@ -1263,7 +1217,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         existingCategories={Array.from(new Set(costItems.map((i) => i.category)))}
       />
 
-      {/* Edit Production Cost Item Modal */}
       <AddCostItemModal
         isOpen={!!editingCostItem}
         onClose={() => setEditingCostItem(null)}
@@ -1272,7 +1225,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         editItem={editingCostItem || undefined}
       />
 
-      {/* Delete Production Cost Item Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteCostItemId}
         onClose={() => setDeleteCostItemId(null)}
@@ -1281,14 +1233,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         message="Apakah Anda yakin ingin menghapus item ini? Tindakan ini tidak dapat dibatalkan."
       />
 
-      {/* Add Quotation Item Modal */}
       <AddQuotationItemModal
         isOpen={isAddQuotationModalOpen}
         onClose={() => setIsAddQuotationModalOpen(false)}
         onSave={handleAddQuotationItem}
       />
 
-      {/* Edit Quotation Item Modal */}
       <AddQuotationItemModal
         isOpen={!!editingQuotationItem}
         onClose={() => setEditingQuotationItem(null)}
@@ -1296,7 +1246,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         editItem={editingQuotationItem || undefined}
       />
 
-      {/* Delete Quotation Item Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteQuotationItemId}
         onClose={() => setDeleteQuotationItemId(null)}
@@ -1305,14 +1254,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         message="Apakah Anda yakin ingin menghapus item quotation ini?"
       />
 
-      {/* Add Invoice Item Modal */}
       <AddInvoiceItemModal
         isOpen={isAddInvoiceModalOpen}
         onClose={() => setIsAddInvoiceModalOpen(false)}
         onSave={handleAddInvoiceItem}
       />
 
-      {/* Edit Invoice Item Modal */}
       <AddInvoiceItemModal
         isOpen={!!editingInvoiceItem}
         onClose={() => setEditingInvoiceItem(null)}
@@ -1320,7 +1267,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         editItem={editingInvoiceItem || undefined}
       />
 
-      {/* Delete Invoice Item Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteInvoiceItemId}
         onClose={() => setDeleteInvoiceItemId(null)}
@@ -1329,7 +1275,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         message="Apakah Anda yakin ingin menghapus item invoice ini?"
       />
 
-      {/* Import Quotation to Invoice Confirmation Modal */}
       <ConfirmModal
         isOpen={isConfirmImportOpen}
         onClose={() => setIsConfirmImportOpen(false)}
@@ -1339,14 +1284,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         confirmText="Ya, Import Data"
       />
 
-      {/* Add Task Modal */}
       <AddTaskModal
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         onSave={handleSaveTask}
       />
 
-      {/* Edit Task Modal */}
       <AddTaskModal
         isOpen={!!editingTask}
         onClose={() => setEditingTask(null)}
@@ -1354,7 +1297,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         editTask={editingTask || undefined}
       />
 
-      {/* Delete Task Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteTaskId}
         onClose={() => setDeleteTaskId(null)}
@@ -1363,7 +1305,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         message="Apakah Anda yakin ingin menghapus task ini dari checklist produksi?"
       />
 
-      {/* Add / Edit Payment Modal */}
       <AddPaymentModal
         isOpen={isAddPaymentModalOpen || !!editingPayment}
         onClose={() => {
@@ -1374,7 +1315,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         editItem={editingPayment || undefined}
       />
 
-      {/* Delete Payment Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deletePaymentId}
         onClose={() => setDeletePaymentId(null)}

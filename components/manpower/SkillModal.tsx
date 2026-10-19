@@ -85,7 +85,6 @@ export default function SkillModal({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-zinc-100">
-                {/* Modal Header */}
                 <div className="flex items-center justify-between pb-4">
                     <h3 className="text-lg font-bold text-zinc-900">
                         {initialData ? 'Edit Skill' : 'Tambah Skill Baru'}
@@ -115,13 +114,11 @@ export default function SkillModal({
                         )}
                     </div>
 
-                    {/* Status Selection Cards (Gambar 3) */}
                     <Controller
                         name="status"
                         control={control}
                         render={({ field }) => (
                             <div className="grid grid-cols-2 gap-3 pt-1">
-                                {/* Active Option */}
                                 <label
                                     onClick={() => field.onChange('ACTIVE')}
                                     className={`relative flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-all ${field.value === 'ACTIVE'
@@ -184,7 +181,6 @@ export default function SkillModal({
                         )}
                     />
 
-                    {/* Modal Footer Action Buttons */}
                     <div className="flex items-center justify-between pt-4">
                         <button
                             type="button"

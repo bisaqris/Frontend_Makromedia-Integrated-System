@@ -237,7 +237,6 @@ export default function AddProjectPage() {
         {/* STEP 1: INPUT DATA */}
         {currentStep === 1 && (
           <div className="space-y-6">
-            {/* Card 1: Internal Data */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
                 Internal Data
@@ -258,7 +257,6 @@ export default function AddProjectPage() {
               </div>
             </div>
 
-            {/* Card 2: Client Data */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
                 Client Data
@@ -299,7 +297,6 @@ export default function AddProjectPage() {
               </div>
             </div>
 
-            {/* Card 3: Project Data */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
                 Project Data
@@ -355,7 +352,6 @@ export default function AddProjectPage() {
               </div>
             </div>
 
-            {/* Card 4: Progress Link */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
@@ -410,7 +406,6 @@ export default function AddProjectPage() {
                 </p>
               </div>
 
-              {/* Dynamic Additional Links list (Editable inputs) */}
               {additionalLinks.map((link) => (
                 <div key={link.id} className="space-y-1">
                   <label className="block text-xs font-semibold text-slate-700">

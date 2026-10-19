@@ -71,7 +71,6 @@ export default function ManpowerPage() {
 
     return (
         <div className="p-6 space-y-6">
-            {/* Top Bar */}
             <div className="flex flex-col sm:flex-row items-center gap-3">
                 {/* Search Bar */}
                 <div className="relative flex-1 w-full">
@@ -179,7 +178,6 @@ export default function ManpowerPage() {
                     </table>
                 </div>
 
-                {/* Footer & Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 text-sm text-gray-500">
                     <div className="flex items-center gap-3">
                         <span>Showing</span>
