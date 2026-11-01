@@ -18,6 +18,7 @@ import Image from 'next/image';
 // Saat integrasi backend, pastikan flag ini tidak "1" di environment production.
 const MOCK_AUTH_ENABLED =
   process.env.NODE_ENV === 'development' &&
+  process.env.NEXT_PUBLIC_USE_MOCK !== '0' &&
   process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH !== '0';
 
 const loginSchema = z.object({
@@ -53,9 +54,9 @@ function LoginFormContent() {
     setIsSubmitting(true);
     try {
       const response = await apiClient.post('/auth/login', data);
-      const { token, user } = response.data;
+      const { accessToken, user } = response.data;
 
-      login(token, user);
+      login(accessToken, user);
       showToast.success(`Selamat datang kembali, ${user.name || 'User'}!`);
       router.push(redirectPath);
     } catch {
