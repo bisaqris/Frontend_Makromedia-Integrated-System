@@ -137,6 +137,8 @@ export const AddQuotationItemModal: React.FC<AddQuotationItemModalProps> = ({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value ? Number(e.target.value) : '')}
               min={1}
+              step={1}
+              required
             />
           </div>
           <div>
@@ -148,6 +150,8 @@ export const AddQuotationItemModal: React.FC<AddQuotationItemModalProps> = ({
               value={freq}
               onChange={(e) => setFreq(e.target.value ? Number(e.target.value) : '')}
               min={1}
+              step={1}
+              required
             />
           </div>
           <div>

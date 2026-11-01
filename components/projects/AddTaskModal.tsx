@@ -10,8 +10,9 @@ import { ProjectTask } from '@/types/project';
 interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Omit<ProjectTask, 'id'>) => void;
+  onSave: (task: Omit<ProjectTask, 'id'>) => void | Promise<void>;
   editTask?: ProjectTask;
+  supportsPicName?: boolean;
 }
 
 const statusOptions = [
@@ -33,6 +34,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onClose,
   onSave,
   editTask,
+  supportsPicName = true,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -72,19 +74,22 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    onSave({
-      title: title.trim(),
-      description: description.trim(),
-      dueDate: dueDate || getTodayDateString(),
-      picName: picName.trim(),
-      status,
-    });
-
-    onClose();
+    try {
+      await onSave({
+        title: title.trim(),
+        description: description.trim(),
+        dueDate: dueDate || getTodayDateString(),
+        picName: picName.trim(),
+        status,
+      });
+      onClose();
+    } catch {
+      // The caller reports the API error; keep the entered values available for retry.
+    }
   };
 
   const isEditing = !!editTask;
@@ -136,17 +141,23 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              PIC / Penanggung Jawab <span className="text-red-500">*</span>
-            </label>
-            <Input
-              placeholder="misal: Nama PIC"
-              value={picName}
-              onChange={(e) => setPicName(e.target.value)}
-              required
-            />
-          </div>
+          {supportsPicName ? (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                PIC / Penanggung Jawab <span className="text-red-500">*</span>
+              </label>
+              <Input
+                placeholder="misal: Nama PIC"
+                value={picName}
+                onChange={(e) => setPicName(e.target.value)}
+                required
+              />
+            </div>
+          ) : (
+            <p className="self-center text-xs text-slate-500">
+              Penugasan PIC belum tersedia di backend.
+            </p>
+          )}
         </div>
 
         <div>

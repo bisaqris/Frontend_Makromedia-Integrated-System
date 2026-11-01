@@ -10,7 +10,7 @@ import { ProjectCostItem } from '@/types/project';
 interface AddCostItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: Omit<ProjectCostItem, 'id' | 'projectId'>) => void;
+  onSave: (item: Omit<ProjectCostItem, 'id' | 'projectId'>) => void | Promise<void>;
   existingCategories: string[];
   editItem?: ProjectCostItem;
 }
@@ -79,21 +79,25 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   const formatRupiah = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const finalCategory = category === NEW_CATEGORY_VALUE ? customCategory : category;
     if (!finalCategory || !description) return;
-    onSave({
-      category: finalCategory,
-      description,
-      executor,
-      unitCost: Number(unitCost) || 0,
-      quantity: Number(quantity) || 0,
-      unit,
-      freq: Number(freq) || 1,
-      period,
-      totalCost: subTotal,
-    });
-    onClose();
+    try {
+      await onSave({
+        category: finalCategory,
+        description,
+        executor,
+        unitCost: Number(unitCost) || 0,
+        quantity: Number(quantity) || 0,
+        unit,
+        freq: Number(freq) || 1,
+        period,
+        totalCost: subTotal,
+      });
+      onClose();
+    } catch {
+      // The caller reports the API error; keep the entered values available for retry.
+    }
   };
 
   const modalTitle = editItem ? 'Edit Item Production Cost' : 'Tambah Item Production Cost';
@@ -134,6 +138,8 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
             type="number"
             value={unitCost}
             onChange={(e) => setUnitCost(e.target.value)}
+            min={0}
+            required
           />
           <div className="grid grid-cols-2 gap-2">
             <Input
@@ -141,6 +147,9 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
               type="number"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
+              min={1}
+              step={1}
+              required
             />
             <Input
               label="Satuan"
@@ -156,6 +165,9 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
             type="number"
             value={freq}
             onChange={(e) => setFreq(e.target.value)}
+            min={1}
+            step={1}
+            required
           />
           <Input
             label="Periode"

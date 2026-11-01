@@ -9,7 +9,7 @@ import { PaymentHistoryItem } from '@/types/project';
 interface AddPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: Omit<PaymentHistoryItem, 'id'>) => void;
+  onSave: (item: Omit<PaymentHistoryItem, 'id'>) => void | Promise<void>;
   editItem?: PaymentHistoryItem;
 }
 
@@ -51,17 +51,21 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!date || !amount) return;
-    onSave({
-      date,
-      amount: Number(amount) || 0,
-      paymentMethod,
-      toAccount,
-      fromAccount,
-      notes,
-    });
-    onClose();
+    try {
+      await onSave({
+        date,
+        amount: Number(amount) || 0,
+        paymentMethod,
+        toAccount,
+        fromAccount,
+        notes,
+      });
+      onClose();
+    } catch {
+      // The caller reports the API error; keep the entered values available for retry.
+    }
   };
 
   return (
@@ -85,6 +89,7 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           required
+          min={0}
         />
         <Input
           label="Metode Pembayaran"

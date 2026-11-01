@@ -16,6 +16,9 @@ import AddTaskModal from '@/components/projects/AddTaskModal';
 import AddPaymentModal from '@/components/projects/AddPaymentModal';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
+import projectService from '@/lib/services/projectService';
+import { projectWorkflowService } from '@/lib/services/projectWorkflowService';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
   ExternalLink,
   Plus,
@@ -93,6 +96,14 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const isProduksi = role === 'PRODUKSI';
   const isPM = role === 'PROJECT_MANAGER';
   const isFinancialRole = role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES';
+  const canManageTasks =
+    USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR';
+  const canUpdateTaskProgress =
+    USE_MOCK || role === 'PROJECT_MANAGER' || role === 'PRODUKSI' || role === 'DIREKTUR';
+  const canRecordPayment = USE_MOCK || role === 'FINANCE' || role === 'DIREKTUR';
+  const canManageProductionCost =
+    USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR';
+  const canCreateInvoice = USE_MOCK || role === 'FINANCE' || role === 'DIREKTUR';
 
   // Determine Tab List per Role
   const mainTabOptions = React.useMemo(() => {
@@ -144,6 +155,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const [deletePaymentId, setDeletePaymentId] = useState<string | null>(null);
 
   const [costSubmissionStatus, setCostSubmissionStatus] = useState<'DRAFT' | 'PENDING'>('DRAFT');
+  const [quotationPersisted, setQuotationPersisted] = useState(
+    !USE_MOCK && Boolean(project.quotationItems?.length)
+  );
+  const [invoicePersisted, setInvoicePersisted] = useState(
+    !USE_MOCK && Boolean(project.invoiceItems?.length)
+  );
 
   const [generalBrief, setGeneralBrief] = useState(project.generalBrief || '');
 
@@ -151,81 +168,127 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const [tasks, setTasks] = useState<ProjectTask[]>(() => project.tasks || []);
 
   const [costItems, setCostItems] = useState<ProjectCostItem[]>(project.costItems || []);
-  const [quotationItems, setQuotationItems] = useState<ProjectCostItem[]>(project.costItems || []);
+  const [quotationItems, setQuotationItems] = useState<ProjectCostItem[]>(
+    project.quotationItems ?? project.costItems ?? []
+  );
 
   // Invoice Items (sumber: cost item project)
-  const [invoiceItems, setInvoiceItems] = useState<ProjectCostItem[]>(() => project.costItems || []);
+  const [invoiceItems, setInvoiceItems] = useState<ProjectCostItem[]>(
+    project.invoiceItems ?? project.costItems ?? []
+  );
 
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>(project.paymentHistory || []);
 
-  const handleSaveBrief = (newBrief: string) => {
-    setGeneralBrief(newBrief);
-    showToast.success('General Brief berhasil diperbarui.');
-  };
-
-  const handleToggleTaskStatus = (taskId: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, status: t.status === 'DONE' ? 'TODO' : 'DONE' }
-          : t
-      )
-    );
-    showToast.info('Status task diperbarui.');
-  };
-
-  const handleSaveTask = (taskData: Omit<ProjectTask, 'id'>) => {
-    if (editingTask) {
-      setTasks((prev) =>
-        prev.map((t) => (t.id === editingTask.id ? { ...t, ...taskData } : t))
-      );
-      setEditingTask(null);
-      showToast.success('Task berhasil diperbarui.');
-    } else {
-      const newTask: ProjectTask = {
-        ...taskData,
-        id: `task-${Date.now()}`,
-      };
-      setTasks((prev) => [...prev, newTask]);
-      showToast.success('Task baru berhasil ditambahkan.');
+  const handleSaveBrief = async (newBrief: string) => {
+    try {
+      if (!USE_MOCK) {
+        await projectService.updateProject(project.id, { generalBrief: newBrief });
+      }
+      setGeneralBrief(newBrief);
+      showToast.success('General Brief berhasil diperbarui.');
+    } catch {
+      showToast.error('Gagal memperbarui General Brief.');
     }
   };
 
-  const handleDeleteTask = () => {
-    if (!deleteTaskId) return;
-    setTasks((prev) => prev.filter((t) => t.id !== deleteTaskId));
-    setDeleteTaskId(null);
-    showToast.success('Task berhasil dihapus.');
+  const handleToggleTaskStatus = async (taskId: string) => {
+    if (!canUpdateTaskProgress) return;
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    const status: ProjectTask['status'] = task.status === 'DONE' ? 'TODO' : 'DONE';
+    try {
+      const savedTask = USE_MOCK
+        ? { ...task, status }
+        : await projectWorkflowService.updateTaskProgress(taskId, status === 'DONE' ? 100 : 0);
+      setTasks((prev) => prev.map((item) => (item.id === taskId ? savedTask : item)));
+      showToast.info('Status task diperbarui.');
+    } catch {
+      showToast.error('Gagal memperbarui status task.');
+    }
   };
 
-  const handleAddCostItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
-    const item: ProjectCostItem = {
-      ...newItem,
-      id: `cost-${Date.now()}`,
-      projectId: project.id,
-    };
-    setCostItems((prev) => [...prev, item]);
-    showToast.success('Item berhasil ditambahkan.');
+  const handleSaveTask = async (taskData: Omit<ProjectTask, 'id'>) => {
+    if (!canManageTasks) return;
+    try {
+      const savedTask = USE_MOCK
+        ? { ...taskData, id: editingTask?.id ?? `task-${Date.now()}` }
+        : editingTask
+          ? await projectWorkflowService.updateTask(editingTask.id, taskData)
+          : await projectWorkflowService.createTask(project.id, taskData);
+      setTasks((prev) =>
+        editingTask
+          ? prev.map((task) => (task.id === editingTask.id ? savedTask : task))
+          : [...prev, savedTask]
+      );
+      setEditingTask(null);
+      showToast.success(editingTask ? 'Task berhasil diperbarui.' : 'Task baru berhasil ditambahkan.');
+    } catch (error) {
+      showToast.error('Gagal menyimpan task.');
+      throw error;
+    }
   };
 
-  const handleUpdateCostItem = (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
-    if (!editingCostItem) return;
-    setCostItems((prev) =>
-      prev.map((item) => (item.id === editingCostItem.id ? { ...item, ...updated } : item))
-    );
-    setEditingCostItem(null);
-    showToast.success('Item berhasil diperbarui.');
+  const handleDeleteTask = async () => {
+    if (!deleteTaskId || !canManageTasks) return;
+    try {
+      if (!USE_MOCK) await projectWorkflowService.deleteTask(deleteTaskId);
+      setTasks((prev) => prev.filter((task) => task.id !== deleteTaskId));
+      setDeleteTaskId(null);
+      showToast.success('Task berhasil dihapus.');
+    } catch {
+      showToast.error('Gagal menghapus task.');
+    }
   };
 
-  const handleDeleteCostItem = () => {
-    if (!deleteCostItemId) return;
-    setCostItems((prev) => prev.filter((item) => item.id !== deleteCostItemId));
-    setDeleteCostItemId(null);
-    showToast.success('Item berhasil dihapus.');
+  const handleAddCostItem = async (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!canManageProductionCost) return;
+    try {
+      const item = USE_MOCK
+        ? { ...newItem, id: `cost-${Date.now()}`, projectId: project.id }
+        : await projectWorkflowService.createProductionCost(project.id, newItem);
+      setCostItems((prev) => [...prev, item]);
+      showToast.success('Item berhasil ditambahkan.');
+      if (!USE_MOCK) {
+        showToast.info('Production cost langsung dikirim ke backend dengan status PENDING.');
+      }
+    } catch (error) {
+      showToast.error('Gagal menyimpan production cost.');
+      throw error;
+    }
+  };
+
+  const handleUpdateCostItem = async (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!editingCostItem || !canManageProductionCost) return;
+    try {
+      const saved = USE_MOCK
+        ? { ...editingCostItem, ...updated }
+        : await projectWorkflowService.updateProductionCost(editingCostItem.id, updated);
+      setCostItems((prev) =>
+        prev.map((item) => (item.id === editingCostItem.id ? saved : item))
+      );
+      setEditingCostItem(null);
+      showToast.success('Item berhasil diperbarui.');
+    } catch (error) {
+      showToast.error('Gagal memperbarui production cost.');
+      throw error;
+    }
+  };
+
+  const handleDeleteCostItem = async () => {
+    if (!deleteCostItemId || !canManageProductionCost) return;
+    try {
+      if (!USE_MOCK) await projectWorkflowService.deleteProductionCost(deleteCostItemId);
+      setCostItems((prev) => prev.filter((item) => item.id !== deleteCostItemId));
+      setDeleteCostItemId(null);
+      showToast.success('Item berhasil dihapus.');
+    } catch {
+      showToast.error('Gagal menghapus production cost.');
+    }
   };
 
   // Quotation Handlers (Independent logic & data from Production Cost)
   const handleAddQuotationItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!USE_MOCK && quotationPersisted) return;
     const item: ProjectCostItem = {
       ...newItem,
       id: `quot-${Date.now()}`,
@@ -233,6 +296,18 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     };
     setQuotationItems((prev) => [...prev, item]);
     showToast.success('Item quotation berhasil ditambahkan.');
+  };
+
+  const handleCreateQuotation = async () => {
+    if (quotationItems.length === 0) return;
+    try {
+      const savedItems = await projectWorkflowService.createQuotation(project.id, quotationItems);
+      setQuotationItems(savedItems);
+      setQuotationPersisted(true);
+      showToast.success('Quotation berhasil dibuat.');
+    } catch {
+      showToast.error('Gagal membuat quotation.');
+    }
   };
 
   const handleUpdateQuotationItem = (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
@@ -253,6 +328,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   // Invoice Handlers (Independent logic & data)
   const handleAddInvoiceItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
+    if (!USE_MOCK && invoicePersisted) return;
     const item: ProjectCostItem = {
       ...newItem,
       id: `inv-${Date.now()}`,
@@ -260,6 +336,18 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     };
     setInvoiceItems((prev) => [...prev, item]);
     showToast.success('Item invoice berhasil ditambahkan.');
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!canCreateInvoice || invoiceItems.length === 0) return;
+    try {
+      const savedItems = await projectWorkflowService.createInvoice(project.id, invoiceItems);
+      setInvoiceItems(savedItems);
+      setInvoicePersisted(true);
+      showToast.success('Invoice berhasil dibuat.');
+    } catch {
+      showToast.error('Gagal membuat invoice.');
+    }
   };
 
   const handleUpdateInvoiceItem = (updated: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
@@ -301,7 +389,19 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     showToast.success(`${imported.length} item Quotation berhasil di-import ke Invoice!`);
   };
 
-  const handleSavePayment = (item: Omit<PaymentHistoryItem, 'id'>) => {
+  const handleSavePayment = async (item: Omit<PaymentHistoryItem, 'id'>) => {
+    if (!canRecordPayment) return;
+    try {
+      if (editingPayment && !USE_MOCK) {
+        showToast.error('Backend belum menyediakan edit pembayaran.');
+        return;
+      }
+      if (!USE_MOCK) {
+        const saved = await projectWorkflowService.createPayment(project.id, item);
+        setPaymentHistory((prev) => [...prev, saved]);
+        showToast.success('Pembayaran berhasil dicatat.');
+        return;
+      }
     if (editingPayment) {
       setPaymentHistory((prev) =>
         prev.map((p) => (p.id === editingPayment.id ? { ...p, ...item } : p))
@@ -312,16 +412,28 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       setPaymentHistory((prev) => [...prev, { ...item, id: `pay-${Date.now()}` }]);
       showToast.success('Pembayaran berhasil dicatat.');
     }
+    } catch (error) {
+      showToast.error('Gagal mencatat pembayaran.');
+      throw error;
+    }
   };
 
-  const handleDeletePayment = () => {
-    if (!deletePaymentId) return;
+  const handleDeletePayment = async () => {
+    if (!deletePaymentId || !canRecordPayment) return;
+    if (!USE_MOCK) {
+      showToast.error('Backend belum menyediakan penghapusan pembayaran.');
+      return;
+    }
     setPaymentHistory((prev) => prev.filter((p) => p.id !== deletePaymentId));
     setDeletePaymentId(null);
     showToast.success('Pembayaran berhasil dihapus.');
   };
 
   const handleSubmitCost = () => {
+    if (!USE_MOCK) {
+      showToast.info('Production cost dikirim saat item dibuat.');
+      return;
+    }
     if (costItems.length === 0) {
       showToast.error('Belum ada item yang bisa diajukan.');
       return;
@@ -492,14 +604,16 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   Payment from Client / Customer
                 </p>
               </div>
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-                onClick={() => setIsAddPaymentModalOpen(true)}
-              >
-                Add
-              </Button>
+              {canRecordPayment && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Plus className="w-3.5 h-3.5" />}
+                  onClick={() => setIsAddPaymentModalOpen(true)}
+                >
+                  Add
+                </Button>
+              )}
             </div>
 
             {paymentHistory.length === 0 ? (
@@ -525,7 +639,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         <th className="py-4 px-4 text-center font-bold text-slate-700">Ke Rekening</th>
                         <th className="py-4 px-4 text-center font-bold text-slate-700">Dari Rekening</th>
                         <th className="py-4 px-4 text-center font-bold text-slate-700">Berita</th>
-                        <th className="py-4 px-4 text-center font-bold text-slate-700">Action</th>
+                        {USE_MOCK && (
+                          <th className="py-4 px-4 text-center font-bold text-slate-700">Action</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="text-xs sm:text-sm text-slate-700">
@@ -539,26 +655,28 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                           <td className="py-4 px-4 text-slate-700 text-center font-normal">{pay.toAccount}</td>
                           <td className="py-4 px-4 text-slate-700 text-center font-normal">{pay.fromAccount}</td>
                           <td className="py-4 px-4 text-slate-700 text-center max-w-xs truncate font-normal">{pay.notes}</td>
-                          <td className="py-4 px-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => setDeletePaymentId(pay.id)}
-                                className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                                title="Hapus Pembayaran"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setEditingPayment(pay)}
-                                className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                                title="Edit Pembayaran"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+                          {USE_MOCK && (
+                            <td className="py-4 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setDeletePaymentId(pay.id)}
+                                  className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                  title="Hapus Pembayaran"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingPayment(pay)}
+                                  className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                  title="Edit Pembayaran"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -612,7 +730,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {costItems.length > 0 && (
+                    {USE_MOCK && costItems.length > 0 && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -624,15 +742,17 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         Ajukan Cost
                       </Button>
                     )}
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={<Plus className="w-3.5 h-3.5" />}
-                      onClick={() => setIsAddCostModalOpen(true)}
-                      disabled={costSubmissionStatus === 'PENDING'}
-                    >
-                      Add
-                    </Button>
+                    {canManageProductionCost && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Plus className="w-3.5 h-3.5" />}
+                        onClick={() => setIsAddCostModalOpen(true)}
+                        disabled={USE_MOCK && costSubmissionStatus === 'PENDING'}
+                      >
+                        Add
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -653,7 +773,10 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       items={costItems}
                       onEdit={(item) => setEditingCostItem(item)}
                       onDelete={(id) => setDeleteCostItemId(id)}
-                      readOnly={costSubmissionStatus === 'PENDING'}
+                      readOnly={
+                        !canManageProductionCost ||
+                        (USE_MOCK && costSubmissionStatus === 'PENDING')
+                      }
                     />
 
                     <div className="pt-4">
@@ -693,21 +816,34 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-accent text-accent hover:bg-orange-50"
-                      leftIcon={<Upload className="w-3.5 h-3.5" />}
-                      onClick={handleSubmitCost}
-                      disabled={costSubmissionStatus === 'PENDING' || quotationItems.length === 0}
-                    >
-                      Ajukan Cost
-                    </Button>
+                    {USE_MOCK ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-accent text-accent hover:bg-orange-50"
+                        leftIcon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={handleSubmitCost}
+                        disabled={costSubmissionStatus === 'PENDING' || quotationItems.length === 0}
+                      >
+                        Ajukan Cost
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={handleCreateQuotation}
+                        disabled={quotationPersisted || quotationItems.length === 0}
+                      >
+                        {quotationPersisted ? 'Quotation Tersimpan' : 'Buat Quotation'}
+                      </Button>
+                    )}
                     <Button
                       variant="primary"
                       size="sm"
                       leftIcon={<Plus className="w-3.5 h-3.5" />}
                       onClick={() => setIsAddQuotationModalOpen(true)}
+                      disabled={!USE_MOCK && quotationPersisted}
                     >
                       Add
                     </Button>
@@ -742,7 +878,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
-                            <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                            {(USE_MOCK || !quotationPersisted) && (
+                              <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="text-xs sm:text-sm text-slate-700">
@@ -755,8 +893,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                               <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
                               <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || 'hari'}</td>
                               <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
-                              <td className="py-4 px-4 text-center whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
+                              {(USE_MOCK || !quotationPersisted) && (
+                                <td className="py-4 px-4 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => setEditingQuotationItem(item)}
@@ -773,8 +912,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
-                                </div>
-                              </td>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -817,29 +957,44 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={<Download className="w-3.5 h-3.5" />}
-                      onClick={handleTriggerImportFromQuotation}
-                    >
-                      Import From Quotation
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-accent text-accent hover:bg-orange-50"
-                      leftIcon={<Upload className="w-3.5 h-3.5" />}
-                      onClick={handleSubmitCost}
-                      disabled={costSubmissionStatus === 'PENDING' || invoiceItems.length === 0}
-                    >
-                      Ajukan Cost
-                    </Button>
+                    {(USE_MOCK || (!invoicePersisted && canCreateInvoice)) && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Download className="w-3.5 h-3.5" />}
+                        onClick={handleTriggerImportFromQuotation}
+                      >
+                        Import From Quotation
+                      </Button>
+                    )}
+                    {USE_MOCK ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-accent text-accent hover:bg-orange-50"
+                        leftIcon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={handleSubmitCost}
+                        disabled={costSubmissionStatus === 'PENDING' || invoiceItems.length === 0}
+                      >
+                        Ajukan Cost
+                      </Button>
+                    ) : canCreateInvoice ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Upload className="w-3.5 h-3.5" />}
+                        onClick={handleCreateInvoice}
+                        disabled={invoicePersisted || invoiceItems.length === 0}
+                      >
+                        {invoicePersisted ? 'Invoice Tersimpan' : 'Buat Invoice'}
+                      </Button>
+                    ) : null}
                     <Button
                       variant="primary"
                       size="sm"
                       leftIcon={<Plus className="w-3.5 h-3.5" />}
                       onClick={() => setIsAddInvoiceModalOpen(true)}
+                      disabled={!USE_MOCK && (invoicePersisted || !canCreateInvoice)}
                     >
                       Add
                     </Button>
@@ -875,7 +1030,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
-                            <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                            {(USE_MOCK || !invoicePersisted) && (
+                              <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="text-xs sm:text-sm text-slate-700">
@@ -895,8 +1052,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                               <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
                               <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || '1'}</td>
                               <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
-                              <td className="py-4 px-4 text-center whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
+                              {(USE_MOCK || !invoicePersisted) && (
+                                <td className="py-4 px-4 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1.5">
                                   <button
                                     type="button"
                                     onClick={() => setEditingInvoiceItem(item)}
@@ -913,8 +1071,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
-                                </div>
-                              </td>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -1088,7 +1247,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               <h3 className="text-base sm:text-lg font-bold text-primary">
                 Task Checklist
               </h3>
-              {!isProduksi && (
+              {canManageTasks && (
                 <Button
                   variant="primary"
                   size="sm"
@@ -1119,7 +1278,8 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         <button
                           type="button"
                           onClick={() => handleToggleTaskStatus(task.id)}
-                          className="mt-0.5 cursor-pointer shrink-0"
+                          disabled={!canUpdateTaskProgress}
+                          className="mt-0.5 shrink-0 disabled:cursor-not-allowed"
                         >
                           {isDone ? (
                             <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-100" />
@@ -1165,7 +1325,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         </div>
                       </div>
 
-                      {!isProduksi && (
+                      {canManageTasks && (
                         <div className="flex items-center gap-1 shrink-0 ml-3">
                           <button
                             type="button"
@@ -1288,6 +1448,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         onSave={handleSaveTask}
+        supportsPicName={USE_MOCK}
       />
 
       <AddTaskModal
@@ -1295,6 +1456,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         onClose={() => setEditingTask(null)}
         onSave={handleSaveTask}
         editTask={editingTask || undefined}
+        supportsPicName={USE_MOCK}
       />
 
       <ConfirmModal
