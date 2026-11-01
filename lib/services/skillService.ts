@@ -10,7 +10,7 @@ const getMockStore = (): Skill[] => (mockStore ??= cloneMock(mockSkills));
 export const skillService = {
   async getAll(): Promise<Skill[]> {
     if (USE_MOCK) return cloneMock(getMockStore());
-    const response = await apiClient.get<Skill[]>('/skills');
+    const response = await apiClient.get<Skill[]>('/manpower/skills');
     return response.data;
   },
 
@@ -20,8 +20,10 @@ export const skillService = {
       if (!skill) throw new Error(`Skill dengan id "${id}" tidak ditemukan.`);
       return cloneMock(skill);
     }
-    const response = await apiClient.get<Skill>(`/skills/${id}`);
-    return response.data;
+    const skills = await skillService.getAll();
+    const skill = skills.find((item) => item.id === id);
+    if (!skill) throw new Error(`Skill dengan id "${id}" tidak ditemukan.`);
+    return skill;
   },
 
   async create(data: CreateSkillDTO): Promise<Skill> {
@@ -36,7 +38,7 @@ export const skillService = {
       getMockStore().push(newSkill);
       return cloneMock(newSkill);
     }
-    const response = await apiClient.post<Skill>('/skills', data);
+    const response = await apiClient.post<Skill>('/manpower/skills', { name: data.name });
     return response.data;
   },
 
@@ -48,7 +50,7 @@ export const skillService = {
       store[index] = { ...store[index], ...data };
       return cloneMock(store[index]);
     }
-    const response = await apiClient.patch<Skill>(`/skills/${id}`, data);
+    const response = await apiClient.patch<Skill>(`/manpower/skills/${id}`, { name: data.name });
     return response.data;
   },
 
@@ -57,6 +59,6 @@ export const skillService = {
       mockStore = getMockStore().filter((s) => s.id !== id);
       return;
     }
-    await apiClient.delete(`/skills/${id}`);
+    await apiClient.delete(`/manpower/skills/${id}`);
   },
 };

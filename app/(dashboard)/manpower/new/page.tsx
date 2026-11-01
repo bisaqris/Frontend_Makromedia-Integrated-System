@@ -8,6 +8,7 @@ import { manpowerService } from '@/lib/services/manpowerService';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
 import { EmploymentStatus, Gender } from '@/types/manpower';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 
 export default function AddManpowerPage() {
   const router = useRouter();
@@ -106,6 +107,11 @@ export default function AddManpowerPage() {
         <h1 className="text-xl font-bold text-gray-900">Add New Manpower</h1>
         <p className="text-sm text-gray-400">Add new Manpower</p>
       </div>
+      {!USE_MOCK && (
+        <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+          API belum menyimpan tanggal lahir, gender, alamat wilayah/detail, atau nama pemilik rekening. Field tersebut dinonaktifkan.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
@@ -132,6 +138,7 @@ export default function AddManpowerPage() {
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleChange}
+                disabled={!USE_MOCK}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -154,6 +161,7 @@ export default function AddManpowerPage() {
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
+                disabled={!USE_MOCK}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
               >
                 <option value="Male">Male</option>
@@ -174,7 +182,11 @@ export default function AddManpowerPage() {
             </div>
 
             {/* Alamat: Search Dropdown (data dari wilayah.id) */}
-            <AddressRegionFields value={formData} onChange={handleRegionChange} />
+            <AddressRegionFields
+              value={formData}
+              onChange={handleRegionChange}
+              disabled={!USE_MOCK}
+            />
 
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>
@@ -183,6 +195,7 @@ export default function AddManpowerPage() {
                 name="detailAddress"
                 value={formData.detailAddress}
                 onChange={handleChange}
+                disabled={!USE_MOCK}
                 placeholder="Jl. Simpang Surapati..."
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
@@ -275,6 +288,7 @@ export default function AddManpowerPage() {
                 name="accountHolder"
                 value={formData.accountHolder}
                 onChange={handleChange}
+                disabled={!USE_MOCK}
                 placeholder="Account holder name"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />

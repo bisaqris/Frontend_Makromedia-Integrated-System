@@ -36,7 +36,7 @@ export const positionService = {
       getMockStore().push(newPosition);
       return cloneMock(newPosition);
     }
-    const response = await apiClient.post<Position>('/positions', data);
+    const response = await apiClient.post<Position>('/positions', { name: data.name });
     return response.data;
   },
 
@@ -48,7 +48,9 @@ export const positionService = {
       store[index] = { ...store[index], ...data };
       return cloneMock(store[index]);
     }
-    const response = await apiClient.patch<Position>(`/positions/${id}`, data);
+    const payload: { name?: string } = {};
+    if (data.name !== undefined) payload.name = data.name;
+    const response = await apiClient.patch<Position>(`/positions/${id}`, payload);
     return response.data;
   },
 

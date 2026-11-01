@@ -18,6 +18,7 @@ interface AddressRegionFieldsProps {
   fieldClassName?: string;
   /** Pesan error per field, diteruskan ke Combobox masing-masing */
   errors?: Partial<Record<keyof RegionValues, string>>;
+  disabled?: boolean;
 }
 
 interface RegionList {
@@ -44,6 +45,7 @@ export default function AddressRegionFields({
   onChange,
   fieldClassName,
   errors,
+  disabled = false,
 }: AddressRegionFieldsProps) {
   const [provinces, setProvinces] = useState<Region[]>([]);
   const [regencies, setRegencies] = useState<RegionList | null>(null);
@@ -53,6 +55,7 @@ export default function AddressRegionFields({
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
+    if (disabled) return;
     let cancelled = false;
     regionService
       .getProvinces()
@@ -71,7 +74,7 @@ export default function AddressRegionFields({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [disabled]);
 
   // Kode wilayah diturunkan dari nama yang dipilih + daftar hasil fetch
   const provinceCode = findCode(provinces, value.province);
@@ -86,7 +89,7 @@ export default function AddressRegionFields({
   const loadingVillages = !!subdistrictCode && villages?.code !== subdistrictCode;
 
   useEffect(() => {
-    if (!provinceCode) return;
+    if (disabled || !provinceCode) return;
     let cancelled = false;
     regionService
       .getRegencies(provinceCode)
@@ -99,10 +102,10 @@ export default function AddressRegionFields({
     return () => {
       cancelled = true;
     };
-  }, [provinceCode]);
+  }, [disabled, provinceCode]);
 
   useEffect(() => {
-    if (!cityCode) return;
+    if (disabled || !cityCode) return;
     let cancelled = false;
     regionService
       .getDistricts(cityCode)
@@ -115,10 +118,10 @@ export default function AddressRegionFields({
     return () => {
       cancelled = true;
     };
-  }, [cityCode]);
+  }, [cityCode, disabled]);
 
   useEffect(() => {
-    if (!subdistrictCode) return;
+    if (disabled || !subdistrictCode) return;
     let cancelled = false;
     regionService
       .getVillages(subdistrictCode)
@@ -131,7 +134,7 @@ export default function AddressRegionFields({
     return () => {
       cancelled = true;
     };
-  }, [subdistrictCode]);
+  }, [disabled, subdistrictCode]);
 
   // Saat induk berubah, reset nama wilayah turunannya lewat form
   const handleSelectProvince = (name: string) =>
@@ -153,6 +156,7 @@ export default function AddressRegionFields({
         options={toOptions(provinces)}
         value={value.province}
         onChange={handleSelectProvince}
+        disabled={disabled}
         loading={loadingProvinces}
         error={errors?.province}
         emptyText={emptyText}
@@ -164,7 +168,7 @@ export default function AddressRegionFields({
         options={toOptions(regencyRegions)}
         value={value.city}
         onChange={handleSelectCity}
-        disabled={!provinceCode || loadingRegencies}
+        disabled={disabled || !provinceCode || loadingRegencies}
         loading={loadingRegencies}
         error={errors?.city}
         emptyText={emptyText}
@@ -176,7 +180,7 @@ export default function AddressRegionFields({
         options={toOptions(districtRegions)}
         value={value.subdistrict}
         onChange={handleSelectSubdistrict}
-        disabled={!cityCode || loadingDistricts}
+        disabled={disabled || !cityCode || loadingDistricts}
         loading={loadingDistricts}
         error={errors?.subdistrict}
         emptyText={emptyText}
@@ -188,7 +192,7 @@ export default function AddressRegionFields({
         options={toOptions(villageRegions)}
         value={value.village}
         onChange={handleSelectVillage}
-        disabled={!subdistrictCode || loadingVillages}
+        disabled={disabled || !subdistrictCode || loadingVillages}
         loading={loadingVillages}
         error={errors?.village}
         emptyText={emptyText}
