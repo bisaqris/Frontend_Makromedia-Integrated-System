@@ -57,7 +57,7 @@ export interface Manpower {
 export interface ManpowerRecord {
   id: string;
   fullName: string;
-  gender: Gender;
+  gender?: Gender;
   dateOfBirth?: string;
   email?: string;
   phoneNumber: string;

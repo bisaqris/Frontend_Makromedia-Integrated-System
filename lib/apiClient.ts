@@ -1,7 +1,21 @@
 import axios from 'axios';
 import { getToken, clearAuth } from './auth';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
+interface ApiEnvelope {
+  statusCode: number;
+  message: string;
+  data: unknown;
+  meta?: unknown;
+}
+
+const isApiEnvelope = (value: unknown): value is ApiEnvelope =>
+  typeof value === 'object' &&
+  value !== null &&
+  'statusCode' in value &&
+  'message' in value &&
+  'data' in value;
 
 export const apiClient = axios.create({
   baseURL,
@@ -25,7 +39,16 @@ apiClient.interceptors.request.use(
 );
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (isApiEnvelope(response.data)) {
+      const { data, meta } = response.data;
+      response.data =
+        meta === undefined
+          ? data
+          : { data, meta };
+    }
+    return response;
+  },
   (error) => {
     if (error.response && error.response.status === 401) {
       clearAuth();

@@ -22,7 +22,7 @@ export interface ClientPIC extends AddressFields {
 export interface ClientCompany extends AddressFields {
   id: string;
   name: string;
-  code: string;
+  code?: string;
   email?: string;
   phone?: string;
   address?: string;

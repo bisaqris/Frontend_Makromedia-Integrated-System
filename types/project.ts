@@ -51,12 +51,14 @@ export interface ProjectTask {
   description?: string;
   dueDate: string;
   picName: string;
+  assignedToId?: string;
+  progress?: number;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
 }
 
 export interface Project {
   id: string;
-  code: string;
+  code?: string;
   name: string;
   category?: ProjectCategory;
   clientId: string;
@@ -81,6 +83,8 @@ export interface Project {
   additionalLinks?: ProjectLink[];
   generalBrief?: string;
   costItems?: ProjectCostItem[];
+  quotationItems?: ProjectCostItem[];
+  invoiceItems?: ProjectCostItem[];
   paymentHistory?: PaymentHistoryItem[];
   tasks?: ProjectTask[];
   description?: string;

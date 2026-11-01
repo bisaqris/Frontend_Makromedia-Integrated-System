@@ -1,4 +1,14 @@
-export type ApplicationCostStatus = 'Revise' | 'Pending' | 'Approved';
+export type ApplicationCostStatus =
+  | 'Revise'
+  | 'Pending'
+  | 'Approved'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'DRAFT'
+  | 'SENT'
+  | 'REJECTED'
+  | 'PAID'
+  | 'OVERDUE';
 
 export type ApplicationCostDocType = 'Production Cost' | 'Quotation' | 'Invoice';
 
@@ -93,6 +103,7 @@ export interface ApplicationCostItem {
   pph?: number;
   previousPayment?: number;
   bankAccounts?: ApplicationCostBankAccount[];
+  paymentInstruction?: string;
 
   // 9 Grouped Categories
   categories?: ApplicationCostGroupCategory[];
