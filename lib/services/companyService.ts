@@ -1,11 +1,11 @@
 import { CompanyProfile } from '@/types/application-cost';
 import { mockCompanyProfile } from '@/lib/mock/company.mock';
-import { cloneMock, USE_MOCK } from './mockFlag';
+import { cloneMock } from './mockFlag';
 
-// Company profile persistence has not been implemented in the backend yet.
+// Identitas vendor penerbit dokumen (kop surat & rekening).
+// Menggunakan profil Makromedia Visual hingga endpoint setting company di BE tersedia di DB.
 export const companyService = {
   getProfile: async (): Promise<CompanyProfile | null> => {
-    if (!USE_MOCK) return null;
     return cloneMock(mockCompanyProfile);
   },
 };
