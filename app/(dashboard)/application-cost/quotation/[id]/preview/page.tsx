@@ -26,7 +26,7 @@ export default function QuotationPreviewPage() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([applicationCostService.getById(id), companyService.getProfile()])
+    Promise.all([applicationCostService.getById(id, 'Quotation'), companyService.getProfile()])
       .then(([record, companyProfile]) => {
         if (!isMounted) return;
         setItem(record);
@@ -564,22 +564,34 @@ export default function QuotationPreviewPage() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 flex flex-col justify-end">
-                <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
-                  <svg className="w-4 h-4 text-slate-800 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                  </svg>
-                  <span>{profile?.instagram || '@makromedia.visual'}</span>
+              {profile?.instagram || profile?.tagline ? (
+                <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 flex flex-col justify-end">
+                  {profile.instagram && (
+                    <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
+                      <svg
+                        className="w-4 h-4 text-slate-800 fill-none stroke-current"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                      </svg>
+                      <span>{profile.instagram}</span>
+                    </div>
+                  )}
+                  {profile.tagline && (
+                    <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
+                      <svg className="w-4 h-4 text-red-600 fill-current" viewBox="0 0 24 24">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                      </svg>
+                      <span>{profile.tagline}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
-                  <svg className="w-4 h-4 text-red-600 fill-current" viewBox="0 0 24 24">
-                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                  </svg>
-                  <span>{profile?.tagline || '-'}</span>
-                </div>
-              </div>
+              ) : null}
             </div>
 
             <div className="pdf-banner-bottom w-full rounded-none overflow-hidden mt-2">

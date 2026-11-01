@@ -1,12 +1,11 @@
-import { apiClient } from '@/lib/apiClient';
 import { CompanyProfile } from '@/types/application-cost';
 import { mockCompanyProfile } from '@/lib/mock/company.mock';
-import { USE_MOCK, cloneMock } from './mockFlag';
+import { cloneMock, USE_MOCK } from './mockFlag';
 
+// Company profile persistence has not been implemented in the backend yet.
 export const companyService = {
-  getProfile: async (): Promise<CompanyProfile> => {
-    if (USE_MOCK) return cloneMock(mockCompanyProfile);
-    const response = await apiClient.get<CompanyProfile>('/company-profile');
-    return response.data;
+  getProfile: async (): Promise<CompanyProfile | null> => {
+    if (!USE_MOCK) return null;
+    return cloneMock(mockCompanyProfile);
   },
 };

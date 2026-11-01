@@ -7,6 +7,8 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { companyService } from '@/lib/services/companyService';
+import { useAuth } from '@/context/AuthContext';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
   ApplicationCostItem,
   ApplicationCostStatus,
@@ -20,6 +22,10 @@ const formatRupiahWithSpace = (val: number) => {
 export default function QuotationApprovalDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { role } = useAuth();
+  const canSendQuotation =
+    USE_MOCK || role === 'SALES' || role === 'FINANCE' || role === 'DIREKTUR';
+  const canApproveQuotation = USE_MOCK || role === 'DIREKTUR';
 
   const id = params?.id as string;
 
@@ -32,7 +38,7 @@ export default function QuotationApprovalDetailPage() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([applicationCostService.getById(id), companyService.getProfile()])
+    Promise.all([applicationCostService.getById(id, 'Quotation'), companyService.getProfile()])
       .then(([record, companyProfile]) => {
         if (!isMounted) return;
         setItem(record);
@@ -57,7 +63,7 @@ export default function QuotationApprovalDetailPage() {
     tone: 'success' | 'info'
   ) => {
     try {
-      await applicationCostService.update(id, { status, notes });
+      await applicationCostService.updateStatus(id, 'Quotation', status, notes);
       showToast[tone](message);
       router.push('/application-cost');
     } catch {
@@ -65,11 +71,14 @@ export default function QuotationApprovalDetailPage() {
     }
   };
 
-  const handleApprove = () =>
-    handleStatusUpdate('Approved', `Dokumen Quotation (${item?.projectName ?? ''}) berhasil disetujui!`, 'success');
+  const handleSend = () =>
+    handleStatusUpdate('SENT', `Quotation (${item?.projectName ?? ''}) berhasil dikirim.`, 'success');
 
-  const handleRevise = () =>
-    handleStatusUpdate('Revise', `Dokumen Quotation (${item?.projectName ?? ''}) diminta untuk direvisi.`, 'info');
+  const handleApprove = () =>
+    handleStatusUpdate('APPROVED', `Dokumen Quotation (${item?.projectName ?? ''}) berhasil disetujui!`, 'success');
+
+  const handleReject = () =>
+    handleStatusUpdate('REJECTED', `Dokumen Quotation (${item?.projectName ?? ''}) ditolak.`, 'info');
 
   const handleCancel = () => {
     router.push('/application-cost');
@@ -315,47 +324,67 @@ export default function QuotationApprovalDetailPage() {
 
       {/* Action Buttons Row (Cancel, Revise, Preview, Approve) */}
       <div className="flex items-center justify-between pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="md"
-          className="min-w-[130px] sm:min-w-[150px] px-8 border-slate-300 text-slate-700 font-semibold rounded-xl"
-          onClick={handleCancel}
-        >
-          Cancel
-        </Button>
-
-        <div className="flex items-center gap-4">
+        {canApproveQuotation && item.status === 'SENT' && (
           <Button
             type="button"
             variant="outline"
             size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
-            onClick={handleRevise}
+            className="min-w-[130px] sm:min-w-[150px] px-8 border-slate-300 text-slate-700 font-semibold rounded-xl"
+            onClick={handleCancel}
           >
-            Revise
+            Cancel
           </Button>
+        )}
 
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            leftIcon={<Printer className="w-4 h-4" />}
-            className="min-w-[130px] sm:min-w-[150px] px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl"
-            onClick={() => router.push(`/application-cost/quotation/${id}/preview`)}
-          >
-            Preview
-          </Button>
+        <div className="flex items-center gap-4">
+          {item.status === 'SENT' && (
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
+              onClick={handleReject}
+            >
+              Reject
+            </Button>
+          )}
 
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
-            onClick={handleApprove}
-          >
-            Approve
-          </Button>
+          {(item.status === 'DRAFT' || item.status === 'Pending') && canSendQuotation ? (
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
+              onClick={handleSend}
+            >
+              Send
+            </Button>
+          ) : item.status === 'SENT' ? (
+            <>
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                leftIcon={<Printer className="w-4 h-4" />}
+                className="min-w-[130px] sm:min-w-[150px] px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl"
+                onClick={() => router.push(`/application-cost/quotation/${id}/preview`)}
+              >
+                Preview
+              </Button>
+
+              {canApproveQuotation && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
+                  onClick={handleApprove}
+                >
+                  Approve
+                </Button>
+              )}
+            </>
+          ) : null}
         </div>
       </div>
 

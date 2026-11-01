@@ -25,7 +25,7 @@ export default function ApplicationCostDetailPage() {
     let isMounted = true;
 
     applicationCostService
-      .getById(id)
+      .getById(id, 'Production Cost')
       .then((record) => {
         if (!isMounted) return;
         setItem(record);
@@ -45,7 +45,7 @@ export default function ApplicationCostDetailPage() {
 
   const handleStatusUpdate = async (status: ApplicationCostStatus, message: string) => {
     try {
-      await applicationCostService.update(id, { status, notes });
+      await applicationCostService.updateStatus(id, 'Production Cost', status, notes);
       showToast.success(message);
       router.push('/application-cost');
     } catch {
@@ -55,13 +55,13 @@ export default function ApplicationCostDetailPage() {
 
   const handleApprove = () =>
     handleStatusUpdate(
-      'Approved',
+      'APPROVED',
       `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) berhasil disetujui!`
     );
 
   const handleRevise = () =>
     handleStatusUpdate(
-      'Revise',
+      'REJECTED',
       `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) diminta untuk direvisi.`
     );
 
@@ -288,7 +288,7 @@ export default function ApplicationCostDetailPage() {
             className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
             onClick={handleRevise}
           >
-            Revise
+            Reject
           </Button>
           <Button
             type="button"

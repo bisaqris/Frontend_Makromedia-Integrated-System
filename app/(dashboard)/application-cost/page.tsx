@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Eye, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
+import { showToast } from '@/components/ui/Toast';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -40,7 +41,9 @@ export default function ApplicationCostPage() {
         if (isMounted) setItems(data);
       })
       .catch(() => {
-        if (isMounted) setItems([]);
+        if (!isMounted) return;
+        setItems([]);
+        showToast.error('Gagal memuat daftar dokumen. Periksa akses dan koneksi backend.');
       });
 
     return () => {
@@ -64,24 +67,28 @@ export default function ApplicationCostPage() {
   };
 
   const renderStatusBadge = (status: ApplicationCostStatus) => {
-    if (status === 'Revise') {
+    const label =
+      status === 'Revise' ? 'Revise' :
+      status === 'Pending' ? 'Pending' :
+      status === 'Approved' ? 'Approved' :
+      status;
+    if (status === 'Revise' || status === 'REJECTED' || status === 'OVERDUE') {
       return (
         <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-orange-50/80 text-orange-500 border border-orange-100/60">
-          Revise
+          {label}
         </span>
       );
     }
-    if (status === 'Pending') {
+    if (status === 'Pending' || status === 'DRAFT' || status === 'SENT') {
       return (
         <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-50/80 text-amber-600 border border-amber-100/60">
-          Pending
+          {label}
         </span>
       );
     }
-    // Approved
     return (
       <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-50/80 text-emerald-600 border border-emerald-100/60">
-        Approved
+        {label}
       </span>
     );
   };
