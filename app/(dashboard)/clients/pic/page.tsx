@@ -141,13 +141,6 @@ export default function DataPicClientPage() {
           isRetrying={isLoading}
         />
       ) : (
-      {loadError ? (
-        <ErrorState
-          title="Gagal Memuat PIC Client"
-          message="Tidak dapat terhubung ke server backend untuk memuat data PIC client."
-          onRetry={loadData}
-        />
-      ) : (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         
         {/* 1. TAMPILAN DESKTOP (TABLE) */}

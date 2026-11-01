@@ -21,12 +21,8 @@ export default function ManpowerPage() {
     const loadData = useCallback(async () => {
         setIsLoading(true);
         setLoadError(false);
-        setIsLoading(true);
         try {
             setEmployees(await manpowerService.getAll());
-        } catch {
-            setLoadError(true);
-            setLoadError(false);
         } catch {
             setLoadError(true);
         } finally {
@@ -130,13 +126,6 @@ export default function ManpowerPage() {
                     message="Tidak dapat mengambil daftar karyawan dari server backend. Pastikan server backend sedang aktif."
                     onRetry={loadData}
                     isRetrying={isLoading}
-                />
-            ) : (
-            {loadError ? (
-                <ErrorState
-                    title="Gagal Memuat Data Karyawan"
-                    message="Tidak dapat terhubung ke server backend untuk mengambil direktori manpower."
-                    onRetry={loadData}
                 />
             ) : (
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -245,7 +234,6 @@ export default function ManpowerPage() {
                         </div>
                     </div>
                 </div>
-            )}
             )}
         </div>
     );
