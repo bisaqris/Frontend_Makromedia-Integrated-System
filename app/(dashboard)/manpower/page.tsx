@@ -2,23 +2,33 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { manpowerService } from '@/lib/services/manpowerService';
 import { ManpowerRecord } from '@/types/manpower';
+import ErrorState from '@/components/shared/ErrorState';
 
 export default function ManpowerPage() {
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [employees, setEmployees] = useState<ManpowerRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
 
     // State Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage, setEntriesPerPage] = useState(5);
 
     const loadData = useCallback(async () => {
+        setIsLoading(true);
+        setLoadError(false);
+        setIsLoading(true);
         try {
             setEmployees(await manpowerService.getAll());
+        } catch {
+            setLoadError(true);
+            setLoadError(false);
+        } catch {
+            setLoadError(true);
         } finally {
             setIsLoading(false);
         }
@@ -114,112 +124,129 @@ export default function ManpowerPage() {
             </div>
 
             {/* Table Section */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-50/50 border-b border-gray-100 text-xs font-semibold text-gray-500 tracking-wider">
-                                <th className="py-3.5 px-6">Employee Name</th>
-                                <th className="py-3.5 px-6">Status</th>
-                                <th className="py-3.5 px-6">Skill</th>
-                                <th className="py-3.5 px-6">Position</th>
-                                <th className="py-3.5 px-6">Phone Number</th>
-                                <th className="py-3.5 px-6">Email</th>
-                                <th className="py-3.5 px-6 text-center">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 text-sm">
-                            {currentData.length > 0 ? (
-                                currentData.map((emp) => (
-                                    <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="py-4 px-6 font-medium text-gray-900">
-                                            {emp.fullName || '-'}
-                                        </td>
-                                        <td className="py-4 px-6">
-                                            <span
-                                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadgeStyle(
-                                                    emp.employmentStatus
-                                                )}`}
-                                            >
-                                                {emp.employmentStatus}
-                                            </span>
-                                        </td>
-                                        <td className="py-4 px-6 text-gray-600">
-                                            {emp.skills.length > 0 ? emp.skills.join(', ') : '-'}
-                                        </td>
-                                        <td className="py-4 px-6 text-gray-600">{emp.position || '-'}</td>
-                                        <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
-                                            {emp.phoneNumber || '-'}
-                                        </td>
-                                        <td className="py-4 px-6 text-gray-600">{emp.email || '-'}</td>
-                                        <td className="py-4 px-6">
-                                            <div className="flex items-center justify-center gap-3">
-                                                <Link href={`/manpower/${emp.id}`} className="text-blue-500 hover:text-blue-700">
-                                                    <Eye className="w-4 h-4" />
-                                                </Link>
-                                                <Link href={`/manpower/${emp.id}/edit`} className="text-amber-500 hover:text-amber-700">
-                                                    <Edit className="w-4 h-4" />
-                                                </Link>
-                                                <button onClick={() => handleDelete(emp.id)} className="text-rose-500 hover:text-rose-700">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+            {loadError ? (
+                <ErrorState
+                    title="Gagal Memuat Data Karyawan"
+                    message="Tidak dapat mengambil daftar karyawan dari server backend. Pastikan server backend sedang aktif."
+                    onRetry={loadData}
+                    isRetrying={isLoading}
+                />
+            ) : (
+            {loadError ? (
+                <ErrorState
+                    title="Gagal Memuat Data Karyawan"
+                    message="Tidak dapat terhubung ke server backend untuk mengambil direktori manpower."
+                    onRetry={loadData}
+                />
+            ) : (
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-gray-50/50 border-b border-gray-100 text-xs font-semibold text-gray-500 tracking-wider">
+                                    <th className="py-3.5 px-6">Employee Name</th>
+                                    <th className="py-3.5 px-6">Status</th>
+                                    <th className="py-3.5 px-6">Skill</th>
+                                    <th className="py-3.5 px-6">Position</th>
+                                    <th className="py-3.5 px-6">Phone Number</th>
+                                    <th className="py-3.5 px-6">Email</th>
+                                    <th className="py-3.5 px-6 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 text-sm">
+                                {currentData.length > 0 ? (
+                                    currentData.map((emp) => (
+                                        <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors">
+                                            <td className="py-4 px-6 font-medium text-gray-900">
+                                                {emp.fullName || '-'}
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <span
+                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${getStatusBadgeStyle(
+                                                        emp.employmentStatus
+                                                    )}`}
+                                                >
+                                                    {emp.employmentStatus}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6 text-gray-600">
+                                                {emp.skills.length > 0 ? emp.skills.join(', ') : '-'}
+                                            </td>
+                                            <td className="py-4 px-6 text-gray-600">{emp.position || '-'}</td>
+                                            <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
+                                                {emp.phoneNumber || '-'}
+                                            </td>
+                                            <td className="py-4 px-6 text-gray-600">{emp.email || '-'}</td>
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <Link href={`/manpower/${emp.id}`} className="text-blue-500 hover:text-blue-700">
+                                                        <Eye className="w-4 h-4" />
+                                                    </Link>
+                                                    <Link href={`/manpower/${emp.id}/edit`} className="text-amber-500 hover:text-amber-700">
+                                                        <Edit className="w-4 h-4" />
+                                                    </Link>
+                                                    <button onClick={() => handleDelete(emp.id)} className="text-rose-500 hover:text-rose-700">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="text-center py-6 text-gray-400">
+                                            {isLoading ? 'Memuat data...' : 'Tidak ada data karyawan ditemukan.'}
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan={7} className="text-center py-6 text-gray-400">
-                                        {isLoading ? 'Memuat data...' : 'Tidak ada data karyawan ditemukan.'}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-3">
-                        <span>Showing</span>
-                        <select
-                            value={entriesPerPage}
-                            onChange={(e) => {
-                                setEntriesPerPage(Number(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="py-1 px-2.5 border border-gray-200 rounded-md bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={20}>20</option>
-                            <option value={50}>50</option>
-                        </select>
-                        <span>
-                            entries ({totalEntries > 0 ? startIndex + 1 : 0} to {endIndex} of {totalEntries})
-                        </span>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                        <button
-                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className="p-1.5 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <span className="px-3 text-xs font-semibold text-gray-700">
-                            Page {currentPage} of {totalPages}
-                        </span>
-                        <button
-                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className="p-1.5 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
+                    <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-3">
+                            <span>Showing</span>
+                            <select
+                                value={entriesPerPage}
+                                onChange={(e) => {
+                                    setEntriesPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="py-1 px-2.5 border border-gray-200 rounded-md bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </select>
+                            <span>
+                                entries ({totalEntries > 0 ? startIndex + 1 : 0} to {endIndex} of {totalEntries})
+                            </span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className="p-1.5 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            <span className="px-3 text-xs font-semibold text-gray-700">
+                                Page {currentPage} of {totalPages}
+                            </span>
+                            <button
+                                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className="p-1.5 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
+            )}
         </div>
     );
 }

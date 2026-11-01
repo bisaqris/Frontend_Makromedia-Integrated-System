@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, X, Search, Check } from 'lucide-react';
+import { ChevronDown, X, Search, Check, Lock, Eye, EyeOff } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import Combobox from '@/components/ui/Combobox';
@@ -30,6 +31,16 @@ export default function ProfilePage() {
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+
+  // Password Modal States
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
+  const [showOldPass, setShowOldPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [isChangingPass, setIsChangingPass] = useState(false);
 
   // Skill Dropdown Search States & Ref
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState<boolean>(false);
@@ -125,14 +136,50 @@ export default function ProfilePage() {
     s.toLowerCase().includes(skillSearch.toLowerCase())
   );
 
+  const validateProfile = () => {
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) {
+      errs.name = 'Nama lengkap wajib diisi.';
+    } else if (formData.name.trim().length < 2) {
+      errs.name = 'Nama lengkap minimal 2 karakter.';
+    }
+
+    if (!formData.email.trim()) {
+      errs.email = 'Email wajib diisi.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errs.email = 'Format email tidak valid (contoh: user@gmail.com).';
+    }
+
+    if (!formData.phone.trim()) {
+      errs.phone = 'Nomor telepon wajib diisi.';
+    } else if (formData.phone.trim().replace(/\D/g, '').length < 10) {
+      errs.phone = 'Nomor telepon minimal 10 digit.';
+    }
+
+    if (formData.bankName.trim() && !formData.accountNumber.trim()) {
+      errs.accountNumber = 'Nomor rekening wajib diisi jika nama bank diisi.';
+    }
+    if (!formData.bankName.trim() && formData.accountNumber.trim()) {
+      errs.bankName = 'Nama bank wajib diisi jika nomor rekening diisi.';
+    }
+
+    setProfileErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast.error('Mohon periksa data profil yang belum valid.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateProfile()) return;
     try {
       await userService.updateProfile({
-        name: formData.name,
+        name: formData.name.trim(),
         dateOfBirth: formData.dateOfBirth,
-        phone: formData.phone,
-        email: formData.email,
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
         province: formData.province,
         city: formData.city,
         subdistrict: formData.subdistrict,
@@ -140,12 +187,46 @@ export default function ProfilePage() {
         detailAddress: formData.detailAddress,
         position: formData.position,
         skills,
-        bankName: formData.bankName,
-        accountNumber: formData.accountNumber,
+        bankName: formData.bankName.trim(),
+        accountNumber: formData.accountNumber.trim(),
       });
       showToast.success('Profil berhasil diperbarui!');
-    } catch {
-      showToast.error('Gagal memperbarui profil.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memperbarui profil.';
+      showToast.error(msg);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    if (!passwordForm.oldPassword) {
+      errs.oldPassword = 'Kata sandi saat ini wajib diisi.';
+    }
+    if (!passwordForm.newPassword) {
+      errs.newPassword = 'Kata sandi baru wajib diisi.';
+    } else if (passwordForm.newPassword.length < 8) {
+      errs.newPassword = 'Kata sandi baru minimal 8 karakter.';
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errs.confirmPassword = 'Konfirmasi kata sandi tidak cocok.';
+    }
+
+    setPasswordErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    try {
+      setIsChangingPass(true);
+      await userService.changePassword(passwordForm.oldPassword, passwordForm.newPassword);
+      showToast.success('Kata sandi berhasil diubah! Gunakan kata sandi baru untuk login berikutnya.');
+      setIsPasswordModalOpen(false);
+      setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+      setPasswordErrors({});
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi lama Anda.';
+      showToast.error(msg);
+    } finally {
+      setIsChangingPass(false);
     }
   };
 
@@ -171,9 +252,10 @@ export default function ProfilePage() {
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
+                className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.name ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
                 placeholder="Enter your name"
               />
+              {profileErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.name}</p>}
             </div>
 
             <div>
@@ -207,9 +289,10 @@ export default function ProfilePage() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
+                className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.phone ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
                 placeholder="Enter phone number"
               />
+              {profileErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.phone}</p>}
             </div>
           </div>
 
@@ -243,13 +326,33 @@ export default function ProfilePage() {
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
+              className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.email ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
               placeholder="name@company.com"
             />
+            {profileErrors.email && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.email}</p>}
           </div>
 
-          {/* Password dihapus dari profil — alur ganti password dipindah ke backend
-              (jangan kirim password lewat form profil). */}
+          {/* Keamanan Akun / Ubah Password */}
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+              Keamanan Akun
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                setPasswordErrors({});
+                setIsPasswordModalOpen(true);
+              }}
+              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-700 font-semibold flex items-center justify-between transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-400" />
+                <span>Ubah Kata Sandi Akun</span>
+              </div>
+              <span className="text-xs text-primary font-medium">Ganti &rarr;</span>
+            </button>
+          </div>
 
           {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
           <AddressRegionFields value={formData} onChange={handleRegionChange} />
@@ -453,6 +556,129 @@ export default function ProfilePage() {
           Save
         </Button>
       </div>
+      {/* Modal Ubah Kata Sandi */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="Ubah Kata Sandi Akun"
+        maxWidth="md"
+      >
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Pastikan kata sandi baru Anda minimal 8 karakter dan mengandung kombinasi huruf serta angka untuk keamanan.
+          </p>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Kata Sandi Saat Ini <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showOldPass ? 'text' : 'password'}
+                value={passwordForm.oldPassword}
+                onChange={(e) => {
+                  setPasswordForm((p) => ({ ...p, oldPassword: e.target.value }));
+                  if (passwordErrors.oldPassword) setPasswordErrors((p) => ({ ...p, oldPassword: '' }));
+                }}
+                className={`w-full bg-white border rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${
+                  passwordErrors.oldPassword ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
+                placeholder="Masukkan kata sandi lama"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOldPass(!showOldPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showOldPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {passwordErrors.oldPassword && (
+              <p className="mt-1 text-xs text-red-500 font-medium">{passwordErrors.oldPassword}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Kata Sandi Baru <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showNewPass ? 'text' : 'password'}
+                value={passwordForm.newPassword}
+                onChange={(e) => {
+                  setPasswordForm((p) => ({ ...p, newPassword: e.target.value }));
+                  if (passwordErrors.newPassword) setPasswordErrors((p) => ({ ...p, newPassword: '' }));
+                }}
+                className={`w-full bg-white border rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${
+                  passwordErrors.newPassword ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
+                placeholder="Minimal 8 karakter"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPass(!showNewPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {passwordErrors.newPassword && (
+              <p className="mt-1 text-xs text-red-500 font-medium">{passwordErrors.newPassword}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Konfirmasi Kata Sandi Baru <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPass ? 'text' : 'password'}
+                value={passwordForm.confirmPassword}
+                onChange={(e) => {
+                  setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }));
+                  if (passwordErrors.confirmPassword) setPasswordErrors((p) => ({ ...p, confirmPassword: '' }));
+                }}
+                className={`w-full bg-white border rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${
+                  passwordErrors.confirmPassword ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
+                placeholder="Ulangi kata sandi baru"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPass(!showConfirmPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {passwordErrors.confirmPassword && (
+              <p className="mt-1 text-xs text-red-500 font-medium">{passwordErrors.confirmPassword}</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPasswordModalOpen(false)}
+              disabled={isChangingPass}
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isChangingPass}
+            >
+              {isChangingPass ? 'Menyimpan...' : 'Simpan Kata Sandi'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </form>
   );
 }

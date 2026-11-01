@@ -66,6 +66,11 @@ export const userService = {
     }
   },
 
+  changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
+    if (USE_MOCK) return;
+    await apiClient.patch('/auth/me/password', { oldPassword, newPassword });
+  },
+
   /** User dengan role PROJECT_MANAGER, untuk dropdown filter & form project. */
   getProjectManagers: async (): Promise<User[]> => {
     if (USE_MOCK) return cloneMock(mockUsers.filter((u) => u.role === 'PROJECT_MANAGER'));

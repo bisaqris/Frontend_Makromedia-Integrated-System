@@ -13,6 +13,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 import EmptyState from '@/components/shared/EmptyState';
+import ErrorState from '@/components/shared/ErrorState';
 import { showToast } from '@/components/ui/Toast';
 import { Eye, Pencil, Trash2, Plus, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -66,6 +67,7 @@ export default function ListProjectPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
 
   // Filters state
   const [search, setSearch] = useState<string>('');
@@ -103,6 +105,8 @@ export default function ListProjectPage() {
   }, []);
 
   const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
     try {
       const res = await projectService.getProjects({
         search,
@@ -119,6 +123,7 @@ export default function ListProjectPage() {
     } catch {
       startTransition(() => {
         setIsLoading(false);
+        setLoadError(true);
       });
       showToast.error('Gagal mengambil daftar proyek.');
     }
@@ -232,6 +237,13 @@ export default function ListProjectPage() {
             <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
             <span className="text-sm font-medium">Memuat data proyek...</span>
           </div>
+        ) : loadError ? (
+          <ErrorState
+            title="Gagal Memuat Daftar Proyek"
+            message="Tidak dapat mengambil daftar proyek dari server backend. Pastikan server backend sedang aktif."
+            onRetry={fetchProjects}
+            isRetrying={isLoading}
+          />
         ) : projects.length === 0 ? (
           <EmptyState
             title="Tidak Ada Proyek Ditemukan"

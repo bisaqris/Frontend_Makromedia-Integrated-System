@@ -10,6 +10,7 @@ import { User } from '@/types/user';
 import Select from '@/components/ui/Select';
 import Badge from '@/components/ui/Badge';
 import EmptyState from '@/components/shared/EmptyState';
+import ErrorState from '@/components/shared/ErrorState';
 import { showToast } from '@/components/ui/Toast';
 import { Eye, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -61,6 +62,7 @@ export default function HistoryProjectPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [total, setTotal] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
 
   const [search, setSearch] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -94,6 +96,8 @@ export default function HistoryProjectPage() {
   }, []);
 
   const fetchHistoryProjects = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
     try {
       const res = await projectService.getProjects({
         search,
@@ -111,6 +115,7 @@ export default function HistoryProjectPage() {
     } catch {
       startTransition(() => {
         setIsLoading(false);
+        setLoadError(true);
       });
       showToast.error('Gagal mengambil histori proyek.');
     }
@@ -189,6 +194,13 @@ export default function HistoryProjectPage() {
             <Loader2 className="w-6 h-6 animate-spin text-primary mr-2" />
             <span className="text-sm font-medium">Memuat histori proyek...</span>
           </div>
+        ) : loadError ? (
+          <ErrorState
+            title="Gagal Memuat Histori Proyek"
+            message="Tidak dapat mengambil data riwayat proyek dari server backend. Pastikan server backend sedang aktif."
+            onRetry={fetchHistoryProjects}
+            isRetrying={isLoading}
+          />
         ) : projects.length === 0 ? (
           <EmptyState
             title="Belum Ada Histori Proyek Selesai"

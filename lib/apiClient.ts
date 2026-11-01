@@ -40,6 +40,9 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('makromedia:api-online'));
+    }
     if (isApiEnvelope(response.data)) {
       const { data, meta } = response.data;
       response.data =
@@ -50,6 +53,9 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (typeof window !== 'undefined' && (!error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED')) {
+      window.dispatchEvent(new CustomEvent('makromedia:api-offline'));
+    }
     if (error.response && error.response.status === 401) {
       clearAuth();
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {

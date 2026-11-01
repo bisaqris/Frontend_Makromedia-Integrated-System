@@ -126,6 +126,7 @@ export default function AddProjectPage() {
 
   const [deliverablesLink, setDeliverablesLink] = useState('');
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Selected company and filtered PICs
   const selectedCompany = companies.find((c) => c.id === companyId);
@@ -144,11 +145,46 @@ export default function AddProjectPage() {
     setAdditionalLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const handleNextStep = () => {
+  const validateStep1 = () => {
+    const errs: Record<string, string> = {};
     if (!projectName.trim()) {
-      showToast.error('Project Name wajib diisi.');
-      return;
+      errs.projectName = 'Project Name wajib diisi.';
+    } else if (projectName.trim().length < 3) {
+      errs.projectName = 'Project Name minimal 3 karakter.';
     }
+
+    if (!companyId) {
+      errs.companyId = 'Pilih Company Client.';
+    }
+
+    if (!selectedPic) {
+      errs.picId = 'Pilih PIC Client yang terhubung.';
+    }
+
+    if (!projectStarts) {
+      errs.projectStarts = 'Tanggal mulai proyek wajib diisi.';
+    }
+
+    if (!deadline) {
+      errs.deadline = 'Deadline proyek wajib diisi.';
+    } else if (projectStarts && deadline < projectStarts) {
+      errs.deadline = 'Deadline tidak boleh sebelum tanggal mulai proyek.';
+    }
+
+    if (contractValue === '' || Number(contractValue) <= 0) {
+      errs.contractValue = 'Nilai kontrak harus lebih besar dari Rp 0.';
+    }
+
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast.error('Mohon lengkapi dan periksa kembali data proyek.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (!validateStep1()) return;
     setCurrentStep(2);
   };
 
@@ -186,8 +222,9 @@ export default function AddProjectPage() {
 
       showToast.success(status === 'DRAFT' ? 'Draft proyek berhasil disimpan.' : 'Proyek baru berhasil dibuat!');
       router.push('/projects');
-    } catch {
-      showToast.error('Gagal membuat proyek baru.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal membuat proyek baru.';
+      showToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -283,6 +320,7 @@ export default function AddProjectPage() {
                 <Select
                   label="Company Name"
                   value={companyId}
+                  error={fieldErrors.companyId}
                   onChange={(e) => {
                     const nextCompanyId = e.target.value;
                     setCompanyId(nextCompanyId);
@@ -294,6 +332,7 @@ export default function AddProjectPage() {
                 <Select
                   label="PIC Client"
                   value={picId}
+                  error={fieldErrors.picId}
                   onChange={(e) => setPicId(e.target.value)}
                   options={filteredPics.map((p) => ({
                     value: p.id,
@@ -312,7 +351,11 @@ export default function AddProjectPage() {
                   label="Project Name"
                   placeholder="e.g. Q3 Marketing Campaign"
                   value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
+                  onChange={(e) => {
+                    setProjectName(e.target.value);
+                    if (fieldErrors.projectName) setFieldErrors((prev) => ({ ...prev, projectName: '' }));
+                  }}
+                  error={fieldErrors.projectName}
                   required
                 />
                 <Input
@@ -325,13 +368,23 @@ export default function AddProjectPage() {
                   label="Project Date Starts"
                   type="date"
                   value={projectStarts}
-                  onChange={(e) => setProjectStarts(e.target.value)}
+                  onChange={(e) => {
+                    setProjectStarts(e.target.value);
+                    if (fieldErrors.projectStarts) setFieldErrors((prev) => ({ ...prev, projectStarts: '' }));
+                  }}
+                  error={fieldErrors.projectStarts}
+                  required
                 />
                 <Input
                   label="Project Deadlines"
                   type="date"
                   value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
+                  onChange={(e) => {
+                    setDeadline(e.target.value);
+                    if (fieldErrors.deadline) setFieldErrors((prev) => ({ ...prev, deadline: '' }));
+                  }}
+                  error={fieldErrors.deadline}
+                  required
                 />
                 <Input
                   label="Venue / Location"
@@ -350,10 +403,18 @@ export default function AddProjectPage() {
                     <input
                       type="number"
                       value={contractValue}
-                      onChange={(e) => setContractValue(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary font-bold text-slate-800"
+                      onChange={(e) => {
+                        setContractValue(e.target.value);
+                        if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
+                      }}
+                      className={`w-full pl-9 pr-3 py-2 text-xs bg-white border rounded-xl focus:outline-hidden font-bold text-slate-800 ${
+                        fieldErrors.contractValue ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
+                      }`}
                     />
                   </div>
+                  {fieldErrors.contractValue && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.contractValue}</p>
+                  )}
                 </div>
               </div>
             </div>

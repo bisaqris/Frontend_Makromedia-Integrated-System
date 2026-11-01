@@ -27,6 +27,9 @@ export const AddInvoiceItemModal: React.FC<AddInvoiceItemModalProps> = ({
   const [freq, setFreq] = useState<number | ''>(1);
   const [period, setPeriod] = useState('1');
 
+  const [descError, setDescError] = useState('');
+  const [costError, setCostError] = useState('');
+
   // Synchronous state updates on prop changes (React 19 / Next 16 clean pattern)
   const [prevEditItem, setPrevEditItem] = useState<ProjectCostItem | undefined>(undefined);
   const [prevIsOpen, setPrevIsOpen] = useState<boolean>(false);
@@ -35,6 +38,8 @@ export const AddInvoiceItemModal: React.FC<AddInvoiceItemModalProps> = ({
     setPrevIsOpen(isOpen);
     setPrevEditItem(editItem);
     if (isOpen) {
+      setDescError('');
+      setCostError('');
       if (editItem) {
         setDescription(editItem.description || '');
         setCategoryLabel(editItem.category || '');
@@ -62,7 +67,18 @@ export const AddInvoiceItemModal: React.FC<AddInvoiceItemModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
+    let hasError = false;
+
+    if (!description.trim()) {
+      setDescError('Deskripsi layanan/item wajib diisi.');
+      hasError = true;
+    }
+    if (unitCost === '' || numericUnitCost < 0) {
+      setCostError('Harga satuan tidak boleh negatif.');
+      hasError = true;
+    }
+
+    if (hasError) return;
 
     onSave({
       category: categoryLabel.trim() || 'Invoice',
@@ -79,123 +95,110 @@ export const AddInvoiceItemModal: React.FC<AddInvoiceItemModalProps> = ({
     onClose();
   };
 
-  const isEditing = !!editItem;
+  const formatRupiah = (val: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(val || 0);
+  };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Edit Item Invoice' : 'Tambah Item Invoice'}
+      title={editItem ? 'Edit Item Tagihan Invoice' : 'Tambah Item Tagihan Invoice'}
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nama Item Tagihan */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Nama Item Tagihan <span className="text-red-500">*</span>
+            Kategori / Group Item
           </label>
           <Input
-            placeholder="misal: Full Production Package / Termin 1 DP"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-          />
-        </div>
-
-        {/* Sub-label / Subtitle Item */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Sub-judul / Label Event (Opsional)
-          </label>
-          <Input
-            placeholder="misal: Event Telkomsel"
+            placeholder="misal: Pra-Produksi / Jasa Shooting / Post-Production"
             value={categoryLabel}
             onChange={(e) => setCategoryLabel(e.target.value)}
           />
         </div>
 
-        {/* Deskripsi Pekerjaan */}
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Deskripsi Pekerjaan
+            Deskripsi Layanan / Item <span className="text-red-500">*</span>
           </label>
           <Input
-            placeholder="misal: Event Telkomsel Malang"
+            placeholder="misal: Jasa Video Shooting 3 Hari Full Team"
+            value={description}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              if (descError) setDescError('');
+            }}
+            error={descError}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Keterangan Tambahan / Spesifikasi
+          </label>
+          <textarea
+            rows={2}
             value={detailDescription}
             onChange={(e) => setDetailDescription(e.target.value)}
+            placeholder="Spesifikasi gear, resolusi 4K, crew 5 orang..."
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-150 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
           />
         </div>
 
-        {/* Harga Satuan */}
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Harga Satuan (Rp) <span className="text-red-500">*</span>
-          </label>
-          <Input
-            type="number"
-            placeholder="misal: 2000000"
-            value={unitCost}
-            onChange={(e) => setUnitCost(e.target.value ? Number(e.target.value) : '')}
-            required
-            min={0}
-          />
-        </div>
-
-        {/* Grid: Jumlah & Freq & Periode */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Jumlah
+              Harga Satuan (Rp) <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="number"
+              placeholder="0"
+              value={unitCost}
+              onChange={(e) => {
+                const val = e.target.value;
+                setUnitCost(val === '' ? '' : Number(val));
+                if (costError) setCostError('');
+              }}
+              error={costError}
+              required
+              min={0}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Qty (Jumlah) <span className="text-red-500">*</span>
             </label>
             <Input
               type="number"
               value={quantity}
-              onChange={(e) => setQuantity(e.target.value ? Number(e.target.value) : '')}
-              min={1}
-              step={1}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQuantity(val === '' ? '' : Number(val));
+              }}
               required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Freq
-            </label>
-            <Input
-              type="number"
-              value={freq}
-              onChange={(e) => setFreq(e.target.value ? Number(e.target.value) : '')}
               min={1}
-              step={1}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Periode
-            </label>
-            <Input
-              placeholder="misal: 1 / hari"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Calculated Sub Total Box */}
-        <div className="p-3 bg-orange-50/70 border border-orange-100 rounded-xl flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-600">Sub Total Invoice:</span>
-          <span className="text-sm font-extrabold text-accent">
-            Rp {calculatedTotal.toLocaleString('id-ID')}
-          </span>
+        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+          <span className="text-xs text-slate-500 font-medium">Subtotal Item:</span>
+          <span className="text-sm font-bold text-slate-800">{formatRupiah(calculatedTotal)}</span>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
           <Button type="button" variant="outline" size="sm" onClick={onClose}>
             Batal
           </Button>
           <Button type="submit" variant="primary" size="sm">
-            {isEditing ? 'Simpan Perubahan' : 'Tambah Item'}
+            {editItem ? 'Simpan Perubahan' : 'Tambah ke Invoice'}
           </Button>
         </div>
       </form>
