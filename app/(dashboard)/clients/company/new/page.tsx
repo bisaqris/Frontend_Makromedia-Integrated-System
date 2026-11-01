@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 
 export default function AddNewCompanyClientPage() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function AddNewCompanyClientPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -65,23 +67,13 @@ export default function AddNewCompanyClientPage() {
       newErrors.email = 'Format email tidak valid (contoh: user@gmail.com).';
     }
 
-    if (!formData.country) {
-      newErrors.country = 'Country (Negara) wajib dipilih.';
-    }
-    if (!formData.province) {
-      newErrors.province = 'Province (Provinsi) wajib dipilih.';
-    }
-    if (!formData.city) {
-      newErrors.city = 'City (Kota) wajib dipilih.';
-    }
-    if (!formData.subdistrict) {
-      newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
-    }
-    if (!formData.village) {
-      newErrors.village = 'Village (Kelurahan) wajib dipilih.';
-    }
-    if (!formData.postalCode.trim()) {
-      newErrors.postalCode = 'Postal Code wajib diisi.';
+    if (USE_MOCK) {
+      if (!formData.country) newErrors.country = 'Country (Negara) wajib dipilih.';
+      if (!formData.province) newErrors.province = 'Province (Provinsi) wajib dipilih.';
+      if (!formData.city) newErrors.city = 'City (Kota) wajib dipilih.';
+      if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
+      if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
+      if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
     }
     if (!formData.companyAddress.trim()) {
       newErrors.companyAddress = 'Company Address (Alamat Perusahaan) wajib diisi.';
@@ -98,21 +90,28 @@ export default function AddNewCompanyClientPage() {
       return;
     }
 
-    await clientService.createCompany({
-      name: formData.name.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
-      country: formData.country,
-      province: formData.province,
-      city: formData.city,
-      subdistrict: formData.subdistrict,
-      village: formData.village,
-      postalCode: formData.postalCode.trim(),
-      address: formData.companyAddress.trim(),
-    });
+    setIsSubmitting(true);
+    try {
+      await clientService.createCompany({
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        country: formData.country,
+        province: formData.province,
+        city: formData.city,
+        subdistrict: formData.subdistrict,
+        village: formData.village,
+        postalCode: formData.postalCode.trim(),
+        address: formData.companyAddress.trim(),
+      });
 
-    showToast.success(`Company Client "${formData.name.trim()}" berhasil ditambahkan!`);
-    router.push('/clients/company');
+      showToast.success(`Company Client "${formData.name.trim()}" berhasil ditambahkan!`);
+      router.push('/clients/company');
+    } catch {
+      showToast.error('Gagal menyimpan Company Client.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -125,6 +124,11 @@ export default function AddNewCompanyClientPage() {
         <h3 className="text-sm sm:text-base font-bold text-[#0066ff]">
           New Company Client
         </h3>
+        {!USE_MOCK && (
+          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+            API menyimpan nama, email, telepon, dan alamat. Negara, wilayah, serta kode pos belum tersedia dan dinonaktifkan.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-12">
@@ -203,6 +207,7 @@ export default function AddNewCompanyClientPage() {
                 name="country"
                 value={formData.country}
                 onChange={handleInputChange}
+                disabled={!USE_MOCK}
                 className={`w-full appearance-none bg-white border ${
                   errors.country ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
                 } rounded-xl px-4 py-3 pr-10 text-xs sm:text-sm ${
@@ -228,6 +233,7 @@ export default function AddNewCompanyClientPage() {
             onChange={handleRegionChange}
             fieldClassName="md:col-span-6"
             errors={errors}
+            disabled={!USE_MOCK}
           />
 
           <div className="md:col-span-6">
@@ -243,6 +249,7 @@ export default function AddNewCompanyClientPage() {
               name="postalCode"
               value={formData.postalCode}
               onChange={handleInputChange}
+              disabled={!USE_MOCK}
               placeholder="Postal Code"
               className={`w-full bg-white border ${
                 errors.postalCode ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
@@ -293,9 +300,10 @@ export default function AddNewCompanyClientPage() {
           type="submit"
           variant="primary"
           size="md"
+          disabled={isSubmitting}
           className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
         >
-          Submit
+          {isSubmitting ? 'Saving...' : 'Submit'}
         </Button>
       </div>
     </form>
