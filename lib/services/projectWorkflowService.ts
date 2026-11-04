@@ -1,5 +1,11 @@
 import { apiClient } from '@/lib/apiClient';
-import { PaymentHistoryItem, ProjectCostItem, ProjectTask } from '@/types/project';
+import {
+  PaymentHistoryItem,
+  ProjectCostItem,
+  ProjectLink,
+  ProjectProgress,
+  ProjectTask,
+} from '@/types/project';
 
 interface BackendProductionCost {
   id: string;
@@ -229,5 +235,62 @@ export const projectWorkflowService = {
       }
     );
     return mapPayment(response.data);
+  },
+
+  async getLinks(projectId: string): Promise<ProjectLink[]> {
+    try {
+      const response = await apiClient.get<ProjectLink[]>(`/projects/${projectId}/links`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  async createLink(
+    projectId: string,
+    link: { label: string; url: string }
+  ): Promise<ProjectLink> {
+    const response = await apiClient.post<ProjectLink>(`/projects/${projectId}/links`, link);
+    return response.data;
+  },
+
+  async updateLink(
+    projectId: string,
+    linkId: string,
+    link: { label?: string; url?: string }
+  ): Promise<ProjectLink> {
+    const response = await apiClient.patch<ProjectLink>(
+      `/projects/${projectId}/links/${linkId}`,
+      link
+    );
+    return response.data;
+  },
+
+  async deleteLink(projectId: string, linkId: string): Promise<void> {
+    await apiClient.delete(`/projects/${projectId}/links/${linkId}`);
+  },
+
+  async getProgress(projectId: string): Promise<ProjectProgress[]> {
+    try {
+      const response = await apiClient.get<ProjectProgress[]>(`/projects/${projectId}/progress`);
+      return response.data;
+    } catch {
+      return [];
+    }
+  },
+
+  async createProgress(
+    projectId: string,
+    progress: { percentage: number; notes?: string }
+  ): Promise<ProjectProgress> {
+    const response = await apiClient.post<ProjectProgress>(
+      `/projects/${projectId}/progress`,
+      progress
+    );
+    return response.data;
+  },
+
+  async deleteProgress(projectId: string, progressId: string): Promise<void> {
+    await apiClient.delete(`/projects/${projectId}/progress/${progressId}`);
   },
 };

@@ -1,6 +1,7 @@
 import { User } from '@/types/user';
 
 const TOKEN_KEY = 'makromedia_auth_token';
+const REFRESH_TOKEN_KEY = 'makromedia_auth_refresh_token';
 const USER_KEY = 'makromedia_auth_user';
 
 export function getToken(): string | null {
@@ -22,6 +23,21 @@ export function removeToken(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_KEY);
   document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setRefreshToken(refreshToken: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+}
+
+export function removeRefreshToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export function getUser(): User | null {
@@ -47,5 +63,6 @@ export function removeUser(): void {
 
 export function clearAuth(): void {
   removeToken();
+  removeRefreshToken();
   removeUser();
 }

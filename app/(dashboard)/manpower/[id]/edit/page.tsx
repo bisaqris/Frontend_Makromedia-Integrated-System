@@ -147,11 +147,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
           <h1 className="text-xl font-bold text-gray-900">Edit Manpower</h1>
           <p className="text-sm text-gray-400">Edit Manpower Information</p>
         </div>
-        {!USE_MOCK && (
-          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-            API belum menyimpan tanggal lahir, gender, alamat wilayah/detail, atau nama pemilik rekening. Field tersebut dinonaktifkan.
-          </p>
-        )}
         <div className="bg-white border border-gray-100 rounded-2xl p-8 shadow-sm text-center text-gray-500">
           Data karyawan dengan ID &quot;{resolvedParams.id}&quot; tidak ditemukan.
         </div>
@@ -192,7 +187,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleChange}
-                disabled={!USE_MOCK}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-blue-500"
               />
             </div>
@@ -216,7 +210,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                disabled={!USE_MOCK}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
               >
                 <option value="Male">Male</option>
@@ -238,7 +231,7 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
             </div>
 
             {/* Alamat: Search Dropdown (data dari wilayah.id) */}
-            <AddressRegionFields value={formData} onChange={handleRegionChange} disabled={!USE_MOCK} />
+            <AddressRegionFields value={formData} onChange={handleRegionChange} />
 
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>
@@ -247,7 +240,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 name="detailAddress"
                 value={formData.detailAddress}
                 onChange={handleChange}
-                disabled={!USE_MOCK}
                 placeholder="Jl. Simpang Surapati..."
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
@@ -340,7 +332,6 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 name="accountHolder"
                 value={formData.accountHolder}
                 onChange={handleChange}
-                disabled={!USE_MOCK}
                 placeholder="Account holder name"
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />

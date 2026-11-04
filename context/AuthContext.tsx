@@ -2,8 +2,17 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, startTransition } from 'react';
 import { User, Role } from '@/types/user';
-import { getToken, getUser, setToken as saveToken, setUser as saveUser, clearAuth } from '@/lib/auth';
+import {
+  getToken,
+  getRefreshToken,
+  getUser,
+  setToken as saveToken,
+  setRefreshToken,
+  setUser as saveUser,
+  clearAuth,
+} from '@/lib/auth';
 import { hasAccess as checkHasAccess } from '@/lib/roles';
+import { apiClient } from '@/lib/apiClient';
 
 interface AuthContextType {
   user: User | null;
@@ -11,7 +20,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
   hasAccess: (allowedRoles: Role[]) => boolean;
   updateUser: (updatedUser: Partial<User>) => void;
@@ -37,14 +46,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  const login = useCallback((newToken: string, newUser: User) => {
+  const login = useCallback((newToken: string, newUser: User, newRefreshToken?: string) => {
     saveToken(newToken);
+    if (newRefreshToken) {
+      setRefreshToken(newRefreshToken);
+    }
     saveUser(newUser);
     setTokenState(newToken);
     setUserState(newUser);
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await apiClient.post('/auth/logout', { refreshToken });
+      } catch {
+        // Abaikan error jaringan saat logout
+      }
+    }
     clearAuth();
     setTokenState(null);
     setUserState(null);

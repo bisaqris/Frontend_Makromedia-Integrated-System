@@ -21,6 +21,12 @@ interface BackendCompanyClient {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  country?: string | null;
+  province?: string | null;
+  city?: string | null;
+  subdistrict?: string | null;
+  village?: string | null;
+  postalCode?: string | null;
   clients?: BackendClient[];
 }
 
@@ -31,6 +37,12 @@ interface BackendClient {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  country?: string | null;
+  province?: string | null;
+  city?: string | null;
+  subdistrict?: string | null;
+  village?: string | null;
+  postalCode?: string | null;
   company?: { id: string; name: string };
 }
 
@@ -42,6 +54,12 @@ const mapPIC = (pic: BackendClient): ClientPIC => ({
   email: pic.email ?? '',
   phone: pic.phone ?? '',
   companyAddress: pic.address ?? undefined,
+  country: pic.country ?? undefined,
+  province: pic.province ?? undefined,
+  city: pic.city ?? undefined,
+  subdistrict: pic.subdistrict ?? undefined,
+  village: pic.village ?? undefined,
+  postalCode: pic.postalCode ?? undefined,
 });
 
 const mapCompany = (company: BackendCompanyClient): ClientCompany => ({
@@ -51,6 +69,12 @@ const mapCompany = (company: BackendCompanyClient): ClientCompany => ({
   email: company.email ?? undefined,
   phone: company.phone ?? undefined,
   address: company.address ?? undefined,
+  country: company.country ?? undefined,
+  province: company.province ?? undefined,
+  city: company.city ?? undefined,
+  subdistrict: company.subdistrict ?? undefined,
+  village: company.village ?? undefined,
+  postalCode: company.postalCode ?? undefined,
   pics: company.clients?.map(mapPIC),
 });
 
@@ -77,6 +101,12 @@ export const clientService = {
       email: data.email,
       phone: data.phone,
       address: data.address,
+      country: data.country,
+      province: data.province,
+      city: data.city,
+      subdistrict: data.subdistrict,
+      village: data.village,
+      postalCode: data.postalCode,
     });
     return mapCompany(response.data);
   },
@@ -125,6 +155,12 @@ export const clientService = {
       email: data.email,
       phone: data.phone,
       address: data.companyAddress,
+      country: data.country,
+      province: data.province,
+      city: data.city,
+      subdistrict: data.subdistrict,
+      village: data.village,
+      postalCode: data.postalCode,
     });
     return mapPIC(response.data);
   },

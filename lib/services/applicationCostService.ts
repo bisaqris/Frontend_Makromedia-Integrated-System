@@ -44,6 +44,7 @@ interface BackendQuotation {
   notes?: string | null;
   createdAt: string;
   items: BackendLineItem[];
+  project?: { id: string; name: string };
 }
 
 interface BackendInvoice {
@@ -57,6 +58,7 @@ interface BackendInvoice {
   notes?: string | null;
   createdAt: string;
   items: BackendLineItem[];
+  project?: { id: string; name: string };
 }
 
 interface BackendProductionCost {
@@ -104,7 +106,7 @@ const mapQuotation = (
 ): ApplicationCostItem => ({
   id: quotation.id,
   projectId: quotation.projectId,
-  projectName: project.name,
+  projectName: quotation.project?.name ?? project.name,
   applicationDocument: 'Quotation',
   applicationDate: formatDate(quotation.createdAt),
   totalCost: toNumber(quotation.totalValue),
@@ -127,7 +129,7 @@ const mapInvoice = (
 ): ApplicationCostItem => ({
   id: invoice.id,
   projectId: invoice.projectId,
-  projectName: project.name,
+  projectName: invoice.project?.name ?? project.name,
   applicationDocument: 'Invoice',
   applicationDate: formatDate(invoice.createdAt),
   totalCost: toNumber(invoice.amount),
@@ -190,20 +192,24 @@ const mapProductionCost = (
 });
 
 async function loadProjects(): Promise<BackendProject[]> {
-  const firstPage = await apiClient.get<BackendProjectsPage>('/projects', {
-    params: { page: 1, limit: 100 },
-  });
-  const projects = [...firstPage.data.data];
-  const pageCount = firstPage.data.meta.totalPages;
-  const remainingPages = await Promise.all(
-    Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) =>
-      apiClient.get<BackendProjectsPage>('/projects', {
-        params: { page: index + 2, limit: 100 },
-      })
-    )
-  );
-  remainingPages.forEach((page) => projects.push(...page.data.data));
-  return projects;
+  try {
+    const firstPage = await apiClient.get<BackendProjectsPage>('/projects', {
+      params: { page: 1, limit: 100 },
+    });
+    const projects = [...firstPage.data.data];
+    const pageCount = firstPage.data.meta.totalPages;
+    const remainingPages = await Promise.all(
+      Array.from({ length: Math.max(0, pageCount - 1) }, (_, index) =>
+        apiClient.get<BackendProjectsPage>('/projects', {
+          params: { page: index + 2, limit: 100 },
+        })
+      )
+    );
+    remainingPages.forEach((page) => projects.push(...page.data.data));
+    return projects;
+  } catch {
+    return [];
+  }
 }
 
 async function mapWithConcurrency<T, R>(
@@ -229,28 +235,65 @@ async function mapWithConcurrency<T, R>(
 }
 
 async function loadBackendItems(): Promise<ApplicationCostItem[]> {
-  const projects = await loadProjects();
-  const projectDocuments = await mapWithConcurrency(projects, 6, async (project) => {
-    const [costResponse, quotationResponse, invoiceResponse] = await Promise.all([
-      apiClient.get<BackendProductionCost[]>(
+  const [projects, quotationsRes, invoicesRes] = await Promise.all([
+    loadProjects(),
+    apiClient
+      .get<{ data: BackendQuotation[] } | BackendQuotation[]>('/quotations', {
+        params: { limit: 100 },
+      })
+      .catch(() => ({ data: [] })),
+    apiClient
+      .get<{ data: BackendInvoice[] } | BackendInvoice[]>('/invoices', {
+        params: { limit: 100 },
+      })
+      .catch(() => ({ data: [] })),
+  ]);
+
+  const projectMap = new Map<string, BackendProject>(
+    projects.map((p) => [p.id, p])
+  );
+
+  const rawQuotations: BackendQuotation[] = Array.isArray(quotationsRes.data)
+    ? quotationsRes.data
+    : (quotationsRes.data as { data: BackendQuotation[] })?.data || [];
+
+  const rawInvoices: BackendInvoice[] = Array.isArray(invoicesRes.data)
+    ? invoicesRes.data
+    : (invoicesRes.data as { data: BackendInvoice[] })?.data || [];
+
+  // Ambil data biaya produksi per proyek
+  const costLists = await mapWithConcurrency(projects, 6, async (project) => {
+    try {
+      const response = await apiClient.get<BackendProductionCost[]>(
         `/production-costs/project/${project.id}`
-      ),
-      apiClient.get<BackendQuotation[]>(`/quotations/project/${project.id}`),
-      apiClient.get<BackendInvoice[]>(`/invoices/project/${project.id}`),
-    ]);
-    return {
-      project,
-      costs: costResponse.data,
-      quotations: quotationResponse.data,
-      invoices: invoiceResponse.data,
-    };
+      );
+      return response.data.map((cost) => mapProductionCost(cost, project));
+    } catch {
+      return [];
+    }
   });
 
-  const documents = projectDocuments.flatMap(({ project, costs, quotations, invoices }) => [
-    ...costs.map((cost) => mapProductionCost(cost, project)),
-    ...quotations.map((quotation) => mapQuotation(quotation, project)),
-    ...invoices.map((invoice) => mapInvoice(invoice, project)),
-  ]);
+  const quotationItems = rawQuotations.map((q) => {
+    const project = projectMap.get(q.projectId) || {
+      id: q.projectId,
+      name: q.project?.name || 'Project',
+    };
+    return mapQuotation(q, project);
+  });
+
+  const invoiceItems = rawInvoices.map((inv) => {
+    const project = projectMap.get(inv.projectId) || {
+      id: inv.projectId,
+      name: inv.project?.name || 'Project',
+    };
+    return mapInvoice(inv, project);
+  });
+
+  const documents = [
+    ...costLists.flat(),
+    ...quotationItems,
+    ...invoiceItems,
+  ];
 
   return documents.sort((a, b) =>
     b.applicationDate.localeCompare(a.applicationDate)

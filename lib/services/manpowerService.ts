@@ -15,8 +15,16 @@ interface BackendManpower {
   phone?: string | null;
   skill?: string | null;
   employmentStatus?: string | null;
+  gender?: 'MALE' | 'FEMALE' | string | null;
+  dateOfBirth?: string | null;
+  province?: string | null;
+  city?: string | null;
+  subdistrict?: string | null;
+  village?: string | null;
+  detailAddress?: string | null;
   bankName?: string | null;
   bankAccountNo?: string | null;
+  accountHolder?: string | null;
   createdAt?: string;
   skills?: Array<{ skill: { name: string } }>;
 }
@@ -45,19 +53,21 @@ const mapManpower = (record: BackendManpower): ManpowerRecord => ({
   fullName: record.name,
   phoneNumber: record.phone ?? '',
   email: record.email ?? undefined,
+  gender: record.gender === 'FEMALE' ? 'Female' : record.gender === 'MALE' ? 'Male' : undefined,
+  dateOfBirth: record.dateOfBirth ? record.dateOfBirth.slice(0, 10) : '',
   position: record.position ?? '',
   employmentStatus: employmentStatusFromApi(record.employmentStatus),
   skills:
     record.skills?.map(({ skill }) => skill.name) ??
     (record.skill ? record.skill.split(',').map((name) => name.trim()).filter(Boolean) : []),
-  province: '',
-  city: '',
-  subdistrict: '',
-  village: '',
-  detailAddress: '',
+  province: record.province ?? '',
+  city: record.city ?? '',
+  subdistrict: record.subdistrict ?? '',
+  village: record.village ?? '',
+  detailAddress: record.detailAddress ?? '',
   bankName: record.bankName ?? '',
   accountNumber: record.bankAccountNo ?? '',
-  accountHolder: '',
+  accountHolder: record.accountHolder ?? '',
   joinDate: record.createdAt?.slice(0, 10) ?? '',
 });
 
@@ -67,8 +77,20 @@ const manpowerToApi = (record: Partial<CreateManpowerDTO>) => ({
   ...(record.email !== undefined && { email: record.email || undefined }),
   ...(record.phoneNumber !== undefined && { phone: record.phoneNumber }),
   ...(record.employmentStatus !== undefined && { employmentStatus: record.employmentStatus }),
+  ...(record.gender !== undefined && {
+    gender: record.gender ? (record.gender.toUpperCase() as 'MALE' | 'FEMALE') : undefined,
+  }),
+  ...(record.dateOfBirth !== undefined && {
+    dateOfBirth: record.dateOfBirth ? new Date(record.dateOfBirth).toISOString() : undefined,
+  }),
+  ...(record.province !== undefined && { province: record.province }),
+  ...(record.city !== undefined && { city: record.city }),
+  ...(record.subdistrict !== undefined && { subdistrict: record.subdistrict }),
+  ...(record.village !== undefined && { village: record.village }),
+  ...(record.detailAddress !== undefined && { detailAddress: record.detailAddress }),
   ...(record.bankName !== undefined && { bankName: record.bankName }),
   ...(record.accountNumber !== undefined && { bankAccountNo: record.accountNumber }),
+  ...(record.accountHolder !== undefined && { accountHolder: record.accountHolder }),
   ...(record.skills !== undefined && { skill: record.skills.join(', ') }),
 });
 

@@ -7,10 +7,52 @@ import { cloneMock, USE_MOCK } from './mockFlag';
 let profileStore: UserProfile | null = null;
 const getProfileStore = (): UserProfile => (profileStore ??= cloneMock(mockUserProfile));
 
+interface BackendUserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  phone?: string | null;
+  dateOfBirth?: string | null;
+  country?: string | null;
+  province?: string | null;
+  city?: string | null;
+  subdistrict?: string | null;
+  village?: string | null;
+  postalCode?: string | null;
+  detailAddress?: string | null;
+  bankName?: string | null;
+  bankAccountNo?: string | null;
+  accountHolder?: string | null;
+  position?: { id: string; name: string } | null;
+  skills?: Array<{ skill: { id: string; name: string } }>;
+}
+
 const mergeProfile = (base: UserProfile, data: Partial<UserProfile>): UserProfile => ({
   ...base,
   ...data,
   skills: data.skills ?? base.skills,
+});
+
+const mapBackendProfile = (api: BackendUserProfile, base: UserProfile): UserProfile => ({
+  ...base,
+  id: api.id,
+  name: api.name,
+  email: api.email,
+  phone: api.phone ?? base.phone,
+  dateOfBirth: api.dateOfBirth ? api.dateOfBirth.slice(0, 10) : base.dateOfBirth,
+  country: api.country ?? base.country,
+  province: api.province ?? base.province,
+  city: api.city ?? base.city,
+  subdistrict: api.subdistrict ?? base.subdistrict,
+  village: api.village ?? base.village,
+  postalCode: api.postalCode ?? base.postalCode,
+  detailAddress: api.detailAddress ?? base.detailAddress,
+  bankName: api.bankName ?? base.bankName,
+  accountNumber: api.bankAccountNo ?? base.accountNumber,
+  accountHolder: api.accountHolder ?? base.accountHolder,
+  position: api.position?.name ?? base.position,
+  skills: api.skills?.map((s) => s.skill.name) ?? base.skills,
 });
 
 export const userService = {
@@ -20,20 +62,11 @@ export const userService = {
     }
 
     try {
-      const response = await apiClient.get<Partial<UserProfile>>('/auth/me');
-      const apiProfile = response.data || {};
+      const response = await apiClient.get<BackendUserProfile>('/auth/me');
       const base = getProfileStore();
-      profileStore = mergeProfile(base, {
-        id: apiProfile.id ?? base.id,
-        name: apiProfile.name ?? base.name,
-        email: apiProfile.email ?? base.email,
-        phone: apiProfile.phone ?? base.phone,
-        position: apiProfile.position ?? base.position,
-        skills: apiProfile.skills ?? base.skills,
-      });
+      profileStore = mapBackendProfile(response.data, base);
       return cloneMock(profileStore);
     } catch {
-      // Fallback ke store/mock biar UI tetap jalan kalo BE belum siap
       return cloneMock(getProfileStore());
     }
   },
@@ -47,20 +80,24 @@ export const userService = {
     try {
       const payload: Record<string, unknown> = {};
       if (data.name !== undefined) payload.name = data.name;
-      if (data.email !== undefined) payload.email = data.email;
       if (data.phone !== undefined) payload.phone = data.phone;
-      if (data.position !== undefined) payload.position = data.position;
-      if (data.skills !== undefined) payload.skills = data.skills;
+      if (data.dateOfBirth !== undefined) payload.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : undefined;
+      if (data.country !== undefined) payload.country = data.country;
+      if (data.province !== undefined) payload.province = data.province;
+      if (data.city !== undefined) payload.city = data.city;
+      if (data.subdistrict !== undefined) payload.subdistrict = data.subdistrict;
+      if (data.village !== undefined) payload.village = data.village;
+      if (data.postalCode !== undefined) payload.postalCode = data.postalCode;
+      if (data.detailAddress !== undefined) payload.detailAddress = data.detailAddress;
+      if (data.bankName !== undefined) payload.bankName = data.bankName;
+      if (data.accountNumber !== undefined) payload.bankAccountNo = data.accountNumber;
+      if (data.accountHolder !== undefined) payload.accountHolder = data.accountHolder;
 
-      const response = await apiClient.patch<Partial<UserProfile>>('/auth/me', payload);
-      const apiProfile = response.data || {};
-      profileStore = mergeProfile(getProfileStore(), {
-        ...data,
-        ...apiProfile,
-      });
+      const response = await apiClient.patch<BackendUserProfile>('/auth/me', payload);
+      const base = getProfileStore();
+      profileStore = mapBackendProfile(response.data, base);
       return cloneMock(profileStore);
     } catch {
-      // Fallback in-memory kalo BE menolak payload atau endpoint beda
       profileStore = mergeProfile(getProfileStore(), data);
       return cloneMock(profileStore);
     }

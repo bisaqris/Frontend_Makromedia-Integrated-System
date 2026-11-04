@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Project, ProjectCostItem, ProjectTask, PaymentHistoryItem } from '@/types/project';
+import React, { useState, useEffect } from 'react';
+import { Project, ProjectCostItem, ProjectLink, ProjectTask, PaymentHistoryItem } from '@/types/project';
 import { Role } from '@/types/user';
 import Tabs from '@/components/ui/Tabs';
 import Button from '@/components/ui/Button';
@@ -178,6 +178,58 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   );
 
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>(project.paymentHistory || []);
+  const [projectLinks, setProjectLinks] = useState<ProjectLink[]>(() => project.additionalLinks || []);
+  const [isAddLinkOpen, setIsAddLinkOpen] = useState(false);
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [isSubmittingLink, setIsSubmittingLink] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!USE_MOCK && project.id) {
+      projectWorkflowService.getLinks(project.id).then((links) => {
+        if (isMounted && Array.isArray(links)) {
+          setProjectLinks(links);
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [project.id]);
+
+  const handleAddLink = async () => {
+    if (!newLinkUrl.trim()) {
+      showToast.error('URL link wajib diisi.');
+      return;
+    }
+    try {
+      setIsSubmittingLink(true);
+      const created = await projectWorkflowService.createLink(project.id, {
+        label: newLinkLabel.trim() || 'Link',
+        url: newLinkUrl.trim(),
+      });
+      setProjectLinks((prev) => [...prev, created]);
+      setNewLinkLabel('');
+      setNewLinkUrl('');
+      setIsAddLinkOpen(false);
+      showToast.success('Link berhasil ditambahkan.');
+    } catch {
+      showToast.error('Gagal menambahkan link.');
+    } finally {
+      setIsSubmittingLink(false);
+    }
+  };
+
+  const handleDeleteLink = async (linkId: string) => {
+    try {
+      await projectWorkflowService.deleteLink(project.id, linkId);
+      setProjectLinks((prev) => prev.filter((l) => l.id !== linkId));
+      showToast.success('Link berhasil dihapus.');
+    } catch {
+      showToast.error('Gagal menghapus link.');
+    }
+  };
 
   const handleSaveBrief = async (newBrief: string) => {
     try {
@@ -548,9 +600,62 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
           </div>
 
           <div className="border border-slate-200 rounded-xl p-5 space-y-4">
-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
-              Progress Link
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+                Progress Link
+              </h3>
+              {canManageTasks && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddLinkOpen((prev) => !prev)}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {isAddLinkOpen ? 'Batal' : 'Tambah Link'}
+                </button>
+              )}
+            </div>
+
+            {isAddLinkOpen && (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 text-xs">
+                <input
+                  type="text"
+                  placeholder="Label link (contoh: Google Drive Raw Footage)"
+                  value={newLinkLabel}
+                  onChange={(e) => setNewLinkLabel(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded bg-white text-xs focus:outline-none focus:border-blue-500"
+                />
+                <input
+                  type="url"
+                  placeholder="URL link (https://...)"
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded bg-white text-xs focus:outline-none focus:border-blue-500"
+                />
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAddLinkOpen(false)}
+                    className="text-xs py-1 px-3"
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={isSubmittingLink}
+                    onClick={handleAddLink}
+                    className="text-xs py-1 px-3 bg-blue-600"
+                  >
+                    {isSubmittingLink ? 'Menyimpan...' : 'Simpan Link'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3 text-xs">
               <div>
                 <span className="text-slate-400 font-medium block mb-1">Deliverables Link</span>
@@ -569,20 +674,31 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                 )}
               </div>
 
-              {project.additionalLinks && project.additionalLinks.length > 0 && (
-                <div className="pt-2 border-t border-slate-100 space-y-1.5">
+              {projectLinks.length > 0 && (
+                <div className="pt-2 border-t border-slate-100 space-y-2">
                   <span className="text-slate-400 font-medium block mb-1">Additional Links</span>
-                  {project.additionalLinks.map((link) => (
-                    <a
-                      key={link.id}
-                      href={link.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-accent hover:underline text-sm font-bold flex items-center gap-1 break-all"
-                    >
-                      <span>{link.url || '-'}</span>
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    </a>
+                  {projectLinks.map((link) => (
+                    <div key={link.id} className="flex items-center justify-between gap-2 py-1">
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-accent hover:underline text-sm font-bold flex items-center gap-1 break-all"
+                      >
+                        <span>{link.label || link.title || link.url}</span>
+                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      </a>
+                      {canManageTasks && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLink(link.id)}
+                          className="text-slate-400 hover:text-red-500 p-1 transition-colors cursor-pointer"
+                          title="Hapus link"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

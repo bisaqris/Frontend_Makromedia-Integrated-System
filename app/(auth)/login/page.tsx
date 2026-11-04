@@ -54,9 +54,10 @@ function LoginFormContent() {
     try {
       const response = await apiClient.post('/auth/login', data);
       const token = response.data.accessToken || response.data.token;
+      const refreshToken = response.data.refreshToken;
       const user = response.data.user;
 
-      login(token, user);
+      login(token, user, refreshToken);
       showToast.success(`Selamat datang kembali, ${user.name || 'User'}!`);
       router.push(redirectPath);
     } catch {
@@ -106,8 +107,9 @@ function LoginFormContent() {
         password: demoPassword,
       });
       const token = response.data.accessToken || response.data.token;
+      const refreshToken = response.data.refreshToken;
       const user = response.data.user;
-      login(token, user);
+      login(token, user, refreshToken);
       showToast.success(`Masuk sebagai ${user.name || role} (${role})`);
       router.push(redirectPath);
     } catch {

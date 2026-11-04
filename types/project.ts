@@ -31,8 +31,20 @@ export interface ProjectCostItem {
 
 export interface ProjectLink {
   id: string;
+  projectId?: string;
+  label?: string;
   title?: string;
   url: string;
+  createdAt?: string;
+}
+
+export interface ProjectProgress {
+  id: string;
+  projectId?: string;
+  percentage: number;
+  notes?: string;
+  updatedBy?: { id?: string; name?: string };
+  createdAt?: string;
 }
 
 export interface PaymentHistoryItem {
@@ -81,6 +93,7 @@ export interface Project {
   totalCost?: number;
   deliverablesLink?: string;
   additionalLinks?: ProjectLink[];
+  progressHistory?: ProjectProgress[];
   generalBrief?: string;
   costItems?: ProjectCostItem[];
   quotationItems?: ProjectCostItem[];

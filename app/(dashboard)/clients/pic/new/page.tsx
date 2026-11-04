@@ -8,7 +8,6 @@ import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientCompany } from '@/types/client';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
-import { USE_MOCK } from '@/lib/services/mockFlag';
 
 export default function AddNewPicClientPage() {
   const router = useRouter();
@@ -93,14 +92,12 @@ export default function AddNewPicClientPage() {
     if (!formData.companyAddress.trim()) {
       newErrors.companyAddress = 'Alamat perusahaan wajib diisi.';
     }
-    if (USE_MOCK) {
-      if (!formData.country.trim()) newErrors.country = 'Country (Negara) wajib diisi.';
-      if (!formData.province.trim()) newErrors.province = 'Province wajib diisi.';
-      if (!formData.city.trim()) newErrors.city = 'City wajib diisi.';
-      if (!formData.subdistrict.trim()) newErrors.subdistrict = 'Subdistrict wajib diisi.';
-      if (!formData.village.trim()) newErrors.village = 'Village wajib diisi.';
-      if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
-    }
+    if (!formData.country.trim()) newErrors.country = 'Country (Negara) wajib diisi.';
+    if (!formData.province.trim()) newErrors.province = 'Province wajib diisi.';
+    if (!formData.city.trim()) newErrors.city = 'City wajib diisi.';
+    if (!formData.subdistrict.trim()) newErrors.subdistrict = 'Subdistrict wajib diisi.';
+    if (!formData.village.trim()) newErrors.village = 'Village wajib diisi.';
+    if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -149,11 +146,6 @@ export default function AddNewPicClientPage() {
         <h3 className="text-sm sm:text-base font-bold text-[#0066ff]">
           New PIC Client
         </h3>
-        {!USE_MOCK && (
-          <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-            API menyimpan perusahaan, nama, email, telepon, dan alamat. Negara, wilayah, serta kode pos belum tersedia dan dinonaktifkan.
-          </p>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-6">
@@ -292,7 +284,6 @@ export default function AddNewPicClientPage() {
               name="country"
               value={formData.country}
               onChange={handleInputChange}
-              disabled={!USE_MOCK}
               placeholder="Country"
               className={`w-full bg-white border ${
                 errors.country ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
@@ -307,7 +298,6 @@ export default function AddNewPicClientPage() {
             onChange={handleRegionChange}
             fieldClassName="md:col-span-6"
             errors={errors}
-            disabled={!USE_MOCK}
           />
 
           <div className="md:col-span-6">
@@ -323,7 +313,6 @@ export default function AddNewPicClientPage() {
               name="postalCode"
               value={formData.postalCode}
               onChange={handleInputChange}
-              disabled={!USE_MOCK}
               placeholder="Postal Code"
               className={`w-full bg-white border ${
                 errors.postalCode ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
