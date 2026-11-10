@@ -1,12 +1,11 @@
-import { apiClient } from '@/lib/apiClient';
 import { CompanyProfile } from '@/types/application-cost';
 import { mockCompanyProfile } from '@/lib/mock/company.mock';
-import { USE_MOCK, cloneMock } from './mockFlag';
+import { cloneMock } from './mockFlag';
 
+// Identitas vendor penerbit dokumen (kop surat & rekening).
+// Menggunakan profil Makromedia Visual hingga endpoint setting company di BE tersedia di DB.
 export const companyService = {
-  getProfile: async (): Promise<CompanyProfile> => {
-    if (USE_MOCK) return cloneMock(mockCompanyProfile);
-    const response = await apiClient.get<CompanyProfile>('/company-profile');
-    return response.data;
+  getProfile: async (): Promise<CompanyProfile | null> => {
+    return cloneMock(mockCompanyProfile);
   },
 };

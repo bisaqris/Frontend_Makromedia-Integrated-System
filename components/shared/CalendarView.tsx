@@ -2,13 +2,13 @@
 
 import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Project } from "@/types/project";
+import { CalendarEvent } from "@/types/dashboard";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 interface CalendarViewProps {
   currentDate: Date;
-  projects: Project[];
+  events: CalendarEvent[];
   isLoading?: boolean;
 }
 
@@ -59,7 +59,7 @@ const formatDateKey = (date: Date): string => {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   currentDate,
-  projects,
+  events,
   isLoading = false,
 }) => {
   const router = useRouter();
@@ -131,32 +131,31 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       const weekStartStr = week[0].dateString;
       const weekEndStr = week[6].dateString;
 
-      const overlappingProjects = projects.filter((p) => {
-        if (!p.startDate || !p.endDate) return false;
-        return p.startDate <= weekEndStr && p.endDate >= weekStartStr;
+      const overlappingEvents = events.filter((event) => {
+        return event.startDate <= weekEndStr && event.endDate >= weekStartStr;
       });
 
-      overlappingProjects.sort((a, b) => {
+      overlappingEvents.sort((a, b) => {
         if (a.startDate !== b.startDate) {
-          return (a.startDate || "").localeCompare(b.startDate || "");
+          return a.startDate.localeCompare(b.startDate);
         }
-        return (b.endDate || "").localeCompare(a.endDate || "");
+        return b.endDate.localeCompare(a.endDate);
       });
 
       const tracks: number[] = [];
 
-      const placedEvents = overlappingProjects.map((proj) => {
+      const placedEvents = overlappingEvents.map((event) => {
         let startCol = 0;
-        if (proj.startDate && proj.startDate > weekStartStr) {
+        if (event.startDate > weekStartStr) {
           const foundIdx = week.findIndex(
-            (d) => d.dateString === proj.startDate,
+            (d) => d.dateString === event.startDate,
           );
           startCol = foundIdx !== -1 ? foundIdx : 0;
         }
 
         let endCol = 6;
-        if (proj.endDate && proj.endDate < weekEndStr) {
-          const foundIdx = week.findIndex((d) => d.dateString === proj.endDate);
+        if (event.endDate < weekEndStr) {
+          const foundIdx = week.findIndex((d) => d.dateString === event.endDate);
           endCol = foundIdx !== -1 ? foundIdx : 6;
         }
 
@@ -176,13 +175,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           tracks.push(endCol);
         }
 
-        const isOriginalStart = proj.startDate
-          ? proj.startDate >= weekStartStr
-          : true;
-        const isOriginalEnd = proj.endDate ? proj.endDate <= weekEndStr : true;
+        const isOriginalStart = event.startDate >= weekStartStr;
+        const isOriginalEnd = event.endDate <= weekEndStr;
 
         return {
-          project: proj,
+          event,
           startCol,
           endCol,
           span,
@@ -197,7 +194,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         maxTracks: tracks.length,
       };
     });
-  }, [weeks, projects]);
+  }, [weeks, events]);
 
   return (
     <div className="bg-white select-none border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
@@ -265,15 +262,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                   <div className="relative z-10 pt-9 pb-2 px-1 grid grid-cols-7 gap-y-1.5 pointer-events-none">
                     {placedEvents.map((evt) => {
-                      const proj = evt.project;
+                      const event = evt.event;
                       const colorStyle =
-                        CATEGORY_COLORS[proj.category || ""] ||
+                        CATEGORY_COLORS[event.category || ""] ||
                         CATEGORY_COLORS["Default"];
 
                       return (
                         <div
-                          key={`evt-${proj.id}-w${weekIdx}`}
-                          onClick={() => router.push(`/projects/${proj.id}`)}
+                          key={`evt-${event.id}-w${weekIdx}`}
+                          onClick={() => router.push(`/projects/${event.projectId}`)}
                           style={{
                             gridColumnStart: evt.startCol + 1,
                             gridColumnEnd: `span ${evt.span}`,
@@ -292,10 +289,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 : "rounded-r-none border-r-2 border-white/40 pr-2",
                             ),
                           )}
-                          title={`${proj.name} (${proj.clientName || "Client"}) - ${proj.category || "Proyek"}`}
+                          title={`${event.title} - ${event.type}`}
                         >
                           <span className="truncate font-semibold text-[11px] leading-tight">
-                            {proj.name}
+                            {event.title}
                           </span>
                         </div>
                       );

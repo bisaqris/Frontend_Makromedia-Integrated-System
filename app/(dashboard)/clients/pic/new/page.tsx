@@ -28,6 +28,7 @@ export default function AddNewPicClientPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [companies, setCompanies] = useState<ClientCompany[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -91,24 +92,12 @@ export default function AddNewPicClientPage() {
     if (!formData.companyAddress.trim()) {
       newErrors.companyAddress = 'Alamat perusahaan wajib diisi.';
     }
-    if (!formData.country.trim()) {
-      newErrors.country = 'Country (Negara) wajib diisi.';
-    }
-    if (!formData.province.trim()) {
-      newErrors.province = 'Province wajib diisi.';
-    }
-    if (!formData.city.trim()) {
-      newErrors.city = 'City wajib diisi.';
-    }
-    if (!formData.subdistrict.trim()) {
-      newErrors.subdistrict = 'Subdistrict wajib diisi.';
-    }
-    if (!formData.village.trim()) {
-      newErrors.village = 'Village wajib diisi.';
-    }
-    if (!formData.postalCode.trim()) {
-      newErrors.postalCode = 'Postal Code wajib diisi.';
-    }
+    if (!formData.country.trim()) newErrors.country = 'Country (Negara) wajib diisi.';
+    if (!formData.province.trim()) newErrors.province = 'Province wajib diisi.';
+    if (!formData.city.trim()) newErrors.city = 'City wajib diisi.';
+    if (!formData.subdistrict.trim()) newErrors.subdistrict = 'Subdistrict wajib diisi.';
+    if (!formData.village.trim()) newErrors.village = 'Village wajib diisi.';
+    if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -121,22 +110,30 @@ export default function AddNewPicClientPage() {
       return;
     }
 
-    await clientService.createPIC({
-      name: formData.name.trim(),
-      company: formData.company,
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
-      companyAddress: formData.companyAddress.trim(),
-      country: formData.country.trim(),
-      province: formData.province.trim(),
-      city: formData.city.trim(),
-      subdistrict: formData.subdistrict.trim(),
-      village: formData.village.trim(),
-      postalCode: formData.postalCode.trim(),
-    });
+    setIsSubmitting(true);
+    try {
+      await clientService.createPIC({
+        name: formData.name.trim(),
+        company: formData.company,
+        clientId: formData.company,
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        companyAddress: formData.companyAddress.trim(),
+        country: formData.country.trim(),
+        province: formData.province.trim(),
+        city: formData.city.trim(),
+        subdistrict: formData.subdistrict.trim(),
+        village: formData.village.trim(),
+        postalCode: formData.postalCode.trim(),
+      });
 
-    showToast.success(`PIC Client "${formData.name.trim()}" berhasil ditambahkan!`);
-    router.push('/clients/pic');
+      showToast.success(`PIC Client "${formData.name.trim()}" berhasil ditambahkan!`);
+      router.push('/clients/pic');
+    } catch {
+      showToast.error('Gagal menyimpan PIC Client.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -193,7 +190,7 @@ export default function AddNewPicClientPage() {
                   Company
                 </option>
                 {companies.map((company) => (
-                  <option key={company.id} value={company.name}>
+                  <option key={company.id} value={company.id}>
                     {company.name}
                   </option>
                 ))}
@@ -343,9 +340,10 @@ export default function AddNewPicClientPage() {
           type="submit"
           variant="primary"
           size="md"
+          disabled={isSubmitting}
           className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
         >
-          Submit
+          {isSubmitting ? 'Saving...' : 'Submit'}
         </Button>
       </div>
     </form>

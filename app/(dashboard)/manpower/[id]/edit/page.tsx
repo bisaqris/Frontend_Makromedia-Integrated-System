@@ -8,6 +8,7 @@ import { manpowerService } from '@/lib/services/manpowerService';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
 import { EmploymentStatus, Gender } from '@/types/manpower';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 
 export default function EditManpowerPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
@@ -66,7 +68,7 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
           dateOfBirth: record.dateOfBirth || '',
           phoneNumber: record.phoneNumber,
           email: record.email || '',
-          gender: record.gender,
+          gender: record.gender || '',
           province: record.province,
           city: record.city,
           subdistrict: record.subdistrict,
@@ -75,7 +77,7 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
           skill: record.skills[0] || '',
           employmentStatus: record.employmentStatus,
           position: record.position,
-          bankAccount: record.bankName,
+          bankAccount: record.bankName || '',
           accountNumber: record.accountNumber,
           accountHolder: record.accountHolder,
         });
@@ -172,9 +174,10 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Name"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.name ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
                 required
               />
+              {formErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.name}</p>}
             </div>
 
             <div>
@@ -196,8 +199,9 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 placeholder="08..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.phoneNumber ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
               />
+              {formErrors.phoneNumber && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.phoneNumber}</p>}
             </div>
 
             <div>
@@ -221,8 +225,9 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="user@gmail.com"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.email ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
               />
+              {formErrors.email && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.email}</p>}
             </div>
 
             {/* Alamat: Search Dropdown (data dari wilayah.id) */}
@@ -284,7 +289,7 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
                 name="position"
                 value={formData.position}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none bg-white ${formErrors.position ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
               >
                 <option value="">Select Position</option>
                 {positionOptions.map((pos) => (

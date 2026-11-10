@@ -32,6 +32,6 @@ export interface UserProfile extends AddressFields {
 export type UpdateUserProfileDTO = Partial<Omit<UserProfile, 'id'>>;
 
 export interface AuthResponse {
-  token: string;
+  accessToken: string;
   user: User;
 }

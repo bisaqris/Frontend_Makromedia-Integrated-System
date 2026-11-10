@@ -25,6 +25,7 @@ export default function AddNewCompanyClientPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -65,24 +66,13 @@ export default function AddNewCompanyClientPage() {
       newErrors.email = 'Format email tidak valid (contoh: user@gmail.com).';
     }
 
-    if (!formData.country) {
-      newErrors.country = 'Country (Negara) wajib dipilih.';
-    }
-    if (!formData.province) {
-      newErrors.province = 'Province (Provinsi) wajib dipilih.';
-    }
-    if (!formData.city) {
-      newErrors.city = 'City (Kota) wajib dipilih.';
-    }
-    if (!formData.subdistrict) {
-      newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
-    }
-    if (!formData.village) {
-      newErrors.village = 'Village (Kelurahan) wajib dipilih.';
-    }
-    if (!formData.postalCode.trim()) {
-      newErrors.postalCode = 'Postal Code wajib diisi.';
-    }
+    if (!formData.country) newErrors.country = 'Country (Negara) wajib dipilih.';
+    if (!formData.province) newErrors.province = 'Province (Provinsi) wajib dipilih.';
+    if (!formData.city) newErrors.city = 'City (Kota) wajib dipilih.';
+    if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
+    if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
+    if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
+
     if (!formData.companyAddress.trim()) {
       newErrors.companyAddress = 'Company Address (Alamat Perusahaan) wajib diisi.';
     }
@@ -98,21 +88,28 @@ export default function AddNewCompanyClientPage() {
       return;
     }
 
-    await clientService.createCompany({
-      name: formData.name.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
-      country: formData.country,
-      province: formData.province,
-      city: formData.city,
-      subdistrict: formData.subdistrict,
-      village: formData.village,
-      postalCode: formData.postalCode.trim(),
-      address: formData.companyAddress.trim(),
-    });
+    setIsSubmitting(true);
+    try {
+      await clientService.createCompany({
+        name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        country: formData.country,
+        province: formData.province,
+        city: formData.city,
+        subdistrict: formData.subdistrict,
+        village: formData.village,
+        postalCode: formData.postalCode.trim(),
+        address: formData.companyAddress.trim(),
+      });
 
-    showToast.success(`Company Client "${formData.name.trim()}" berhasil ditambahkan!`);
-    router.push('/clients/company');
+      showToast.success(`Company Client "${formData.name.trim()}" berhasil ditambahkan!`);
+      router.push('/clients/company');
+    } catch {
+      showToast.error('Gagal menyimpan Company Client.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -293,9 +290,10 @@ export default function AddNewCompanyClientPage() {
           type="submit"
           variant="primary"
           size="md"
+          disabled={isSubmitting}
           className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
         >
-          Submit
+          {isSubmitting ? 'Saving...' : 'Submit'}
         </Button>
       </div>
     </form>

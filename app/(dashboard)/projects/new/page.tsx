@@ -13,6 +13,7 @@ import { ProjectCategory } from '@/types/project';
 import { ClientCompany, ClientPIC } from '@/types/client';
 import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
   Plus,
   Trash2,
@@ -78,7 +79,7 @@ export default function AddProjectPage() {
 
   // Form Fields
   const [category, setCategory] = useState('Event');
-  const [pmId, setPmId] = useState('usr-project_manager');
+  const [pmId, setPmId] = useState('');
   const [clientType, setClientType] = useState('Corporate');
   const [partnershipModel, setPartnershipModel] = useState('Direct');
   const [companyId, setCompanyId] = useState('cli-1');
@@ -125,6 +126,7 @@ export default function AddProjectPage() {
 
   const [deliverablesLink, setDeliverablesLink] = useState('');
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Selected company and filtered PICs
   const selectedCompany = companies.find((c) => c.id === companyId);
@@ -143,33 +145,73 @@ export default function AddProjectPage() {
     setAdditionalLinks((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const handleNextStep = () => {
+  const validateStep1 = () => {
+    const errs: Record<string, string> = {};
     if (!projectName.trim()) {
-      showToast.error('Project Name wajib diisi.');
-      return;
+      errs.projectName = 'Project Name wajib diisi.';
+    } else if (projectName.trim().length < 3) {
+      errs.projectName = 'Project Name minimal 3 karakter.';
     }
+
+    if (!companyId) {
+      errs.companyId = 'Pilih Company Client.';
+    }
+
+    if (!selectedPic) {
+      errs.picId = 'Pilih PIC Client yang terhubung.';
+    }
+
+    if (!projectStarts) {
+      errs.projectStarts = 'Tanggal mulai proyek wajib diisi.';
+    }
+
+    if (!deadline) {
+      errs.deadline = 'Deadline proyek wajib diisi.';
+    } else if (projectStarts && deadline < projectStarts) {
+      errs.deadline = 'Deadline tidak boleh sebelum tanggal mulai proyek.';
+    }
+
+    if (contractValue === '' || Number(contractValue) <= 0) {
+      errs.contractValue = 'Nilai kontrak harus lebih besar dari Rp 0.';
+    }
+
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast.error('Mohon lengkapi dan periksa kembali data proyek.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (!validateStep1()) return;
     setCurrentStep(2);
   };
 
   const handleCreateProject = async (status: 'QUOTATION_PENDING' | 'DRAFT' = 'QUOTATION_PENDING') => {
+    if (!selectedPic) {
+      showToast.error('Pilih PIC client yang terhubung dengan perusahaan ini.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await projectService.createProject({
         name: projectName,
         category: category as ProjectCategory,
-        clientId: companyId,
+        clientId: selectedPic.id,
         clientName: selectedCompany?.name || '',
         clientType,
         partnershipModel,
-        picClientId: picId,
+        picClientId: selectedPic.id,
         picClientName: selectedPic
           ? `${selectedPic.name}${selectedPic.position ? ` (${selectedPic.position})` : ''}`
           : '',
         projectManagerId: pmId,
         projectManagerName: selectedPM?.name || '',
-        startDate: eventDate,
-        endDate: eventDate,
-        projectStarts,
+        startDate: projectStarts,
+        endDate: deadline,
+        projectStarts: eventDate,
         deadline,
         venue,
         budget: Number(contractValue) || 0,
@@ -180,8 +222,9 @@ export default function AddProjectPage() {
 
       showToast.success(status === 'DRAFT' ? 'Draft proyek berhasil disimpan.' : 'Proyek baru berhasil dibuat!');
       router.push('/projects');
-    } catch {
-      showToast.error('Gagal membuat proyek baru.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal membuat proyek baru.';
+      showToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -277,6 +320,7 @@ export default function AddProjectPage() {
                 <Select
                   label="Company Name"
                   value={companyId}
+                  error={fieldErrors.companyId}
                   onChange={(e) => {
                     const nextCompanyId = e.target.value;
                     setCompanyId(nextCompanyId);
@@ -288,6 +332,7 @@ export default function AddProjectPage() {
                 <Select
                   label="PIC Client"
                   value={picId}
+                  error={fieldErrors.picId}
                   onChange={(e) => setPicId(e.target.value)}
                   options={filteredPics.map((p) => ({
                     value: p.id,
@@ -306,7 +351,11 @@ export default function AddProjectPage() {
                   label="Project Name"
                   placeholder="e.g. Q3 Marketing Campaign"
                   value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
+                  onChange={(e) => {
+                    setProjectName(e.target.value);
+                    if (fieldErrors.projectName) setFieldErrors((prev) => ({ ...prev, projectName: '' }));
+                  }}
+                  error={fieldErrors.projectName}
                   required
                 />
                 <Input
@@ -319,13 +368,23 @@ export default function AddProjectPage() {
                   label="Project Date Starts"
                   type="date"
                   value={projectStarts}
-                  onChange={(e) => setProjectStarts(e.target.value)}
+                  onChange={(e) => {
+                    setProjectStarts(e.target.value);
+                    if (fieldErrors.projectStarts) setFieldErrors((prev) => ({ ...prev, projectStarts: '' }));
+                  }}
+                  error={fieldErrors.projectStarts}
+                  required
                 />
                 <Input
                   label="Project Deadlines"
                   type="date"
                   value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
+                  onChange={(e) => {
+                    setDeadline(e.target.value);
+                    if (fieldErrors.deadline) setFieldErrors((prev) => ({ ...prev, deadline: '' }));
+                  }}
+                  error={fieldErrors.deadline}
+                  required
                 />
                 <Input
                   label="Venue / Location"
@@ -344,10 +403,18 @@ export default function AddProjectPage() {
                     <input
                       type="number"
                       value={contractValue}
-                      onChange={(e) => setContractValue(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary font-bold text-slate-800"
+                      onChange={(e) => {
+                        setContractValue(e.target.value);
+                        if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
+                      }}
+                      className={`w-full pl-9 pr-3 py-2 text-xs bg-white border rounded-xl focus:outline-hidden font-bold text-slate-800 ${
+                        fieldErrors.contractValue ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
+                      }`}
                     />
                   </div>
+                  {fieldErrors.contractValue && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.contractValue}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -362,10 +429,16 @@ export default function AddProjectPage() {
                   size="md"
                   leftIcon={<Plus className="w-4 h-4" />}
                   onClick={handleAddLink}
+                  disabled={!USE_MOCK}
                 >
                   Add
                 </Button>
               </div>
+              {!USE_MOCK && (
+                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                  Progress Link belum didukung API, sehingga field ini dinonaktifkan dan tidak akan tersimpan.
+                </p>
+              )}
 
               {/* Deliverables Link Input */}
               <div>
@@ -381,12 +454,14 @@ export default function AddProjectPage() {
                       placeholder="https://drive.google.com/..."
                       value={deliverablesLink}
                       onChange={(e) => setDeliverablesLink(e.target.value)}
+                      disabled={!USE_MOCK}
                       className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-primary rounded-xl focus:outline-hidden text-slate-800 font-medium"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => document.getElementById('deliverables-link-input')?.focus()}
+                    disabled={!USE_MOCK}
                     className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
                     title="Edit Link"
                   >
@@ -395,6 +470,7 @@ export default function AddProjectPage() {
                   <button
                     type="button"
                     onClick={() => setDeliverablesLink('')}
+                    disabled={!USE_MOCK}
                     className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                     title="Clear Link"
                   >
@@ -419,6 +495,7 @@ export default function AddProjectPage() {
                         type="text"
                         placeholder="https://drive.google.com/..."
                         value={link.url}
+                        disabled={!USE_MOCK}
                         onChange={(e) => {
                           const newUrl = e.target.value;
                           setAdditionalLinks((prev) =>
@@ -431,6 +508,7 @@ export default function AddProjectPage() {
                     <button
                       type="button"
                       onClick={() => document.getElementById(`additional-link-${link.id}`)?.focus()}
+                      disabled={!USE_MOCK}
                       className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
                       title="Edit Link"
                     >
@@ -439,6 +517,7 @@ export default function AddProjectPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveLink(link.id)}
+                      disabled={!USE_MOCK}
                       className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                       title="Delete Link"
                     >

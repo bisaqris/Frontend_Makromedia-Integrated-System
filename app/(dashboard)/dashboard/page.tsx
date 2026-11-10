@@ -4,9 +4,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { CalendarView } from "@/components/shared/CalendarView";
 import Select from "@/components/ui/Select";
-import { Project, ProjectCategory } from "@/types/project";
-import { ProjectCategoryCounts } from "@/types/dashboard";
+import { ProjectCategory } from "@/types/project";
+import {
+  CalendarEvent,
+  FinancialDashboardSummary,
+  ProjectCategoryCounts,
+} from "@/types/dashboard";
 import { dashboardService } from "@/lib/services/dashboardService";
+import { showToast } from "@/components/ui/Toast";
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,6 +25,13 @@ const EMPTY_CATEGORY_COUNTS: ProjectCategoryCounts = {
   'Film Production': 0,
   'Content Video/Marketing': 0,
   Wedding: 0,
+};
+
+const EMPTY_FINANCIAL_TOTALS: FinancialDashboardSummary = {
+  totalContractValue: 0,
+  totalPaid: 0,
+  restOfBill: 0,
+  totalProjectCost: 0,
 };
 
 const formatRupiah = (value: number) => {
@@ -48,17 +60,41 @@ const MONTH_OPTIONS = [
 export default function DashboardPage() {
   const { role } = useAuth();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [categoryBaseline, setCategoryBaseline] =
     useState<ProjectCategoryCounts>(EMPTY_CATEGORY_COUNTS);
+  const [categoryCountsIncludeCalendarProjects, setCategoryCountsIncludeCalendarProjects] =
+    useState(false);
+  const [financialTotals, setFinancialTotals] =
+    useState<FinancialDashboardSummary>(EMPTY_FINANCIAL_TOTALS);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     dashboardService
       .getCategoryCounts()
-      .then(setCategoryBaseline)
-      .catch(() => setCategoryBaseline(EMPTY_CATEGORY_COUNTS));
+      .then(({ counts, includesCalendarProjects }) => {
+        setCategoryBaseline(counts);
+        setCategoryCountsIncludeCalendarProjects(includesCalendarProjects);
+      })
+      .catch(() => {
+        setCategoryBaseline(EMPTY_CATEGORY_COUNTS);
+        showToast.error('Gagal memuat jumlah proyek per kategori.');
+      });
   }, []);
+
+  const isFinancialRole =
+    role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES';
+
+  useEffect(() => {
+    if (!isFinancialRole) return;
+    dashboardService
+      .getFinancialSummary()
+      .then(setFinancialTotals)
+      .catch(() => {
+        setFinancialTotals(EMPTY_FINANCIAL_TOTALS);
+        showToast.error('Gagal memuat ringkasan finansial.');
+      });
+  }, [isFinancialRole]);
 
   useEffect(() => {
     const fetchCalendarData = async () => {
@@ -75,9 +111,10 @@ export default function DashboardPage() {
           0,
         ).toISOString();
 
-        setProjects(await dashboardService.getCalendarProjects({ start, end }));
+        setEvents(await dashboardService.getCalendarEvents({ start, end }));
       } catch {
-        setProjects([]);
+        setEvents([]);
+        showToast.error('Gagal memuat event kalender.');
       } finally {
         setIsLoading(false);
       }
@@ -86,42 +123,23 @@ export default function DashboardPage() {
     fetchCalendarData();
   }, [currentDate]);
 
-  const financialTotals = useMemo(() => {
-    const totalContractValue = projects.reduce(
-      (acc, p) => acc + (p.budget || 0),
-      0,
-    );
-    const totalPaid = projects.reduce((acc, p) => acc + (p.totalPaid || 0), 0);
-    const restOfBill = projects.reduce(
-      (acc, p) => acc + (p.restOfBill || 0),
-      0,
-    );
-    const totalProjectCost = projects.reduce(
-      (acc, p) => acc + (p.totalCost || 0),
-      0,
-    );
-
-    return {
-      totalContractValue,
-      totalPaid,
-      restOfBill,
-      totalProjectCost,
-    };
-  }, [projects]);
-
   const categoryCounts = useMemo(() => {
     const counts: Record<ProjectCategory, number> = {
       ...categoryBaseline,
     };
 
-    projects.forEach((p) => {
-      if (p.category && counts[p.category] !== undefined) {
-        counts[p.category] += 1;
-      }
-    });
+    if (!categoryCountsIncludeCalendarProjects) {
+      events.forEach((event) => {
+        if (event.type === 'EVENT' && event.category && counts[event.category] !== undefined) {
+          counts[event.category] += 1;
+        }
+      });
+    } else {
+      return counts;
+    }
 
     return counts;
-  }, [projects, categoryBaseline]);
+  }, [categoryBaseline, categoryCountsIncludeCalendarProjects, events]);
 
   const isFinancialView =
     role === "DIREKTUR" || role === "FINANCE" || role === "SALES";
@@ -307,7 +325,7 @@ export default function DashboardPage() {
       <div>
         <CalendarView
           currentDate={currentDate}
-          projects={projects}
+          events={events}
           isLoading={isLoading}
         />
       </div>

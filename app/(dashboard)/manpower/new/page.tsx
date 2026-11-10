@@ -8,10 +8,12 @@ import { manpowerService } from '@/lib/services/manpowerService';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
 import { EmploymentStatus, Gender } from '@/types/manpower';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 
 export default function AddManpowerPage() {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
@@ -68,17 +70,57 @@ export default function AddManpowerPage() {
     setFormData((prev) => ({ ...prev, ...values }));
   };
 
+  const validate = () => {
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) {
+      errs.name = 'Nama lengkap wajib diisi.';
+    } else if (formData.name.trim().length < 2) {
+      errs.name = 'Nama lengkap minimal 2 karakter.';
+    }
+
+    if (!formData.email.trim()) {
+      errs.email = 'Email wajib diisi.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errs.email = 'Format email tidak valid (contoh: user@gmail.com).';
+    }
+
+    if (!formData.phoneNumber.trim()) {
+      errs.phoneNumber = 'Nomor telepon wajib diisi.';
+    } else if (formData.phoneNumber.trim().replace(/\D/g, '').length < 10) {
+      errs.phoneNumber = 'Nomor telepon minimal 10 digit angka.';
+    }
+
+    if (!formData.position) {
+      errs.position = 'Posisi jabatan wajib dipilih.';
+    }
+
+    if (formData.bankAccount.trim() && !formData.accountNumber.trim()) {
+      errs.accountNumber = 'Nomor rekening wajib diisi jika nama bank diisi.';
+    }
+    if (!formData.bankAccount.trim() && formData.accountNumber.trim()) {
+      errs.bankAccount = 'Nama bank wajib diisi jika nomor rekening diisi.';
+    }
+
+    setFormErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      showToast.error('Mohon periksa data karyawan yang belum valid.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     try {
       setSubmitting(true);
 
       await manpowerService.create({
-        fullName: formData.name,
+        fullName: formData.name.trim(),
         gender: formData.gender as Gender,
         dateOfBirth: formData.dateOfBirth,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
+        email: formData.email.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
         position: formData.position,
         employmentStatus: formData.employmentStatus as EmploymentStatus,
         skills: formData.skill ? [formData.skill] : [],
@@ -87,14 +129,18 @@ export default function AddManpowerPage() {
         subdistrict: formData.subdistrict,
         village: formData.village,
         detailAddress: formData.detailAddress,
-        bankName: formData.bankAccount,
-        accountNumber: formData.accountNumber,
+        bankName: formData.bankAccount.trim(),
+        accountNumber: formData.accountNumber.trim(),
         accountHolder: formData.accountHolder,
       });
 
+      showToast.success('Data karyawan berhasil ditambahkan.');
       router.push('/manpower');
-    } catch {
-      showToast.error('Gagal menyimpan data karyawan.');
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Gagal menyimpan data karyawan.';
+      showToast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -120,9 +166,10 @@ export default function AddManpowerPage() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Name"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.name ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
                 required
               />
+              {formErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.name}</p>}
             </div>
 
             <div>
@@ -144,8 +191,9 @@ export default function AddManpowerPage() {
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 placeholder="08..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.phoneNumber ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
               />
+              {formErrors.phoneNumber && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.phoneNumber}</p>}
             </div>
 
             <div>
@@ -169,12 +217,16 @@ export default function AddManpowerPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="user@gmail.com"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.email ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
               />
+              {formErrors.email && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.email}</p>}
             </div>
 
             {/* Alamat: Search Dropdown (data dari wilayah.id) */}
-            <AddressRegionFields value={formData} onChange={handleRegionChange} />
+            <AddressRegionFields
+              value={formData}
+              onChange={handleRegionChange}
+            />
 
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>
@@ -232,7 +284,7 @@ export default function AddManpowerPage() {
                 name="position"
                 value={formData.position}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none bg-white ${formErrors.position ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
               >
                 <option value="">Select Position</option>
                 {positionOptions.map((pos) => (

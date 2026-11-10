@@ -14,10 +14,10 @@ const formatRupiahWithSpace = (val: number) => {
 };
 
 export default function InvoicePreviewPage() {
-  const params = useParams();
+  const params = useParams<{ id: string }>();
   const router = useRouter();
 
-  const id = params?.id as string;
+  const id = params.id;
 
   const [item, setItem] = useState<ApplicationCostItem | null>(null);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
@@ -26,7 +26,7 @@ export default function InvoicePreviewPage() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([applicationCostService.getById(id), companyService.getProfile()])
+    Promise.all([applicationCostService.getById(id, 'Invoice'), companyService.getProfile()])
       .then(([record, companyProfile]) => {
         if (!isMounted) return;
         setItem(record);
@@ -62,7 +62,10 @@ export default function InvoicePreviewPage() {
 
   const handleDownload = async () => {
     const element = document.getElementById('pdf-preview-sheet');
-    if (!element) return;
+    if (!element) {
+      showToast.error('Preview invoice tidak ditemukan, PDF gagal dibuat.');
+      return;
+    }
 
     const opt = {
       margin: [0, 0, 0, 0] as [number, number, number, number],
@@ -97,6 +100,7 @@ export default function InvoicePreviewPage() {
       await html2pdf().set(opt).from(element).save();
       showToast.success('PDF Invoice berhasil diunduh!');
     } catch {
+      showToast.error('PDF gagal dibuat. Membuka dialog cetak sebagai alternatif.');
       window.print();
     }
   };
@@ -122,12 +126,8 @@ export default function InvoicePreviewPage() {
     );
   }
 
-  const contractVal = item.contractValue ?? 0;
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
-  const discountPercent = item.discountPercent ?? 0;
-  const pph = item.pph ?? 0;
-  const previousPayment = item.previousPayment ?? 0;
   const bankAccounts = item.bankAccounts ?? [];
 
   return (
@@ -218,6 +218,13 @@ export default function InvoicePreviewPage() {
       `,
         }}
       />
+
+      {!profile && (
+        <div className="print-hide rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          Profil perusahaan belum tersedia dari backend. Identitas vendor tidak akan
+          dicantumkan pada invoice ini.
+        </div>
+      )}
 
       {/* PDF Viewport Container */}
       <div className="space-y-0">
@@ -338,29 +345,25 @@ export default function InvoicePreviewPage() {
               </div>
             </div>
 
-            {/* Middle 3-Column Amount Info Card */}
+            {/* Invoice and contract amounts are separate values in the backend contract. */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                <div>
-                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">
-                    Contract Amount
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">
-                    {formatRupiahWithSpace(contractVal)}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">
-                    Previous Payment
-                  </span>
-                  <p className="text-base sm:text-lg font-bold text-[#0066ff]">{formatRupiahWithSpace(previousPayment)}</p>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {item.contractValue !== undefined && (
+                  <div>
+                    <span className="text-xs font-semibold text-slate-400 block mb-0.5">
+                      Contract Amount
+                    </span>
+                    <p className="text-base sm:text-lg font-bold text-[#0066ff]">
+                      {formatRupiahWithSpace(item.contractValue)}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <span className="text-xs font-semibold text-slate-400 block mb-0.5">
                     Invoice This Period
                   </span>
                   <p className="text-base sm:text-lg font-bold text-[#0066ff]">
-                    {formatRupiahWithSpace(contractVal)}
+                    {formatRupiahWithSpace(item.totalCost)}
                   </p>
                 </div>
               </div>
@@ -425,25 +428,35 @@ export default function InvoicePreviewPage() {
                   <span>Sub Total</span>
                   <span className="font-bold text-slate-800">{formatRupiahWithSpace(subTotal)}</span>
                 </div>
-                <div className="flex justify-between items-center text-slate-600 font-medium">
-                  <span>Diskon</span>
-                  <span className="font-bold text-slate-800">{discountPercent}%</span>
-                </div>
-                <div className="flex justify-between items-center text-slate-600 font-medium">
-                  <span>PPH</span>
-                  <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
-                </div>
+                {item.discountPercent !== undefined && (
+                  <div className="flex justify-between items-center text-slate-600 font-medium">
+                    <span>Diskon</span>
+                    <span className="font-bold text-slate-800">{item.discountPercent}%</span>
+                  </div>
+                )}
+                {item.pph !== undefined && (
+                  <div className="flex justify-between items-center text-slate-600 font-medium">
+                    <span>PPH</span>
+                    <span className="font-bold text-slate-800">
+                      {formatRupiahWithSpace(item.pph)}
+                    </span>
+                  </div>
+                )}
 
                 <div className="border-b border-slate-200 pt-1" />
 
-                <div className="flex justify-between items-center text-slate-800 font-bold pt-0.5">
-                  <span>Contract Amount</span>
-                  <span>{formatRupiahWithSpace(contractVal)}</span>
-                </div>
-                <div className="flex justify-between items-center text-slate-400 font-medium">
-                  <span>Previous Payment</span>
-                  <span>- {formatRupiahWithSpace(previousPayment)}</span>
-                </div>
+                {item.contractValue !== undefined && (
+                  <div className="flex justify-between items-center text-slate-800 font-bold pt-0.5">
+                    <span>Contract Amount</span>
+                    <span>{formatRupiahWithSpace(item.contractValue)}</span>
+                  </div>
+                )}
+                {item.previousPayment !== undefined && (
+                  <div className="flex justify-between items-center text-slate-400 font-medium">
+                    <span>Previous Payment</span>
+                    <span>- {formatRupiahWithSpace(item.previousPayment)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Highlighted Light Orange Box */}
@@ -455,101 +468,94 @@ export default function InvoicePreviewPage() {
                   <span className="text-[11px] text-orange-400 font-normal">For This Period</span>
                 </div>
                 <span className="text-base sm:text-lg font-bold text-orange-600">
-                  {formatRupiahWithSpace(contractVal)}
+                  {formatRupiahWithSpace(item.totalCost)}
                 </span>
               </div>
             </div>
 
-            {/* Term of Condition Card */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2 text-xs">
-              <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
-                TERM OF CONDITION
-              </h4>
-              <div className="text-slate-600 space-y-1.5 leading-relaxed text-[11px]">
-                <p>
-                  Invoice ini adalah <strong className="font-bold text-slate-800">Proforma Invoice</strong>{' '}
-                  atau pengajuan DP ({item.paymentTermLabel || '-'}) senilai{' '}
-                  <strong className="font-bold text-slate-800">... % dari nilai kontrak</strong> sementara.
-                  Apabila terdapat perubahan nilai kontrak saat event selesai, akan dikondisikan selanjutnya.
-                </p>
-                <p>
-                  Pengajuan Term 1 senilai ... % sudah sesuai kesepakatan antara ... dengan{' '}
-                  <strong className="font-bold text-slate-800">{profile?.name || '-'}</strong>. Pembayaran dapat
-                  dilakukan secara transfer ke rekening yang tertera dibawah.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {bankAccounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5"
-                >
-                  <span className="text-[11px] font-semibold text-blue-500 block">
-                    {account.bankName}
-                  </span>
-                  <p className="text-xs text-slate-500 font-normal">
-                    a/n <span className="font-bold text-slate-800">{account.accountHolder}</span>
-                  </p>
-                  <p className="text-xs text-slate-500 font-medium">
-                    No. Rekening: <span className="font-bold text-slate-700">{account.accountNumber}</span>
-                  </p>
+            {(item.paymentInstruction || item.notes) && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2 text-xs">
+                <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
+                  Payment Instructions
+                </h4>
+                <div className="text-slate-600 space-y-1.5 leading-relaxed text-[11px]">
+                  {item.paymentInstruction && <p>{item.paymentInstruction}</p>}
+                  {item.notes && <p>{item.notes}</p>}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {bankAccounts.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {bankAccounts.map((account) => (
+                  <div
+                    key={account.id}
+                    className="bg-white rounded-xl border border-slate-200 p-3.5 space-y-0.5"
+                  >
+                    <span className="text-[11px] font-semibold text-blue-500 block">
+                      {account.bankName}
+                    </span>
+                    <p className="text-xs text-slate-500 font-normal">
+                      a/n{' '}
+                      <span className="font-bold text-slate-800">
+                        {account.accountHolder}
+                      </span>
+                    </p>
+                    <p className="text-xs text-slate-500 font-medium">
+                      No. Rekening:{' '}
+                      <span className="font-bold text-slate-700">
+                        {account.accountNumber}
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
-                {/* 1. Name at top */}
-                <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
-
-                {/* 2. Signature Graphic / Custom Signature Image (dynamic placeholder) */}
-                <div className="h-14 flex items-center justify-center">
-                  {item.signatureUrl ? (
-                    <img
-                      src={item.signatureUrl}
-                      alt="Tanda Tangan Sales Manager"
-                      className="max-h-12 w-auto object-contain"
-                    />
-                  ) : (
-                    <svg className="w-24 h-10 text-slate-800 stroke-current fill-none" viewBox="0 0 100 40">
-                      <path
-                        d="M10,25 C25,5 35,35 45,15 C55,-5 65,30 85,20 C70,40 50,30 30,35"
-                        strokeWidth="2.5"
+              {(item.projectOfficer || item.signatureUrl) && (
+                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
+                  <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
+                  {item.signatureUrl && (
+                    <div className="h-14 flex items-center justify-center">
+                      <img
+                        src={item.signatureUrl}
+                        alt="Tanda tangan"
+                        className="max-h-12 w-auto object-contain"
+                      />
+                    </div>
+                  )}
+                  <p className="text-slate-700 font-medium text-xs">Penanggung Jawab</p>
+                </div>
+              )}
+              {profile?.instagram || profile?.tagline ? (
+                <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 flex flex-col justify-end">
+                  {profile.instagram && (
+                    <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
+                      <svg
+                        className="w-4 h-4 text-slate-800 fill-none stroke-current"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                      />
-                    </svg>
+                      >
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                      </svg>
+                      <span>{profile.instagram}</span>
+                    </div>
+                  )}
+                  {profile.tagline && (
+                    <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
+                      <svg className="w-4 h-4 text-red-600 fill-current" viewBox="0 0 24 24">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                      </svg>
+                      <span>{profile.tagline}</span>
+                    </div>
                   )}
                 </div>
-
-                {/* 3. Best Regard */}
-                <p className="text-slate-700 font-medium text-xs">Best Regard</p>
-
-                {/* 4. Horizontal Line between Best Regard and Sales Manager */}
-                <div className="border-t border-slate-300 pt-1">
-                  {/* 5. Sales Manager Title */}
-                  <p className="font-bold text-slate-800 text-xs">Sales Manager</p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 flex flex-col justify-end">
-                <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
-                  <svg className="w-4 h-4 text-slate-800 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                  </svg>
-                  <span>{profile?.instagram || '@makromedia.visual'}</span>
-                </div>
-                <div className="inline-flex items-center gap-2 text-slate-700 font-medium justify-start w-full text-xs">
-                  <svg className="w-4 h-4 text-red-600 fill-current" viewBox="0 0 24 24">
-                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                  </svg>
-                  <span>{profile?.tagline || '-'}</span>
-                </div>
-              </div>
+              ) : null}
             </div>
 
             <div className="pdf-banner-bottom w-full rounded-none overflow-hidden mt-2">

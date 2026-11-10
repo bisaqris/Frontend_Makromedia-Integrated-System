@@ -8,3 +8,13 @@ export interface FinancialDashboardSummary {
 }
 
 export type ProjectCategoryCounts = Record<ProjectCategory, number>;
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  type: 'EVENT' | 'TASK' | 'INVOICE_DUE';
+  projectId: string;
+  category?: ProjectCategory;
+}

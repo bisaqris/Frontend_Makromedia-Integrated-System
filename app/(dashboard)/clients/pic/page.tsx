@@ -7,27 +7,32 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientPIC } from '@/types/client';
+import ErrorState from '@/components/shared/ErrorState';
 
 export default function DataPicClientPage() {
   const [data, setData] = useState<ClientPIC[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('All Company');
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const loadData = useCallback(async () => {
+    setIsLoading(true);
     try {
       setData(await clientService.getPICs());
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+      showToast.error('Gagal memuat data PIC Client.');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData().catch(() => {
-      showToast.error('Gagal memuat data PIC Client.');
-    });
+    loadData();
   }, [loadData]);
 
   const companyOptions = useMemo(
@@ -128,7 +133,15 @@ export default function DataPicClientPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
+      {loadError ? (
+        <ErrorState
+          title="Gagal Memuat PIC Client"
+          message="Tidak dapat mengambil data PIC klien dari server backend. Pastikan server backend sedang aktif."
+          onRetry={loadData}
+          isRetrying={isLoading}
+        />
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         
         {/* 1. TAMPILAN DESKTOP (TABLE) */}
         <div className="hidden md:block overflow-x-auto">
@@ -295,6 +308,7 @@ export default function DataPicClientPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

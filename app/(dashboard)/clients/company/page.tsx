@@ -7,18 +7,24 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientCompany } from '@/types/client';
+import ErrorState from '@/components/shared/ErrorState';
 
 export default function ListClientCompanyPage() {
   const [data, setData] = useState<ClientCompany[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCityFilter, setSelectedCityFilter] = useState<string>('City');
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
   const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
     try {
       setData(await clientService.getCompanies());
+    } catch {
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -128,6 +134,14 @@ export default function ListClientCompanyPage() {
         </div>
       </div>
 
+      {loadError ? (
+        <ErrorState
+          title="Gagal Memuat Company Client"
+          message="Tidak dapat mengambil data perusahaan klien dari server backend. Pastikan server backend sedang aktif."
+          onRetry={loadData}
+          isRetrying={isLoading}
+        />
+      ) : (
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         
         {/* 1. TAMPILAN DESKTOP (TABLE) */}
@@ -300,6 +314,7 @@ export default function ListClientCompanyPage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

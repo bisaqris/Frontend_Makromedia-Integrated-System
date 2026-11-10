@@ -31,8 +31,20 @@ export interface ProjectCostItem {
 
 export interface ProjectLink {
   id: string;
+  projectId?: string;
+  label?: string;
   title?: string;
   url: string;
+  createdAt?: string;
+}
+
+export interface ProjectProgress {
+  id: string;
+  projectId?: string;
+  percentage: number;
+  notes?: string;
+  updatedBy?: { id?: string; name?: string };
+  createdAt?: string;
 }
 
 export interface PaymentHistoryItem {
@@ -51,12 +63,14 @@ export interface ProjectTask {
   description?: string;
   dueDate: string;
   picName: string;
+  assignedToId?: string;
+  progress?: number;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
 }
 
 export interface Project {
   id: string;
-  code: string;
+  code?: string;
   name: string;
   category?: ProjectCategory;
   clientId: string;
@@ -79,8 +93,11 @@ export interface Project {
   totalCost?: number;
   deliverablesLink?: string;
   additionalLinks?: ProjectLink[];
+  progressHistory?: ProjectProgress[];
   generalBrief?: string;
   costItems?: ProjectCostItem[];
+  quotationItems?: ProjectCostItem[];
+  invoiceItems?: ProjectCostItem[];
   paymentHistory?: PaymentHistoryItem[];
   tasks?: ProjectTask[];
   description?: string;

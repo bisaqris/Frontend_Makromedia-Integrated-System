@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Eye, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
+import { showToast } from '@/components/ui/Toast';
+import ErrorState from '@/components/shared/ErrorState';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -28,25 +30,28 @@ const getApplicationDetailUrl = (
 
 export default function ApplicationCostPage() {
   const [items, setItems] = useState<ApplicationCostItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<boolean>(false);
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    applicationCostService
-      .getAll()
-      .then((data) => {
-        if (isMounted) setItems(data);
-      })
-      .catch(() => {
-        if (isMounted) setItems([]);
-      });
-
-    return () => {
-      isMounted = false;
-    };
+  const loadData = React.useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(false);
+    try {
+      const data = await applicationCostService.getAll();
+      setItems(data);
+    } catch {
+      setLoadError(true);
+      showToast.error('Gagal memuat daftar dokumen. Periksa akses dan koneksi backend.');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const totalData = items.length;
   const totalPages = Math.max(1, Math.ceil(totalData / dataPerPage));
@@ -64,30 +69,42 @@ export default function ApplicationCostPage() {
   };
 
   const renderStatusBadge = (status: ApplicationCostStatus) => {
-    if (status === 'Revise') {
+    const label =
+      status === 'Revise' ? 'Revise' :
+      status === 'Pending' ? 'Pending' :
+      status === 'Approved' ? 'Approved' :
+      status;
+    if (status === 'Revise' || status === 'REJECTED' || status === 'OVERDUE') {
       return (
         <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-orange-50/80 text-orange-500 border border-orange-100/60">
-          Revise
+          {label}
         </span>
       );
     }
-    if (status === 'Pending') {
+    if (status === 'Pending' || status === 'DRAFT' || status === 'SENT') {
       return (
         <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-amber-50/80 text-amber-600 border border-amber-100/60">
-          Pending
+          {label}
         </span>
       );
     }
-    // Approved
     return (
       <span className="inline-block px-3.5 py-0.5 rounded-full text-[11px] sm:text-xs font-bold bg-emerald-50/80 text-emerald-600 border border-emerald-100/60">
-        Approved
+        {label}
       </span>
     );
   };
 
   return (
     <div className="pb-12">
+      {loadError ? (
+        <ErrorState
+          title="Gagal Memuat Dokumen Application Cost"
+          message="Tidak dapat mengambil daftar dokumen pengajuan dari server backend. Pastikan server backend sedang aktif."
+          onRetry={loadData}
+          isRetrying={isLoading}
+        />
+      ) : (
       <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-8 shadow-2xs space-y-6">
         
         {/* 1. TAMPILAN DESKTOP (TABLE) */}
@@ -216,6 +233,7 @@ export default function ApplicationCostPage() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }

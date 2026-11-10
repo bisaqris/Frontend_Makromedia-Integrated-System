@@ -9,7 +9,7 @@ import { PaymentHistoryItem } from '@/types/project';
 interface AddPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: Omit<PaymentHistoryItem, 'id'>) => void;
+  onSave: (item: Omit<PaymentHistoryItem, 'id'>) => void | Promise<void>;
   editItem?: PaymentHistoryItem;
 }
 
@@ -29,10 +29,15 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
   const [fromAccount, setFromAccount] = useState(editItem ? editItem.fromAccount : '');
   const [notes, setNotes] = useState(editItem ? editItem.notes : '');
 
+  const [dateError, setDateError] = useState('');
+  const [amountError, setAmountError] = useState('');
+
   if (isOpen !== prevIsOpen || editItem !== prevEditItem) {
     setPrevIsOpen(isOpen);
     setPrevEditItem(editItem);
     if (isOpen) {
+      setDateError('');
+      setAmountError('');
       if (editItem) {
         setDate(editItem.date || '');
         setAmount(editItem.amount !== undefined ? String(editItem.amount) : '');
@@ -51,17 +56,32 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
     }
   }
 
-  const handleSubmit = () => {
-    if (!date || !amount) return;
-    onSave({
-      date,
-      amount: Number(amount) || 0,
-      paymentMethod,
-      toAccount,
-      fromAccount,
-      notes,
-    });
-    onClose();
+  const handleSubmit = async () => {
+    let hasError = false;
+    if (!date) {
+      setDateError('Tanggal pembayaran wajib dipilih.');
+      hasError = true;
+    }
+    if (!amount || Number(amount) <= 0) {
+      setAmountError('Nominal pembayaran harus lebih besar dari 0.');
+      hasError = true;
+    }
+
+    if (hasError) return;
+
+    try {
+      await onSave({
+        date,
+        amount: Number(amount) || 0,
+        paymentMethod,
+        toAccount,
+        fromAccount,
+        notes,
+      });
+      onClose();
+    } catch {
+      // The caller reports the API error; keep the entered values available for retry.
+    }
   };
 
   return (
@@ -76,50 +96,64 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
           label="Tanggal"
           type="date"
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(e) => {
+            setDate(e.target.value);
+            if (dateError) setDateError('');
+          }}
+          error={dateError}
           required
         />
         <Input
           label="Nominal (Rp)"
           type="number"
           value={amount}
-          onChange={(e) => setAmount(e.target.value)}
+          onChange={(e) => {
+            setAmount(e.target.value);
+            if (amountError) setAmountError('');
+          }}
+          error={amountError}
           required
+          min={1}
         />
         <Input
           label="Metode Pembayaran"
-          placeholder="Bank Transfer"
+          placeholder="Bank Transfer / Cash"
           value={paymentMethod}
           onChange={(e) => setPaymentMethod(e.target.value)}
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Ke Rekening"
-            placeholder="BCA 123... (Makromedia)"
-            value={toAccount}
-            onChange={(e) => setToAccount(e.target.value)}
-          />
-          <Input
-            label="Dari Rekening"
-            placeholder="Mandiri 888... (Client)"
+            label="Rekening Pengirim"
+            placeholder="BCA 123xxx - PT Client"
             value={fromAccount}
             onChange={(e) => setFromAccount(e.target.value)}
           />
+          <Input
+            label="Rekening Penerima"
+            placeholder="Mandiri 456xxx - Makromedia"
+            value={toAccount}
+            onChange={(e) => setToAccount(e.target.value)}
+          />
         </div>
-        <Input
-          label="Catatan / Berita"
-          placeholder="misal: DP 70%"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </div>
-      <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-        <Button variant="outline" onClick={onClose}>
-          Batal
-        </Button>
-        <Button variant="primary" onClick={handleSubmit}>
-          Simpan
-        </Button>
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">Catatan</label>
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Catatan tambahan (Termin 1 / DP 50%)..."
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 transition-all duration-150 focus:border-primary focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Batal
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSubmit}>
+            {editItem ? 'Simpan Perubahan' : 'Catat Pembayaran'}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

@@ -10,7 +10,7 @@ import { ProjectCostItem } from '@/types/project';
 interface AddCostItemModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (item: Omit<ProjectCostItem, 'id' | 'projectId'>) => void;
+  onSave: (item: Omit<ProjectCostItem, 'id' | 'projectId'>) => void | Promise<void>;
   existingCategories: string[];
   editItem?: ProjectCostItem;
 }
@@ -37,11 +37,14 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   const [freq, setFreq] = useState(editItem && editItem.freq !== undefined ? String(editItem.freq) : '1');
   const [period, setPeriod] = useState(editItem ? editItem.period || '' : '');
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   // Reset/sync form values when modal opens or editItem changes during render
   if (isOpen !== prevIsOpen || editItem !== prevEditItem) {
     setPrevIsOpen(isOpen);
     setPrevEditItem(editItem);
     if (isOpen) {
+      setErrors({});
       if (editItem) {
         setCategory(editItem.category || '');
         setCustomCategory('');
@@ -79,21 +82,44 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   const formatRupiah = (val: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
-  const handleSubmit = () => {
-    const finalCategory = category === NEW_CATEGORY_VALUE ? customCategory : category;
-    if (!finalCategory || !description) return;
-    onSave({
-      category: finalCategory,
-      description,
-      executor,
-      unitCost: Number(unitCost) || 0,
-      quantity: Number(quantity) || 0,
-      unit,
-      freq: Number(freq) || 1,
-      period,
-      totalCost: subTotal,
-    });
-    onClose();
+  const handleSubmit = async () => {
+    const finalCategory = category === NEW_CATEGORY_VALUE ? customCategory.trim() : category.trim();
+    const newErrors: Record<string, string> = {};
+
+    if (!finalCategory) {
+      newErrors.category = 'Kategori wajib dipilih atau diisi.';
+    }
+    if (!description.trim()) {
+      newErrors.description = 'Deskripsi item biaya wajib diisi.';
+    }
+    if (unitCost === '' || Number(unitCost) < 0) {
+      newErrors.unitCost = 'Biaya satuan tidak boleh negatif.';
+    }
+    if (Number(quantity) <= 0) {
+      newErrors.quantity = 'Jumlah minimal 1.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    try {
+      await onSave({
+        category: finalCategory,
+        description: description.trim(),
+        executor: executor.trim(),
+        unitCost: Number(unitCost) || 0,
+        quantity: Number(quantity) || 1,
+        unit: unit.trim(),
+        freq: Number(freq) || 1,
+        period: period.trim(),
+        totalCost: subTotal,
+      });
+      onClose();
+    } catch {
+      // The caller reports the API error; keep the entered values available for retry.
+    }
   };
 
   const modalTitle = editItem ? 'Edit Item Production Cost' : 'Tambah Item Production Cost';
@@ -104,74 +130,104 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
         <Select
           label="Kategori"
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setErrors((prev) => ({ ...prev, category: '' }));
+          }}
           options={categoryOptions}
+          error={errors.category}
         />
         {category === NEW_CATEGORY_VALUE && (
           <Input
             label="Nama Kategori Baru"
             placeholder="misal: Konsumsi"
             value={customCategory}
-            onChange={(e) => setCustomCategory(e.target.value)}
+            onChange={(e) => {
+              setCustomCategory(e.target.value);
+              setErrors((prev) => ({ ...prev, category: '' }));
+            }}
+            error={errors.category}
+            required
           />
         )}
         <Input
-          label="Nama Item / Jenis Pekerjaan"
-          placeholder="misal: Honor Kameramen"
+          label="Deskripsi"
+          placeholder="misal: Rental Sound System 5000W"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            setErrors((prev) => ({ ...prev, description: '' }));
+          }}
+          error={errors.description}
           required
         />
         <Input
-          label="Nama Pelaksana / Toko"
-          placeholder="misal: Rian Hidayat"
+          label="Pelaksana / Vendor"
+          placeholder="misal: Vendor Audio Malang"
           value={executor}
           onChange={(e) => setExecutor(e.target.value)}
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Harga Satuan (Rp)"
+            label="Biaya Satuan (Rp)"
             type="number"
             value={unitCost}
-            onChange={(e) => setUnitCost(e.target.value)}
+            onChange={(e) => {
+              setUnitCost(e.target.value);
+              setErrors((prev) => ({ ...prev, unitCost: '' }));
+            }}
+            error={errors.unitCost}
+            required
+            min={0}
           />
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Jumlah"
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-            />
-            <Input
-              label="Satuan"
-              placeholder="Orang/Set"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Freq"
+            label="Jumlah (Qty)"
+            type="number"
+            value={quantity}
+            onChange={(e) => {
+              setQuantity(e.target.value);
+              setErrors((prev) => ({ ...prev, quantity: '' }));
+            }}
+            error={errors.quantity}
+            required
+            min={1}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Input
+            label="Satuan"
+            placeholder="unit / hari / pax"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+          />
+          <Input
+            label="Frekuensi"
             type="number"
             value={freq}
             onChange={(e) => setFreq(e.target.value)}
+            min={1}
           />
           <Input
             label="Periode"
-            placeholder="Event/Package"
+            placeholder="hari / event"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
           />
         </div>
-        <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500">Sub Total</span>
-          <span className="text-sm font-bold text-slate-900">{formatRupiah(subTotal)}</span>
+
+        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+          <span className="text-xs text-slate-500 font-medium">Subtotal Estimasi:</span>
+          <span className="text-sm font-bold text-slate-800">{formatRupiah(subTotal)}</span>
         </div>
-      </div>
-      <div className="mt-6 flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-        <Button variant="outline" onClick={onClose}>Batal</Button>
-        <Button variant="primary" onClick={handleSubmit}>Simpan</Button>
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Batal
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSubmit}>
+            {editItem ? 'Simpan Perubahan' : 'Tambah Item'}
+          </Button>
+        </div>
       </div>
     </Modal>
   );

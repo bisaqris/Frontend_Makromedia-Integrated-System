@@ -6,6 +6,8 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
+import { useAuth } from '@/context/AuthContext';
+import { USE_MOCK } from '@/lib/services/mockFlag';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -14,6 +16,8 @@ const formatRupiahWithSpace = (val: number) => {
 export default function ProductionCostDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { role } = useAuth();
+  const canApproveCost = USE_MOCK || role === 'DIREKTUR';
 
   const id = params?.id as string;
 
@@ -25,7 +29,7 @@ export default function ProductionCostDetailPage() {
     let isMounted = true;
 
     applicationCostService
-      .getById(id)
+      .getById(id, 'Production Cost')
       .then((record) => {
         if (!isMounted) return;
         setItem(record);
@@ -49,7 +53,7 @@ export default function ProductionCostDetailPage() {
     tone: 'success' | 'info'
   ) => {
     try {
-      await applicationCostService.update(id, { status, notes });
+      await applicationCostService.updateStatus(id, 'Production Cost', status, notes);
       showToast[tone](message);
       router.push('/application-cost');
     } catch {
@@ -58,10 +62,10 @@ export default function ProductionCostDetailPage() {
   };
 
   const handleApprove = () =>
-    handleStatusUpdate('Approved', `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) berhasil disetujui!`, 'success');
+    handleStatusUpdate('APPROVED', `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) berhasil disetujui!`, 'success');
 
   const handleRevise = () =>
-    handleStatusUpdate('Revise', `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) diminta untuk direvisi.`, 'info');
+    handleStatusUpdate('REJECTED', `Pengajuan Biaya Produksi (${item?.projectName ?? ''}) ditolak.`, 'info');
 
   const handleCancel = () => {
     router.push('/application-cost');
@@ -268,36 +272,40 @@ export default function ProductionCostDetailPage() {
 
       {/* Action Buttons Row (Cancel, Revise, Approve) WITHOUT Preview Button */}
       <div className="flex items-center justify-between pt-4">
-        <Button
-          type="button"
-          variant="outline"
-          size="md"
-          className="min-w-[130px] sm:min-w-[150px] px-8 border-slate-300 text-slate-700 font-semibold rounded-xl"
-          onClick={handleCancel}
-        >
-          Cancel
-        </Button>
+        {canApproveCost && (item.status === 'PENDING' || item.status === 'Pending') && (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              className="min-w-[130px] sm:min-w-[150px] px-8 border-slate-300 text-slate-700 font-semibold rounded-xl"
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
 
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
-            onClick={handleRevise}
-          >
-            Revise
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
-            onClick={handleApprove}
-          >
-            Approve
-          </Button>
-        </div>
+            <div className="flex items-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
+                onClick={handleRevise}
+              >
+                Reject
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
+                onClick={handleApprove}
+              >
+                Approve
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

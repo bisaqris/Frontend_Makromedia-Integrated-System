@@ -53,9 +53,11 @@ function LoginFormContent() {
     setIsSubmitting(true);
     try {
       const response = await apiClient.post('/auth/login', data);
-      const { token, user } = response.data;
+      const token = response.data.accessToken || response.data.token;
+      const refreshToken = response.data.refreshToken;
+      const user = response.data.user;
 
-      login(token, user);
+      login(token, user, refreshToken);
       showToast.success(`Selamat datang kembali, ${user.name || 'User'}!`);
       router.push(redirectPath);
     } catch {
@@ -93,12 +95,30 @@ function LoginFormContent() {
     }
   };
 
-  const handleQuickDemoLogin = (role: Role) => {
-    const mockToken = `mock-jwt-token-${role.toLowerCase()}-demo`;
-    const mockUser = mockUserByRole[role];
-    login(mockToken, mockUser);
-    showToast.success(`Masuk sebagai ${mockUser.name} (${role})`);
-    router.push(redirectPath);
+  const handleQuickDemoLogin = async (role: Role) => {
+    const demoEmail = `${role === 'PROJECT_MANAGER' ? 'pm' : role.toLowerCase()}@makromedia.id`;
+    const demoPassword = 'Password123!';
+    setValue('email', demoEmail);
+    setValue('password', demoPassword);
+
+    try {
+      const response = await apiClient.post('/auth/login', {
+        email: demoEmail,
+        password: demoPassword,
+      });
+      const token = response.data.accessToken || response.data.token;
+      const refreshToken = response.data.refreshToken;
+      const user = response.data.user;
+      login(token, user, refreshToken);
+      showToast.success(`Masuk sebagai ${user.name || role} (${role})`);
+      router.push(redirectPath);
+    } catch {
+      const mockToken = `mock-jwt-token-${role.toLowerCase()}-demo`;
+      const mockUser = mockUserByRole[role];
+      login(mockToken, mockUser);
+      showToast.success(`Masuk sebagai ${mockUser.name} (${role})`);
+      router.push(redirectPath);
+    }
   };
 
   return (
@@ -131,7 +151,7 @@ function LoginFormContent() {
               id="password"
               type={showPassword ? 'text' : 'password'}
               placeholder=" "
-              className="peer w-full bg-transparent border-b border-white/60 focus:border-white text-white py-2 px-0 pr-10 text-2xl focus:outline-none transition-colors"
+              className="peer w-full bg-transparent border-b border-white/60 focus:border-white text-white py-2 px-0 text-2xl focus:outline-none transition-colors pr-10"
               {...register('password')}
             />
             <label
@@ -143,28 +163,19 @@ function LoginFormContent() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-1 focus:outline-none cursor-pointer"
-              tabIndex={-1}
+              className="absolute right-0 top-3 text-white/60 hover:text-white transition-colors cursor-pointer"
+              aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
           {errors.password && (
             <p className="text-sm text-red-200 font-medium mt-1.5">{errors.password.message}</p>
           )}
-
-          <div className="text-right mt-3">
-            <a
-              href="#forgot-password"
-              onClick={(e) => {
-                e.preventDefault();
-                showToast.info('Silakan hubungi administrator IT untuk mereset kata sandi Anda.');
-              }}
-              className="text-md text-white/80 hover:text-white font-medium transition-colors inline-block"
-            >
-              Forgot Password?
-            </a>
-          </div>
         </div>
 
         <div className="pt-8">
@@ -190,62 +201,42 @@ function LoginFormContent() {
           <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wider text-center mb-3">
             Quick Demo Login (Role Tester)
           </p>
-        <div className="flex flex-wrap gap-2 justify-center text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              setValue('email', mockUserByRole.DIREKTUR.email);
-              setValue('password', 'password123');
-              handleQuickDemoLogin('DIREKTUR');
-            }}
-            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
-          >
-            Direktur
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setValue('email', mockUserByRole.FINANCE.email);
-              setValue('password', 'password123');
-              handleQuickDemoLogin('FINANCE');
-            }}
-            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
-          >
-            Finance
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setValue('email', mockUserByRole.SALES.email);
-              setValue('password', 'password123');
-              handleQuickDemoLogin('SALES');
-            }}
-            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
-          >
-            Sales
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setValue('email', mockUserByRole.PROJECT_MANAGER.email);
-              setValue('password', 'password123');
-              handleQuickDemoLogin('PROJECT_MANAGER');
-            }}
-            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
-          >
-            PM
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setValue('email', mockUserByRole.PRODUKSI.email);
-              setValue('password', 'password123');
-              handleQuickDemoLogin('PRODUKSI');
-            }}
-            className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium"
-          >
-            Produksi
-          </button>
+          <div className="flex flex-wrap gap-2 justify-center text-xs">
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('DIREKTUR')}
+              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
+            >
+              Direktur
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('FINANCE')}
+              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
+            >
+              Finance
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('SALES')}
+              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
+            >
+              Sales
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('PROJECT_MANAGER')}
+              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
+            >
+              PM
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('PRODUKSI')}
+              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
+            >
+              Produksi
+            </button>
           </div>
         </div>
       )}
