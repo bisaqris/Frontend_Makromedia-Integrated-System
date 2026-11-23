@@ -52,7 +52,7 @@ export const OfflineBanner: React.FC = () => {
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <AlertTriangle className="w-4 h-4 shrink-0 text-amber-100" />
         <span className="truncate">
-          <strong>Koneksi Backend Terputus:</strong> Server backend (http://localhost:4000/api) sedang tidak aktif atau tidak dapat dijangkau.
+          <strong>Koneksi Backend Terputus:</strong> Server backend ({process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}) sedang tidak aktif atau tidak dapat dijangkau.
         </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
