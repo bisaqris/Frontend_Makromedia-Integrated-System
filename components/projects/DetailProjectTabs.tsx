@@ -50,29 +50,31 @@ const formatRupiahWithSpace = (val: number) => {
 
 const formatDateID = (dateStr?: string) => {
   if (!dateStr) return '-';
-  const parts = dateStr.split('-');
+  const cleanStr = String(dateStr).trim();
+  const dateOnly = cleanStr.includes('T') ? cleanStr.split('T')[0] : cleanStr;
+  const parts = dateOnly.split('-');
   if (parts.length === 3) {
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
     if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
       const date = new Date(year, month, day);
-      return date.toLocaleDateString('en-GB', {
+      return date.toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
       });
     }
   }
-  const parsed = new Date(dateStr);
+  const parsed = new Date(cleanStr);
   if (!isNaN(parsed.getTime())) {
-    return parsed.toLocaleDateString('en-GB', {
+    return parsed.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
   }
-  return dateStr;
+  return cleanStr;
 };
 
 const formatEventDate = (start?: string, end?: string) => {

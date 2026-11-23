@@ -7,6 +7,7 @@ import { applicationCostService } from '@/lib/services/applicationCostService';
 import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
 import { showToast } from '@/components/ui/Toast';
 import ErrorState from '@/components/shared/ErrorState';
+import { formatDateID } from '@/lib/utils';
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -128,7 +129,7 @@ export default function ApplicationCostPage() {
                 >
                   <td className="py-6 px-6 font-medium text-slate-800 text-left">{item.projectName}</td>
                   <td className="py-6 px-6 text-slate-700 text-center font-normal">{item.applicationDocument}</td>
-                  <td className="py-6 px-6 text-slate-700 text-center font-normal">{item.applicationDate}</td>
+                  <td className="py-6 px-6 text-slate-700 text-center font-normal">{formatDateID(item.applicationDate)}</td>
                   <td className="py-6 px-6 text-slate-800 text-center font-medium whitespace-nowrap">
                     {formatRupiahWithSpace(item.totalCost)}
                   </td>
@@ -164,7 +165,7 @@ export default function ApplicationCostPage() {
 
               <div className="flex flex-col gap-1 text-xs text-slate-500">
                 <span className="font-medium text-slate-700">{item.applicationDocument}</span>
-                <span>Date: {item.applicationDate}</span>
+                <span>Date: {formatDateID(item.applicationDate)}</span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-50">

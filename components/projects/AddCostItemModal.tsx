@@ -6,6 +6,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { ProjectCostItem } from '@/types/project';
+import { formatNominal } from '@/lib/utils';
 
 interface AddCostItemModalProps {
   isOpen: boolean;
@@ -170,15 +171,16 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <Input
             label="Biaya Satuan (Rp)"
-            type="number"
-            value={unitCost}
+            type="text"
+            placeholder="0"
+            value={formatNominal(unitCost)}
             onChange={(e) => {
-              setUnitCost(e.target.value);
+              const raw = e.target.value.replace(/\D/g, '');
+              setUnitCost(raw);
               setErrors((prev) => ({ ...prev, unitCost: '' }));
             }}
             error={errors.unitCost}
             required
-            min={0}
           />
           <Input
             label="Jumlah (Qty)"

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Printer } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
+import { formatDateID } from '@/lib/utils';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { companyService } from '@/lib/services/companyService';
 import { useAuth } from '@/context/AuthContext';
@@ -318,10 +319,15 @@ export default function QuotationApprovalDetailPage() {
         <label className="block text-xs font-semibold text-slate-700">Notes</label>
         <textarea
           rows={3}
-          placeholder="Notes approval..."
+          placeholder={item.status === 'APPROVED' || item.status === 'REJECTED' ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full border border-slate-200 rounded-xl p-4 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary transition-colors resize-none"
+          disabled={item.status === 'APPROVED' || item.status === 'REJECTED'}
+          className={`w-full border rounded-xl p-4 text-xs sm:text-sm resize-none transition-colors ${
+            item.status === 'APPROVED' || item.status === 'REJECTED'
+              ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
+              : 'border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary'
+          }`}
         />
       </div>
 
@@ -418,7 +424,7 @@ export default function QuotationApprovalDetailPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-bold text-orange-500">{item.documentNumber || '-'}</p>
-                  <p className="text-xs text-slate-400">Date: {item.releaseDate || '-'}</p>
+                  <p className="text-xs text-slate-400">Date: {formatDateID(item.releaseDate)}</p>
                 </div>
               </div>
 

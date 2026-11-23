@@ -346,8 +346,13 @@ export default function InvoiceDetailPage() {
           id="invoice-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notes approval..."
-          className="w-full min-h-[100px] bg-white border border-slate-200 rounded-xl p-3.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary transition-colors resize-y"
+          placeholder={item.status === 'PAID' ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
+          disabled={item.status === 'PAID'}
+          className={`w-full min-h-[100px] border rounded-xl p-3.5 text-xs sm:text-sm resize-y transition-colors ${
+            item.status === 'PAID'
+              ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
+              : 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary'
+          }`}
         />
       </div>
 

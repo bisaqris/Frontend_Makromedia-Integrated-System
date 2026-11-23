@@ -112,6 +112,8 @@ export const userService = {
       if (data.bankName !== undefined) payload.bankName = data.bankName;
       if (data.accountNumber !== undefined) payload.bankAccountNo = data.accountNumber;
       if (data.accountHolder !== undefined) payload.accountHolder = data.accountHolder;
+      if (data.positionId !== undefined) payload.positionId = data.positionId;
+      if (data.skillIds !== undefined) payload.skillIds = data.skillIds;
 
       const response = await apiClient.patch<BackendUserProfile>('/auth/me', payload);
       const base = getProfileStore();
@@ -132,23 +134,12 @@ export const userService = {
     if (USE_MOCK) return cloneMock(mockUsers.filter((u) => u.role === 'PROJECT_MANAGER'));
 
     try {
-      const response = await apiClient.get<User[]>('/users/project-managers');
-      if (Array.isArray(response.data)) {
-        return response.data;
-      }
-    } catch {
-      // ignore
-    }
-
-    try {
       const response = await apiClient.get<User[]>('/users');
       const list = Array.isArray(response.data) ? response.data : [];
       const pms = list.filter((u) => u.role === 'PROJECT_MANAGER');
-      if (pms.length > 0) return pms;
+      return pms;
     } catch {
-      // ignore
+      return [];
     }
-
-    return [];
   },
 };

@@ -36,7 +36,24 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   const { toggleSidebar } = useSidebar(); // 2. Ambil fungsi toggleSidebar dari context
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [avatar, setAvatar] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateAvatar = () => {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('makromedia_user_avatar') : null;
+      setAvatar(user?.avatarUrl || stored || null);
+    };
+    updateAvatar();
+    window.addEventListener('storage', updateAvatar);
+    window.addEventListener('makromedia:avatar-updated', updateAvatar);
+    return () => {
+      window.removeEventListener('storage', updateAvatar);
+      window.removeEventListener('makromedia:avatar-updated', updateAvatar);
+    };
+  }, [user?.avatarUrl]);
+
+  const currentAvatar = user?.avatarUrl || avatar;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -131,8 +148,8 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
             className="flex items-center gap-2 sm:gap-3 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100/80 transition-colors focus:outline-hidden cursor-pointer"
           >
             <div className="w-8 h-8 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden shrink-0">
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+              {currentAvatar ? (
+                <img src={currentAvatar} alt={user?.name || 'User'} className="w-full h-full object-cover" />
               ) : (
                 user?.name?.charAt(0).toUpperCase() || 'U'
               )}

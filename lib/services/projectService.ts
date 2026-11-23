@@ -94,7 +94,7 @@ const categoryFromApi = (category?: string): ProjectCategory => {
     case 'FILM_PRODUCTION':
       return 'Film Production';
     case 'WEDDING':
-      return 'Wedding';
+      return 'Wedding';32
     case 'OTHER':
       return 'Content Video/Marketing';
     default:

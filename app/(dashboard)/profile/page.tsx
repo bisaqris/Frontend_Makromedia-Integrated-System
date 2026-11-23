@@ -12,6 +12,8 @@ import AddressRegionFields from '@/components/shared/AddressRegionFields';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
 import { userService } from '@/lib/services/userService';
+import { toInputDateFormat } from '@/lib/utils';
+import { Position, Skill } from '@/types/manpower';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -35,6 +37,8 @@ export default function ProfilePage() {
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
+  const [positionsList, setPositionsList] = useState<Position[]>([]);
+  const [skillsList, setSkillsList] = useState<Skill[]>([]);
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
 
   // Password Modal States
@@ -66,7 +70,7 @@ export default function ProfilePage() {
 
       setFormData({
         name: profile.name,
-        dateOfBirth: profile.dateOfBirth || '',
+        dateOfBirth: toInputDateFormat(profile.dateOfBirth),
         phone: profile.phone,
         email: profile.email,
         province: profile.province || '',
@@ -80,6 +84,8 @@ export default function ProfilePage() {
       });
       setSkills(profile.skills);
       setPhotoPreview(profile.photoUrl || '');
+      setPositionsList(positions);
+      setSkillsList(masterSkills);
       setPositionOptions(positions.map((p) => p.name));
       setSkillOptions(masterSkills.map((s) => s.name));
     };
@@ -158,6 +164,7 @@ export default function ProfilePage() {
         setPhotoPreview(dataUrl);
         if (typeof window !== 'undefined') {
           localStorage.setItem('makromedia_user_avatar', dataUrl);
+          window.dispatchEvent(new CustomEvent('makromedia:avatar-updated'));
         }
         if (updateUser) {
           updateUser({ avatarUrl: dataUrl });
@@ -173,6 +180,7 @@ export default function ProfilePage() {
     setPhotoPreview('');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('makromedia_user_avatar');
+      window.dispatchEvent(new CustomEvent('makromedia:avatar-updated'));
     }
     if (updateUser) {
       updateUser({ avatarUrl: undefined });
@@ -223,6 +231,31 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!validateProfile()) return;
     try {
+      // Cari positionId berdasarkan nama posisi yang dipilih
+      const matchedPosition = positionsList.find(
+        (p) => p.name.toLowerCase() === formData.position.trim().toLowerCase()
+      );
+      const positionId = matchedPosition?.id;
+
+      // Cari / buat skillIds
+      const skillIds: string[] = [];
+      for (const skillName of skills) {
+        let matched = skillsList.find(
+          (s) => s.name.toLowerCase() === skillName.trim().toLowerCase()
+        );
+        if (!matched && skillName.trim()) {
+          try {
+            matched = await skillService.create({ name: skillName.trim() });
+            setSkillsList((prev) => [...prev, matched!]);
+          } catch {
+            // ignore jika pembuatan skill baru gagal
+          }
+        }
+        if (matched?.id) {
+          skillIds.push(matched.id);
+        }
+      }
+
       const updated = await userService.updateProfile({
         name: formData.name.trim(),
         dateOfBirth: formData.dateOfBirth,
@@ -234,7 +267,9 @@ export default function ProfilePage() {
         village: formData.village,
         detailAddress: formData.detailAddress,
         position: formData.position,
+        positionId,
         skills,
+        skillIds,
         bankName: formData.bankName.trim(),
         accountNumber: formData.accountNumber.trim(),
         photoUrl: photoPreview,
@@ -249,6 +284,9 @@ export default function ProfilePage() {
       }
 
       showToast.success('Profil berhasil diperbarui!');
+      setTimeout(() => {
+        window.location.reload();
+      }, 700);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memperbarui profil.';
       showToast.error(msg);
@@ -280,10 +318,8 @@ export default function ProfilePage() {
       setIsPasswordModalOpen(false);
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
-      setTimeout(() => {
-        logout();
-        router.replace('/login');
-      }, 1200);
+      logout();
+      router.replace('/login');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi lama Anda.';
       showToast.error(msg);
@@ -328,13 +364,12 @@ export default function ProfilePage() {
                 Date of Birth
               </label>
               <input
-                type="text"
+                type="date"
                 id="dateOfBirth"
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-                placeholder="e.g. 10 January 2000"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
               />
             </div>
 

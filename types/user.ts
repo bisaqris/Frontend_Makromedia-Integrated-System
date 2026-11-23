@@ -29,7 +29,10 @@ export interface UserProfile extends AddressFields {
   photoUrl?: string;
 }
 
-export type UpdateUserProfileDTO = Partial<Omit<UserProfile, 'id'>>;
+export type UpdateUserProfileDTO = Partial<Omit<UserProfile, 'id'>> & {
+  positionId?: string;
+  skillIds?: string[];
+};
 
 export interface AuthResponse {
   accessToken: string;

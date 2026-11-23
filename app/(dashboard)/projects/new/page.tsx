@@ -14,6 +14,7 @@ import { ClientCompany, ClientPIC } from '@/types/client';
 import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';
 import { USE_MOCK } from '@/lib/services/mockFlag';
+import { formatDateID, formatNominal } from '@/lib/utils';
 import {
   Plus,
   Trash2,
@@ -30,22 +31,6 @@ const formatRupiah = (val: number) => {
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(val || 0);
-};
-
-const formatDateID = (dateStr?: string) => {
-  if (!dateStr) return '-';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
-  const date = new Date(year, month, day);
-  return date.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 };
 
 const CATEGORY_OPTIONS = [
@@ -129,9 +114,10 @@ export default function AddProjectPage() {
   }, []);
 
   const [projectName, setProjectName] = useState('');
-  const [eventDate, setEventDate] = useState('2026-05-04');
-  const [projectStarts, setProjectStarts] = useState('2026-04-20');
-  const [deadline, setDeadline] = useState('2026-05-15');
+  const today = new Date().toISOString().split('T')[0];
+  const [eventDate, setEventDate] = useState(today);
+  const [projectStarts, setProjectStarts] = useState(today);
+  const [deadline, setDeadline] = useState(today);
   const [venue, setVenue] = useState('');
   const [contractValue, setContractValue] = useState<string>('350000000');
 
@@ -158,6 +144,8 @@ export default function AddProjectPage() {
 
   const validateStep1 = () => {
     const errs: Record<string, string> = {};
+    const today = new Date().toISOString().split('T')[0];
+
     if (!projectName.trim()) {
       errs.projectName = 'Project Name wajib diisi.';
     } else if (projectName.trim().length < 3) {
@@ -172,8 +160,16 @@ export default function AddProjectPage() {
       errs.picId = 'Pilih PIC Client yang terhubung.';
     }
 
+    if (!eventDate) {
+      errs.eventDate = 'Event date wajib diisi.';
+    } else if (eventDate < today) {
+      errs.eventDate = 'Event date tidak boleh sebelum hari ini.';
+    }
+
     if (!projectStarts) {
       errs.projectStarts = 'Tanggal mulai proyek wajib diisi.';
+    } else if (projectStarts < today) {
+      errs.projectStarts = 'Tanggal mulai proyek tidak boleh sebelum hari ini.';
     }
 
     if (!deadline) {
@@ -302,12 +298,18 @@ export default function AddProjectPage() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   options={CATEGORY_OPTIONS}
+                  required
                 />
                 <Select
                   label="Project Manager"
                   value={pmId}
                   onChange={(e) => setPmId(e.target.value)}
-                  options={projectManagers.map((pm) => ({ value: pm.id, label: pm.name }))}
+                  options={
+                    projectManagers.length > 0
+                      ? projectManagers.map((pm) => ({ value: pm.id, label: pm.name }))
+                      : [{ value: '', label: 'Pilih Project Manager' }]
+                  }
+                  required
                 />
               </div>
             </div>
@@ -322,12 +324,14 @@ export default function AddProjectPage() {
                   value={clientType}
                   onChange={(e) => setClientType(e.target.value)}
                   options={CLIENT_TYPE_OPTIONS}
+                  required
                 />
                 <Select
                   label="Partnership Model"
                   value={partnershipModel}
                   onChange={(e) => setPartnershipModel(e.target.value)}
                   options={PARTNERSHIP_OPTIONS}
+                  required
                 />
                 <Select
                   label="Company Name"
@@ -336,20 +340,35 @@ export default function AddProjectPage() {
                   onChange={(e) => {
                     const nextCompanyId = e.target.value;
                     setCompanyId(nextCompanyId);
-                    const firstPic = pics.find((p) => p.clientId === nextCompanyId);
-                    setPicId(firstPic ? firstPic.id : '');
+                    const relatedPics = pics.filter((p) => p.clientId === nextCompanyId);
+                    setPicId(relatedPics.length > 0 ? relatedPics[0].id : (pics[0]?.id || ''));
                   }}
-                  options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                  options={
+                    companies.length > 0
+                      ? companies.map((c) => ({ value: c.id, label: c.name }))
+                      : [{ value: '', label: 'Memuat Company...' }]
+                  }
+                  required
                 />
                 <Select
                   label="PIC Client"
                   value={picId}
                   error={fieldErrors.picId}
                   onChange={(e) => setPicId(e.target.value)}
-                  options={filteredPics.map((p) => ({
-                    value: p.id,
-                    label: p.position ? `${p.name} (${p.position})` : p.name,
-                  }))}
+                  options={
+                    filteredPics.length > 0
+                      ? filteredPics.map((p) => ({
+                          value: p.id,
+                          label: p.position ? `${p.name} (${p.position})` : p.name,
+                        }))
+                      : pics.length > 0
+                        ? pics.map((p) => ({
+                            value: p.id,
+                            label: p.position ? `${p.name} (${p.position})` : p.name,
+                          }))
+                        : [{ value: '', label: 'Pilih PIC Client' }]
+                  }
+                  required
                 />
               </div>
             </div>
@@ -373,12 +392,19 @@ export default function AddProjectPage() {
                 <Input
                   label="Event Date"
                   type="date"
+                  min={today}
                   value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
+                  onChange={(e) => {
+                    setEventDate(e.target.value);
+                    if (fieldErrors.eventDate) setFieldErrors((prev) => ({ ...prev, eventDate: '' }));
+                  }}
+                  error={fieldErrors.eventDate}
+                  required
                 />
                 <Input
                   label="Project Date Starts"
                   type="date"
+                  min={today}
                   value={projectStarts}
                   onChange={(e) => {
                     setProjectStarts(e.target.value);
@@ -390,6 +416,7 @@ export default function AddProjectPage() {
                 <Input
                   label="Project Deadlines"
                   type="date"
+                  min={projectStarts || today}
                   value={deadline}
                   onChange={(e) => {
                     setDeadline(e.target.value);
@@ -404,30 +431,19 @@ export default function AddProjectPage() {
                   value={venue}
                   onChange={(e) => setVenue(e.target.value)}
                 />
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contract Value
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
-                      Rp
-                    </span>
-                    <input
-                      type="number"
-                      value={contractValue}
-                      onChange={(e) => {
-                        setContractValue(e.target.value);
-                        if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
-                      }}
-                      className={`w-full pl-9 pr-3 py-2 text-xs bg-white border rounded-xl focus:outline-hidden font-bold text-slate-800 ${
-                        fieldErrors.contractValue ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                      }`}
-                    />
-                  </div>
-                  {fieldErrors.contractValue && (
-                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.contractValue}</p>
-                  )}
-                </div>
+                <Input
+                  label="Contract Value"
+                  placeholder="0"
+                  leftIcon={<span className="text-xs font-bold text-slate-500">Rp</span>}
+                  value={formatNominal(contractValue)}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setContractValue(raw);
+                    if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
+                  }}
+                  error={fieldErrors.contractValue}
+                  required
+                />
               </div>
             </div>
 

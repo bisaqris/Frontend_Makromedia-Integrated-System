@@ -5,6 +5,7 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { ProjectCostItem } from '@/types/project';
+import { formatNominal } from '@/lib/utils';
 
 interface AddInvoiceItemModalProps {
   isOpen: boolean;
@@ -157,17 +158,16 @@ export const AddInvoiceItemModal: React.FC<AddInvoiceItemModalProps> = ({
               Harga Satuan (Rp) <span className="text-red-500">*</span>
             </label>
             <Input
-              type="number"
+              type="text"
               placeholder="0"
-              value={unitCost}
+              value={formatNominal(unitCost)}
               onChange={(e) => {
-                const val = e.target.value;
-                setUnitCost(val === '' ? '' : Number(val));
+                const raw = e.target.value.replace(/\D/g, '');
+                setUnitCost(raw === '' ? '' : Number(raw));
                 if (costError) setCostError('');
               }}
               error={costError}
               required
-              min={0}
             />
           </div>
 
