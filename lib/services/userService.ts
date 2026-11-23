@@ -3,9 +3,19 @@ import { UpdateUserProfileDTO, User, UserProfile } from '@/types/user';
 import { mockUsers, mockUserProfile } from '@/lib/mock/users.mock';
 import { cloneMock, USE_MOCK } from './mockFlag';
 
+const getStoredAvatar = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  return localStorage.getItem('makromedia_user_avatar') || undefined;
+};
+
 // Store in-memory untuk mode mock (direset saat halaman di-reload).
 let profileStore: UserProfile | null = null;
-const getProfileStore = (): UserProfile => (profileStore ??= cloneMock(mockUserProfile));
+const getProfileStore = (): UserProfile => {
+  const store = (profileStore ??= cloneMock(mockUserProfile));
+  const storedAvatar = getStoredAvatar();
+  if (storedAvatar) store.photoUrl = storedAvatar;
+  return store;
+};
 
 interface BackendUserProfile {
   id: string;
@@ -53,6 +63,7 @@ const mapBackendProfile = (api: BackendUserProfile, base: UserProfile): UserProf
   accountHolder: api.accountHolder ?? base.accountHolder,
   position: api.position?.name ?? base.position,
   skills: api.skills?.map((s) => s.skill.name) ?? base.skills,
+  photoUrl: getStoredAvatar() ?? base.photoUrl,
 });
 
 export const userService = {
@@ -72,6 +83,14 @@ export const userService = {
   },
 
   updateProfile: async (data: UpdateUserProfileDTO): Promise<UserProfile> => {
+    if (data.photoUrl !== undefined && typeof window !== 'undefined') {
+      if (data.photoUrl) {
+        localStorage.setItem('makromedia_user_avatar', data.photoUrl);
+      } else {
+        localStorage.removeItem('makromedia_user_avatar');
+      }
+    }
+
     if (USE_MOCK) {
       profileStore = mergeProfile(getProfileStore(), data);
       return cloneMock(profileStore);
