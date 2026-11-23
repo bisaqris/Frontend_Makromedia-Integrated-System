@@ -119,7 +119,6 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
           title="Notifikasi"
         >
           <Bell className="w-4.5 h-4.5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
         </button>
 
         <div className="h-4 w-px bg-slate-200" />
