@@ -1,6 +1,20 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { getToken, getRefreshToken, setToken, setRefreshToken, setUser, clearAuth } from './auth';
 
+interface ApiEnvelope {
+  statusCode: number;
+  message: string;
+  data: unknown;
+  meta?: unknown;
+}
+
+const isApiEnvelope = (value: unknown): value is ApiEnvelope =>
+  typeof value === 'object' &&
+  value !== null &&
+  'statusCode' in value &&
+  'message' in value &&
+  'data' in value;
+
 const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 
 export const apiClient = axios.create({
