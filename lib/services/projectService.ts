@@ -253,7 +253,10 @@ const projectToApi = (project: Partial<Project>, includeStatus = true) => ({
   ...((project.picClientId || project.clientId) && {
     clientId: project.picClientId || project.clientId,
   }),
-  ...(project.projectManagerId && { projectManagerId: project.projectManagerId }),
+  ...(project.projectManagerId &&
+    /^[0-9a-fA-F-]{36}$/.test(project.projectManagerId) && {
+      projectManagerId: project.projectManagerId,
+    }),
   ...(project.clientType && { clientType: project.clientType }),
   ...(project.partnershipModel && { partnershipModel: project.partnershipModel }),
   ...(project.category && { category: categoryToApi(project.category) }),
@@ -390,7 +393,19 @@ export const projectService = {
       '/projects',
       projectToApi(projectData, false)
     );
-    return mapBackendProject(response.data);
+    const created = response.data;
+    if (projectData.status && projectData.status !== 'DRAFT') {
+      try {
+        const patchRes = await apiClient.patch<BackendProject>(
+          `/projects/${created.id}`,
+          { status: statusToApi(projectData.status) }
+        );
+        return mapBackendProject(patchRes.data);
+      } catch {
+        // Fallback jika patch status gagal, tetap kembalikan project yang sudah dibuat
+      }
+    }
+    return mapBackendProject(created);
   },
 
   updateProject: async (id: string, projectData: Partial<Project>): Promise<Project> => {

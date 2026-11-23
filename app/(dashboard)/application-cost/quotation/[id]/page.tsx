@@ -66,8 +66,11 @@ export default function QuotationApprovalDetailPage() {
       await applicationCostService.updateStatus(id, 'Quotation', status, notes);
       showToast[tone](message);
       router.push('/application-cost');
-    } catch {
-      showToast.error('Gagal memperbarui status pengajuan.');
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || 'Gagal memperbarui status pengajuan.';
+      showToast.error(msg);
     }
   };
 

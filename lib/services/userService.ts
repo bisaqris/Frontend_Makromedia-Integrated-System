@@ -99,6 +99,7 @@ export const userService = {
     try {
       const payload: Record<string, unknown> = {};
       if (data.name !== undefined) payload.name = data.name;
+      if (data.email !== undefined) payload.email = data.email;
       if (data.phone !== undefined) payload.phone = data.phone;
       if (data.dateOfBirth !== undefined) payload.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : undefined;
       if (data.country !== undefined) payload.country = data.country;
@@ -116,9 +117,8 @@ export const userService = {
       const base = getProfileStore();
       profileStore = mapBackendProfile(response.data, base);
       return cloneMock(profileStore);
-    } catch {
-      profileStore = mergeProfile(getProfileStore(), data);
-      return cloneMock(profileStore);
+    } catch (err) {
+      throw err;
     }
   },
 

@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronDown, X, Search, Check, Lock, Eye, EyeOff, Camera, Upload, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
@@ -12,6 +14,8 @@ import { skillService } from '@/lib/services/skillService';
 import { userService } from '@/lib/services/userService';
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const { user, updateUser, logout } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     dateOfBirth: '',
@@ -154,14 +158,9 @@ export default function ProfilePage() {
         setPhotoPreview(dataUrl);
         if (typeof window !== 'undefined') {
           localStorage.setItem('makromedia_user_avatar', dataUrl);
-          const rawUser = localStorage.getItem('makromedia_auth_user');
-          if (rawUser) {
-            try {
-              const parsed = JSON.parse(rawUser);
-              parsed.avatarUrl = dataUrl;
-              localStorage.setItem('makromedia_auth_user', JSON.stringify(parsed));
-            } catch {}
-          }
+        }
+        if (updateUser) {
+          updateUser({ avatarUrl: dataUrl });
         }
         showToast.success('Foto profil berhasil dipilih!');
       }
@@ -174,14 +173,9 @@ export default function ProfilePage() {
     setPhotoPreview('');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('makromedia_user_avatar');
-      const rawUser = localStorage.getItem('makromedia_auth_user');
-      if (rawUser) {
-        try {
-          const parsed = JSON.parse(rawUser);
-          delete parsed.avatarUrl;
-          localStorage.setItem('makromedia_auth_user', JSON.stringify(parsed));
-        } catch {}
-      }
+    }
+    if (updateUser) {
+      updateUser({ avatarUrl: undefined });
     }
     showToast.info('Foto profil dihapus.');
   };
@@ -229,7 +223,7 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!validateProfile()) return;
     try {
-      await userService.updateProfile({
+      const updated = await userService.updateProfile({
         name: formData.name.trim(),
         dateOfBirth: formData.dateOfBirth,
         phone: formData.phone.trim(),
@@ -245,6 +239,15 @@ export default function ProfilePage() {
         accountNumber: formData.accountNumber.trim(),
         photoUrl: photoPreview,
       });
+
+      if (updateUser) {
+        updateUser({
+          name: updated?.name || formData.name.trim(),
+          email: updated?.email || formData.email.trim(),
+          avatarUrl: photoPreview || undefined,
+        });
+      }
+
       showToast.success('Profil berhasil diperbarui!');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memperbarui profil.';
@@ -273,10 +276,14 @@ export default function ProfilePage() {
     try {
       setIsChangingPass(true);
       await userService.changePassword(passwordForm.oldPassword, passwordForm.newPassword);
-      showToast.success('Kata sandi berhasil diubah! Gunakan kata sandi baru untuk login berikutnya.');
+      showToast.success('Kata sandi berhasil diubah! Silakan login kembali dengan kata sandi baru.');
       setIsPasswordModalOpen(false);
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
+      setTimeout(() => {
+        logout();
+        router.replace('/login');
+      }, 1200);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi lama Anda.';
       showToast.error(msg);
