@@ -70,10 +70,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* Role-Specific Detail Tabs Component */}
       <DetailProjectTabs project={project} role={role} onTabChange={setActiveTab} />
 
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between pt-2">
         <Button
           variant="outline"
-          className="px-8 rounded-xl font-semibold border-slate-300 text-slate-700 hover:bg-slate-50"
+          size="md"
+          className="min-w-[130px] px-8 py-2.5 rounded-xl font-semibold border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
           onClick={() => router.push('/projects')}
         >
           {activeTab === 'payment' || activeTab === 'production_cost' ? 'Back' : 'Cancel'}
@@ -81,12 +82,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
         {(role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES') && (
           <Button
-            variant="outline"
-            className="px-6 rounded-xl font-semibold border-amber-500 text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+            variant="primary"
+            size="md"
+            className="min-w-[150px] px-7 py-2.5 rounded-xl font-semibold bg-[#0066ff] hover:bg-blue-700 text-white flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all cursor-pointer"
             onClick={() => router.push(`/projects/${id}/edit`)}
           >
             <Pencil className="w-4 h-4" />
-            Edit Project
+            <span>Edit Project</span>
           </Button>
         )}
       </div>
