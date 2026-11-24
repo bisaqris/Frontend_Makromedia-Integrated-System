@@ -19,8 +19,9 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/projects/new': { title: 'Add New Project', subtitle: 'Add new project' },
   '/projects/history': { title: 'History Project', subtitle: 'List of All Projects That Already Done' },
   '/application-cost': { title: 'List Application Cost', subtitle: 'List of Application Cost' },
-  '/manpower': { title: 'List Data Employee', subtitle: 'List of All Employees' },
-  '/manpower/skills': { title: 'Data Skill', subtitle: 'Employee skills and certifications' },
+  '/manpower': { title: 'Data Manpower', subtitle: 'List of All Manpower' },
+  '/manpower/new': { title: 'Add New Manpower', subtitle: 'Add new Manpower' },
+  '/manpower/skills': { title: 'Skill Management', subtitle: 'List of Man Power Skill Sets' },
   '/clients/pic': { title: 'Data PIC Client', subtitle: 'List of All PIC Client' },
   '/clients/pic/new': { title: 'Add New PIC Client', subtitle: 'Add new PIC Client' },
   '/clients/company': { title: 'List Client Company', subtitle: 'List of All Client Company' },
@@ -147,7 +148,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-2 sm:gap-3 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100/80 transition-colors focus:outline-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden shrink-0">
+            <div className="w-9 h-9 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden shrink-0">
               {currentAvatar ? (
                 <img src={currentAvatar} alt={user?.name || 'User'} className="w-full h-full object-cover" />
               ) : (
@@ -156,8 +157,11 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
             </div>
 
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
-                {user?.name || 'Pengguna'}
+              <span className="text-xs font-bold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
+                {user?.name || 'John Doe'}
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium leading-tight">
+                {user?.role === 'DIREKTUR' ? 'CEO' : user?.role || 'Staff'}
               </span>
             </div>
 

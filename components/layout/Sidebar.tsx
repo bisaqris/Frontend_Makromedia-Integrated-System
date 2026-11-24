@@ -72,6 +72,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: p
     }
 
     if (userRole === 'DIREKTUR' || userRole === 'FINANCE' || userRole === 'SALES') {
+      const manpowerItems: MenuItem[] = [
+        { title: 'List Data Employee', href: '/manpower', icon: <Users className="w-4 h-4" /> },
+        { title: 'Data Skill', href: '/manpower/skills', icon: <Award className="w-4 h-4" /> },
+      ];
+
+      // Sesuai desain Figma Direktur, menu "Data Position" tidak ditampilkan untuk role Direktur
+      if (userRole !== 'DIREKTUR') {
+        manpowerItems.push({
+          title: 'Data Position',
+          href: '/manpower/positions',
+          icon: <SquareUserRound className="w-4 h-4" />,
+        });
+      }
+
       return {
         standaloneItems,
         sections: [
@@ -84,11 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: p
           },
           {
             title: 'manpower',
-            items: [
-              { title: 'List Data Employee', href: '/manpower', icon: <Users className="w-4 h-4" /> },
-              { title: 'Data Skill', href: '/manpower/skills', icon: <Award className="w-4 h-4" /> },
-              { title: 'Data Position', href: '/manpower/positions', icon: <SquareUserRound className="w-4 h-4" /> },
-            ],
+            items: manpowerItems,
           },
           {
             title: 'client data',

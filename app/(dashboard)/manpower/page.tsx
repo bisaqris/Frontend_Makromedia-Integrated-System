@@ -9,14 +9,15 @@ import ErrorState from '@/components/shared/ErrorState';
 
 export default function ManpowerPage() {
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [positionFilter, setPositionFilter] = useState('');
+    const [skillFilter, setSkillFilter] = useState('');
     const [employees, setEmployees] = useState<ManpowerRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
 
     // State Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const [entriesPerPage, setEntriesPerPage] = useState(5);
+    const [entriesPerPage, setEntriesPerPage] = useState(10);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -56,6 +57,10 @@ export default function ManpowerPage() {
         }
     };
 
+    // Extract options
+    const positionOptions = Array.from(new Set(employees.map((e) => e.position).filter(Boolean))).sort();
+    const skillOptions = Array.from(new Set(employees.flatMap((e) => e.skills || []).filter(Boolean))).sort();
+
     // Filter Data
     const filteredEmployees = employees.filter((emp) => {
         const matchesSearch =
@@ -63,9 +68,10 @@ export default function ManpowerPage() {
             (emp.email || '').toLowerCase().includes(search.toLowerCase()) ||
             emp.position.toLowerCase().includes(search.toLowerCase());
 
-        const matchesStatus = statusFilter ? emp.employmentStatus === statusFilter : true;
+        const matchesPosition = positionFilter ? emp.position === positionFilter : true;
+        const matchesSkill = skillFilter ? (emp.skills || []).includes(skillFilter) : true;
 
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesPosition && matchesSkill;
     });
 
     // Logika Pagination
@@ -83,39 +89,53 @@ export default function ManpowerPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search employee..."
+                        placeholder="Search by project..."
                         value={search}
                         onChange={(e) => {
                             setSearch(e.target.value);
                             setCurrentPage(1);
                         }}
-                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
                     />
                 </div>
 
-                {/* Filter Status Dropdown */}
+                {/* Filter Position Dropdown */}
                 <select
-                    value={statusFilter}
+                    value={positionFilter}
                     onChange={(e) => {
-                        setStatusFilter(e.target.value);
+                        setPositionFilter(e.target.value);
                         setCurrentPage(1);
                     }}
-                    className="w-full sm:w-44 py-2 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white text-gray-700"
+                    className="w-full sm:w-44 py-2 px-3 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white text-gray-700 cursor-pointer"
                 >
-                    <option value="">All Status</option>
-                    <option value="Fulltime">FULLTIME</option>
-                    <option value="Parttime">PARTTIME</option>
-                    <option value="Internship">INTERNSHIP</option>
-                    <option value="Freelance">FREELANCE</option>
+                    <option value="">All Position</option>
+                    {positionOptions.map((pos) => (
+                        <option key={pos} value={pos}>{pos}</option>
+                    ))}
                 </select>
 
-                {/* Button Tambah Karyawan (Diarahkan ke /manpower/new) */}
+                {/* Filter Skill Dropdown */}
+                <select
+                    value={skillFilter}
+                    onChange={(e) => {
+                        setSkillFilter(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                    className="w-full sm:w-44 py-2 px-3 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white text-gray-700 cursor-pointer"
+                >
+                    <option value="">All Skill</option>
+                    {skillOptions.map((sk) => (
+                        <option key={sk} value={sk}>{sk}</option>
+                    ))}
+                </select>
+
+                {/* Button Tambah Manpower */}
                 <Link
                     href="/manpower/new"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#0066ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap shadow-2xs"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Employee
+                    Add Manpower
                 </Link>
             </div>
 

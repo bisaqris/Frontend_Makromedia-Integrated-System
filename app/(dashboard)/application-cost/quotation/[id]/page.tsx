@@ -346,7 +346,7 @@ export default function QuotationApprovalDetailPage() {
         )}
 
         <div className="flex items-center gap-4">
-          {item.status === 'SENT' && (
+          {(item.status === 'SENT' || item.status === 'Pending' || item.status === 'PENDING') && (
             <Button
               type="button"
               variant="outline"
@@ -354,7 +354,7 @@ export default function QuotationApprovalDetailPage() {
               className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
               onClick={handleReject}
             >
-              Reject
+              Revise
             </Button>
           )}
 

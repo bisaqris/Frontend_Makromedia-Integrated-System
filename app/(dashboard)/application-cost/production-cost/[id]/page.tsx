@@ -297,7 +297,7 @@ export default function ProductionCostDetailPage() {
                 className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
                 onClick={handleRevise}
               >
-                Reject
+                Revise
               </Button>
               <Button
                 type="button"

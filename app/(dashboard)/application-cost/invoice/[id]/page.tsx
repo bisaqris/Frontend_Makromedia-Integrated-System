@@ -357,32 +357,29 @@ export default function InvoiceDetailPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-        {canManageInvoice && (item.status === 'DRAFT' || item.status === 'Pending') && (
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 border-slate-300 text-slate-700 font-semibold rounded-xl"
-            onClick={handleCancel}
-          >
-            Cancel
-          </Button>
-        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="md"
+          className="min-w-[130px] sm:min-w-[150px] px-8 border-slate-300 text-slate-700 font-semibold rounded-xl"
+          onClick={handleCancel}
+        >
+          Cancel
+        </Button>
 
         <div className="flex flex-wrap items-center gap-3">
-          {canManageInvoice && (item.status === 'DRAFT' || item.status === 'Pending') && (
+          {canManageInvoice && (
             <Button
               type="button"
               variant="outline"
               size="md"
               className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-[#f97316] hover:bg-orange-50 font-semibold rounded-xl"
-              onClick={handleSend}
+              onClick={() => handleStatusUpdate('REJECTED', `Invoice (${item?.projectName ?? ''}) perlu direvisi.`, 'info')}
             >
-              Send
+              Revise
             </Button>
           )}
-          {(item.status === 'SENT' || item.status === 'OVERDUE') && (
-            <Button
+          <Button
             type="button"
             variant="primary"
             size="md"
@@ -391,28 +388,16 @@ export default function InvoiceDetailPage() {
             onClick={handlePreview}
           >
             Preview
-            </Button>
-          )}
-          {canManageInvoice && item.status === 'SENT' && (
+          </Button>
+          {canManageInvoice && (
             <Button
               type="button"
               variant="primary"
               size="md"
               className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
-              onClick={handleOverdue}
+              onClick={() => handleStatusUpdate('APPROVED', `Invoice (${item?.projectName ?? ''}) berhasil disetujui!`, 'success')}
             >
-              Mark overdue
-            </Button>
-          )}
-          {canManageInvoice && (item.status === 'SENT' || item.status === 'OVERDUE') && (
-            <Button
-            type="button"
-            variant="primary"
-            size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
-            onClick={handlePaid}
-          >
-            Mark paid
+              Approve
             </Button>
           )}
         </div>

@@ -289,7 +289,7 @@ export default function AddProjectPage() {
         {currentStep === 1 && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary border-b border-slate-100 pb-3">
                 Internal Data
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -315,7 +315,7 @@ export default function AddProjectPage() {
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary border-b border-slate-100 pb-3">
                 Client Data
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -374,7 +374,7 @@ export default function AddProjectPage() {
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary border-b border-slate-100 pb-3">
                 Project Data
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -449,7 +449,7 @@ export default function AddProjectPage() {
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+                <h3 className="text-sm font-bold text-primary">
                   Progress Link
                 </h3>
                 <Button
@@ -740,6 +740,7 @@ export default function AddProjectPage() {
                 <Button
                   variant="outline"
                   size="md"
+                  className="border-accent text-accent hover:bg-orange-50"
                   onClick={() => setCurrentStep(1)}
                   disabled={isSubmitting}
                 >

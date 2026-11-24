@@ -15,6 +15,19 @@ import { userService } from '@/lib/services/userService';
 import { toInputDateFormat } from '@/lib/utils';
 import { Position, Skill } from '@/types/manpower';
 
+const BANK_OPTIONS = [
+  { value: 'Bank Central Asia', label: 'Bank Central Asia' },
+  { value: 'Bank Mandiri', label: 'Bank Mandiri' },
+  { value: 'Bank Rakyat Indonesia', label: 'Bank Rakyat Indonesia' },
+  { value: 'Bank Negara Indonesia', label: 'Bank Negara Indonesia' },
+  { value: 'Bank Syariah Indonesia', label: 'Bank Syariah Indonesia' },
+  { value: 'Bank CIMB Niaga', label: 'Bank CIMB Niaga' },
+  { value: 'Bank Permata', label: 'Bank Permata' },
+  { value: 'Bank Danamon', label: 'Bank Danamon' },
+  { value: 'Bank Tabungan Negara', label: 'Bank Tabungan Negara' },
+  { value: 'Bank Mega', label: 'Bank Mega' },
+];
+
 export default function ProfilePage() {
   const router = useRouter();
   const { user, updateUser, logout } = useAuth();
@@ -336,6 +349,7 @@ export default function ProfilePage() {
     <form onSubmit={handleSave} className="space-y-6 pb-16">
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          {/* Left: Name and Date of Birth */}
           <div className="md:col-span-8 space-y-4">
             <div>
               <label
@@ -372,27 +386,9 @@ export default function ProfilePage() {
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
               />
             </div>
-
-            <div>
-              <label
-                htmlFor="phone"
-                className="text-xs font-semibold text-slate-700 block mb-1.5"
-              >
-                Phone Number
-              </label>
-              <input
-                type="text"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.phone ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
-                placeholder="Enter phone number"
-              />
-              {profileErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.phone}</p>}
-            </div>
           </div>
 
+          {/* Right: Profile Photo */}
           <div className="md:col-span-4 flex flex-col justify-start items-center md:items-start space-y-2">
             <span className="text-xs font-semibold text-slate-700 block mb-1">
               Profile Photo
@@ -465,8 +461,28 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Form Grid below Top Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        {/* Row 2: Phone Number, Email, Password (3 columns matching 05. Profile.pdf) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+          {/* Phone Number */}
+          <div>
+            <label
+              htmlFor="phone"
+              className="text-xs font-semibold text-slate-700 block mb-1.5"
+            >
+              Phone Number
+            </label>
+            <input
+              type="text"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.phone ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
+              placeholder="081234567890"
+            />
+            {profileErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.phone}</p>}
+          </div>
+
           {/* Email */}
           <div>
             <label
@@ -487,10 +503,10 @@ export default function ProfilePage() {
             {profileErrors.email && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.email}</p>}
           </div>
 
-          {/* Keamanan Akun / Ubah Password */}
+          {/* Password (with Eye icon and modal trigger matching 05. Profile.pdf) */}
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-              Keamanan Akun
+              Password
             </label>
             <button
               type="button"
@@ -499,16 +515,19 @@ export default function ProfilePage() {
                 setPasswordErrors({});
                 setIsPasswordModalOpen(true);
               }}
-              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-700 font-semibold flex items-center justify-between transition-colors cursor-pointer"
+              className="w-full bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 font-medium flex items-center justify-between transition-colors cursor-pointer group"
+              title="Klik untuk mengubah kata sandi"
             >
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-slate-400" />
-                <span>Ubah Kata Sandi Akun</span>
+              <span className="tracking-widest text-slate-600 font-bold">••••••••••••</span>
+              <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors">
+                <Eye className="w-4 h-4" />
               </div>
-              <span className="text-xs text-primary font-medium">Ganti &rarr;</span>
             </button>
           </div>
+        </div>
 
+        {/* Region and Address */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
           <AddressRegionFields value={formData} onChange={handleRegionChange} />
 
@@ -527,7 +546,7 @@ export default function ProfilePage() {
               value={formData.detailAddress}
               onChange={handleInputChange}
               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-              placeholder="Street name, building, unit number"
+              placeholder="Jl. Dharmawangsa No.74"
             />
           </div>
         </div>
@@ -652,23 +671,15 @@ export default function ProfilePage() {
             emptyText="Position tidak ditemukan"
           />
 
-          <div>
-            <label
-              htmlFor="bankName"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Bank Account
-            </label>
-            <input
-              type="text"
-              id="bankName"
-              name="bankName"
-              value={formData.bankName}
-              onChange={handleInputChange}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-              placeholder="Contoh: Bank Central Asia"
-            />
-          </div>
+          <Combobox
+            id="bankName"
+            label="Bank Account"
+            options={BANK_OPTIONS}
+            value={formData.bankName}
+            onChange={(value) => setFormData((prev) => ({ ...prev, bankName: value }))}
+            placeholder="Select bank account..."
+            emptyText="Bank tidak ditemukan"
+          />
 
           {/* Account Number */}
           <div>

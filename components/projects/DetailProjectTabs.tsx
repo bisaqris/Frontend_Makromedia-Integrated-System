@@ -92,9 +92,10 @@ const paymentSubTabOptions = [
 interface DetailProjectTabsProps {
   project: Project;
   role: Role | null;
+  onTabChange?: (tab: string) => void;
 }
 
-export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, role }) => {
+export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, role, onTabChange }) => {
   const isProduksi = role === 'PRODUKSI';
   const isPM = role === 'PROJECT_MANAGER';
   const isFinancialRole = role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES';
@@ -519,7 +520,10 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       <Tabs
         tabs={mainTabOptions}
         activeTab={activeMainTab}
-        onChange={setActiveMainTab}
+        onChange={(tabId) => {
+          setActiveMainTab(tabId);
+          onTabChange?.(tabId);
+        }}
         variant="pills"
       />
 

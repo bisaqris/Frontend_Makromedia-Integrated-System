@@ -22,6 +22,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>('info');
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -66,18 +67,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
-        {/* Role-Specific Detail Tabs Component */}
-        <DetailProjectTabs project={project} role={role} />
-      </div>
+      {/* Role-Specific Detail Tabs Component */}
+      <DetailProjectTabs project={project} role={role} onTabChange={setActiveTab} />
 
       <div className="flex justify-start">
         <Button
           variant="outline"
-          className="px-8 rounded-xl font-semibold"
+          className="px-8 rounded-xl font-semibold border-slate-300 text-slate-700 hover:bg-slate-50"
           onClick={() => router.push('/projects')}
         >
-          Cancel
+          {activeTab === 'payment' || activeTab === 'production_cost' ? 'Back' : 'Cancel'}
         </Button>
       </div>
     </div>
