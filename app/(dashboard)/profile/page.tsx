@@ -8,6 +8,7 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import Combobox from '@/components/ui/Combobox';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
@@ -54,6 +55,11 @@ export default function ProfilePage() {
   const [skillsList, setSkillsList] = useState<Skill[]>([]);
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
 
+  // Simpan data awal untuk tombol Cancel
+  const [initialFormData, setInitialFormData] = useState<typeof formData | null>(null);
+  const [initialSkills, setInitialSkills] = useState<string[]>([]);
+  const [initialPhoto, setInitialPhoto] = useState<string>('');
+
   // Password Modal States
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -81,7 +87,7 @@ export default function ProfilePage() {
 
       if (!isMounted) return;
 
-      setFormData({
+      const loadedForm = {
         name: profile.name,
         dateOfBirth: toInputDateFormat(profile.dateOfBirth),
         phone: profile.phone,
@@ -94,9 +100,13 @@ export default function ProfilePage() {
         position: profile.position || '',
         bankName: profile.bankName || '',
         accountNumber: profile.accountNumber || '',
-      });
+      };
+      setFormData(loadedForm);
+      setInitialFormData(loadedForm);
       setSkills(profile.skills);
+      setInitialSkills(profile.skills || []);
       setPhotoPreview(profile.photoUrl || '');
+      setInitialPhoto(profile.photoUrl || '');
       setPositionsList(positions);
       setSkillsList(masterSkills);
       setPositionOptions(positions.map((p) => p.name));
@@ -342,11 +352,20 @@ export default function ProfilePage() {
   };
 
   const handleCancel = () => {
-    showToast.info('Perubahan dibatalkan.');
+    if (initialFormData) {
+      setFormData(initialFormData);
+      setSkills(initialSkills);
+      setPhotoPreview(initialPhoto);
+      setProfileErrors({});
+      showToast.info('Perubahan pada formulir profil dibatalkan.');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 pb-16">
+    <>
+      <form onSubmit={handleSave} className="space-y-6 pb-16">
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
           {/* Left: Name and Date of Birth */}
@@ -356,7 +375,7 @@ export default function ProfilePage() {
                 htmlFor="name"
                 className="text-xs font-semibold text-slate-700 block mb-1.5"
               >
-                Name
+                Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -377,13 +396,12 @@ export default function ProfilePage() {
               >
                 Date of Birth
               </label>
-              <input
-                type="date"
+              <DatePickerInput
                 id="dateOfBirth"
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                placeholder="Pilih tanggal lahir..."
               />
             </div>
           </div>
@@ -469,7 +487,7 @@ export default function ProfilePage() {
               htmlFor="phone"
               className="text-xs font-semibold text-slate-700 block mb-1.5"
             >
-              Phone Number
+              Phone Number <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -489,7 +507,7 @@ export default function ProfilePage() {
               htmlFor="email"
               className="text-xs font-semibold text-slate-700 block mb-1.5"
             >
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -722,6 +740,8 @@ export default function ProfilePage() {
           Save
         </Button>
       </div>
+      </form>
+
       {/* Modal Ubah Kata Sandi */}
       <Modal
         isOpen={isPasswordModalOpen}
@@ -845,6 +865,6 @@ export default function ProfilePage() {
           </div>
         </form>
       </Modal>
-    </form>
+    </>
   );
 }

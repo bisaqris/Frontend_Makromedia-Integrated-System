@@ -8,7 +8,7 @@ import { Project } from '@/types/project';
 import projectService from '@/lib/services/projectService';
 import DetailProjectTabs from '@/components/projects/DetailProjectTabs';
 import Button from '@/components/ui/Button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
 
 interface ProjectDetailPageProps {
   params: Promise<{ id: string }>;
@@ -70,7 +70,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* Role-Specific Detail Tabs Component */}
       <DetailProjectTabs project={project} role={role} onTabChange={setActiveTab} />
 
-      <div className="flex justify-start">
+      <div className="flex justify-between items-center">
         <Button
           variant="outline"
           className="px-8 rounded-xl font-semibold border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -78,6 +78,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         >
           {activeTab === 'payment' || activeTab === 'production_cost' ? 'Back' : 'Cancel'}
         </Button>
+
+        {(role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES') && (
+          <Button
+            variant="outline"
+            className="px-6 rounded-xl font-semibold border-amber-500 text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+            onClick={() => router.push(`/projects/${id}/edit`)}
+          >
+            <Pencil className="w-4 h-4" />
+            Edit Project
+          </Button>
+        )}
       </div>
     </div>
   );

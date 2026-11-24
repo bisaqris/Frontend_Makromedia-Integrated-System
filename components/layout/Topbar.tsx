@@ -77,6 +77,9 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       return { title: customTitle, subtitle: customSubtitle };
     }
     if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+    if (pathname.startsWith('/projects/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit Project', subtitle: 'Perbarui rincian data proyek' };
+    }
     if (pathname.startsWith('/projects/')) {
       return { title: 'Detail Project', subtitle: 'Project details and overview' };
     }

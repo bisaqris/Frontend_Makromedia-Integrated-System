@@ -6,6 +6,7 @@ import RoleGuard from '@/components/auth/RoleGuard';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import projectService from '@/lib/services/projectService';
 import { clientService } from '@/lib/services/clientService';
 import { userService } from '@/lib/services/userService';
@@ -195,7 +196,7 @@ export default function AddProjectPage() {
     setCurrentStep(2);
   };
 
-  const handleCreateProject = async (status: 'QUOTATION_PENDING' | 'DRAFT' = 'QUOTATION_PENDING') => {
+  const handleCreateProject = async (status: 'NEW' | 'DRAFT' = 'NEW') => {
     const effectivePic = selectedPic || filteredPics[0] || pics[0];
     if (!effectivePic) {
       showToast.error('Pilih PIC client yang terhubung dengan perusahaan ini.');
@@ -389,47 +390,78 @@ export default function AddProjectPage() {
                   error={fieldErrors.projectName}
                   required
                 />
-                <Input
-                  label="Event Date"
-                  type="date"
-                  min={today}
-                  value={eventDate}
-                  onChange={(e) => {
-                    setEventDate(e.target.value);
-                    if (fieldErrors.eventDate) setFieldErrors((prev) => ({ ...prev, eventDate: '' }));
-                  }}
-                  error={fieldErrors.eventDate}
-                  required
-                />
-                <Input
-                  label="Project Date Starts"
-                  type="date"
-                  min={today}
-                  value={projectStarts}
-                  onChange={(e) => {
-                    setProjectStarts(e.target.value);
-                    if (fieldErrors.projectStarts) setFieldErrors((prev) => ({ ...prev, projectStarts: '' }));
-                  }}
-                  error={fieldErrors.projectStarts}
-                  required
-                />
-                <Input
-                  label="Project Deadlines"
-                  type="date"
-                  min={projectStarts || today}
-                  value={deadline}
-                  onChange={(e) => {
-                    setDeadline(e.target.value);
-                    if (fieldErrors.deadline) setFieldErrors((prev) => ({ ...prev, deadline: '' }));
-                  }}
-                  error={fieldErrors.deadline}
-                  required
-                />
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Event Date <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <DatePickerInput
+                    id="eventDate"
+                    name="eventDate"
+                    min={today}
+                    value={eventDate}
+                    onChange={(e) => {
+                      setEventDate(e.target.value);
+                      if (fieldErrors.eventDate) setFieldErrors((prev) => ({ ...prev, eventDate: '' }));
+                    }}
+                    error={fieldErrors.eventDate}
+                    placeholder="Pilih tanggal event..."
+                    required
+                  />
+                  {fieldErrors.eventDate && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.eventDate}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Project Date Starts <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <DatePickerInput
+                    id="projectStarts"
+                    name="projectStarts"
+                    min={today}
+                    value={projectStarts}
+                    onChange={(e) => {
+                      setProjectStarts(e.target.value);
+                      if (fieldErrors.projectStarts) setFieldErrors((prev) => ({ ...prev, projectStarts: '' }));
+                    }}
+                    error={fieldErrors.projectStarts}
+                    placeholder="Pilih tanggal mulai..."
+                    required
+                  />
+                  {fieldErrors.projectStarts && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.projectStarts}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Project Deadlines <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <DatePickerInput
+                    id="deadline"
+                    name="deadline"
+                    min={projectStarts || today}
+                    value={deadline}
+                    onChange={(e) => {
+                      setDeadline(e.target.value);
+                      if (fieldErrors.deadline) setFieldErrors((prev) => ({ ...prev, deadline: '' }));
+                    }}
+                    error={fieldErrors.deadline}
+                    placeholder="Pilih deadline..."
+                    required
+                  />
+                  {fieldErrors.deadline && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.deadline}</p>
+                  )}
+                </div>
+
                 <Input
                   label="Venue / Location"
                   placeholder="e.g. Malang, East Java"
                   value={venue}
                   onChange={(e) => setVenue(e.target.value)}
+                  required
                 />
                 <Input
                   label="Contract Value"
@@ -457,16 +489,10 @@ export default function AddProjectPage() {
                   size="md"
                   leftIcon={<Plus className="w-4 h-4" />}
                   onClick={handleAddLink}
-                  disabled={!USE_MOCK}
                 >
                   Add
                 </Button>
               </div>
-              {!USE_MOCK && (
-                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-                  Progress Link belum didukung API, sehingga field ini dinonaktifkan dan tidak akan tersimpan.
-                </p>
-              )}
 
               {/* Deliverables Link Input */}
               <div>
@@ -482,23 +508,24 @@ export default function AddProjectPage() {
                       placeholder="https://drive.google.com/..."
                       value={deliverablesLink}
                       onChange={(e) => setDeliverablesLink(e.target.value)}
-                      disabled={!USE_MOCK}
-                      className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-primary rounded-xl focus:outline-hidden text-slate-800 font-medium"
+                      className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 focus:border-primary rounded-xl focus:outline-hidden text-slate-800 font-medium"
                     />
                   </div>
                   <button
                     type="button"
-                    onClick={() => document.getElementById('deliverables-link-input')?.focus()}
-                    disabled={!USE_MOCK}
+                    onClick={() => {
+                      const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
+                      el?.focus();
+                      el?.select();
+                    }}
                     className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                    title="Edit Link"
+                    title="Edit Link (Klik untuk mengedit url)"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setDeliverablesLink('')}
-                    disabled={!USE_MOCK}
                     className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                     title="Clear Link"
                   >
@@ -523,7 +550,6 @@ export default function AddProjectPage() {
                         type="text"
                         placeholder="https://drive.google.com/..."
                         value={link.url}
-                        disabled={!USE_MOCK}
                         onChange={(e) => {
                           const newUrl = e.target.value;
                           setAdditionalLinks((prev) =>
@@ -535,17 +561,19 @@ export default function AddProjectPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => document.getElementById(`additional-link-${link.id}`)?.focus()}
-                      disabled={!USE_MOCK}
+                      onClick={() => {
+                        const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+                        el?.focus();
+                        el?.select();
+                      }}
                       className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                      title="Edit Link"
+                      title="Edit Link (Klik untuk mengedit url)"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveLink(link.id)}
-                      disabled={!USE_MOCK}
                       className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                       title="Delete Link"
                     >
@@ -749,7 +777,7 @@ export default function AddProjectPage() {
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={() => handleCreateProject('QUOTATION_PENDING')}
+                  onClick={() => handleCreateProject('NEW')}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

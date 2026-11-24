@@ -121,24 +121,30 @@ const categoryToApi = (category?: ProjectCategory | 'ALL'): string | undefined =
 
 const statusFromApi = (status: string): Project['status'] => {
   switch (status) {
+    case 'DRAFT':
+      return 'DRAFT';
     case 'ACTIVE':
+      return 'NEW';
+    case 'IN_PROGRESS':
       return 'IN_PROGRESS';
     case 'COMPLETED':
+    case 'DONE':
       return 'DONE';
     case 'ON_HOLD':
       return 'ON_HOLD';
     case 'CANCELLED':
       return 'CANCELLED';
     default:
-      return 'QUOTATION_PENDING';
+      return 'NEW';
   }
 };
 
 const statusToApi = (status?: Project['status']): string | undefined => {
   switch (status) {
     case 'DRAFT':
-    case 'QUOTATION_PENDING':
       return 'DRAFT';
+    case 'NEW':
+    case 'QUOTATION_PENDING':
     case 'QUOTATION_APPROVED':
     case 'IN_PROGRESS':
       return 'ACTIVE';
@@ -398,7 +404,7 @@ export const projectService = {
       try {
         const patchRes = await apiClient.patch<BackendProject>(
           `/projects/${created.id}`,
-          { status: statusToApi(projectData.status) }
+          { status: statusToApi(projectData.status) || 'ACTIVE' }
         );
         return mapBackendProject(patchRes.data);
       } catch {

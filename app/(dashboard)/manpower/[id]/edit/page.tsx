@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import { showToast } from '@/components/ui/Toast';
 import { manpowerService } from '@/lib/services/manpowerService';
 import { positionService } from '@/lib/services/positionService';
@@ -182,12 +183,11 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Date of Birth</label>
-              <input
-                type="date"
+              <DatePickerInput
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:border-blue-500"
+                placeholder="Pilih tanggal lahir..."
               />
             </div>
 

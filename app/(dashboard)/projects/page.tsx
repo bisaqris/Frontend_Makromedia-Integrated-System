@@ -135,6 +135,8 @@ export default function ListProjectPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'DRAFT':
+        return <Badge variant="default">DRAFT</Badge>;
       case 'COMPLETED':
       case 'DONE':
         return <Badge variant="success">DONE</Badge>;
@@ -284,7 +286,7 @@ export default function ListProjectPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => router.push(`/projects/${proj.id}`)}
+                                onClick={() => router.push(`/projects/${proj.id}/edit`)}
                                 className="p-1 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
                                 title="Edit Project"
                               >
@@ -340,7 +342,7 @@ export default function ListProjectPage() {
                         <>
                           <button
                             type="button"
-                            onClick={() => router.push(`/projects/${proj.id}`)}
+                            onClick={() => router.push(`/projects/${proj.id}/edit`)}
                             className="p-1.5 rounded-lg text-amber-500 bg-amber-50 hover:bg-amber-100 transition-colors"
                             title="Edit Project"
                           >
