@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, X, Search, Check, Lock, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronDown, X, Search, Check, Lock, Eye, EyeOff, Camera, Upload, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
@@ -12,6 +14,8 @@ import { skillService } from '@/lib/services/skillService';
 import { userService } from '@/lib/services/userService';
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const { user, updateUser, logout } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     dateOfBirth: '',
@@ -29,6 +33,7 @@ export default function ProfilePage() {
 
   const [skills, setSkills] = useState<string[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [photoUploading, setPhotoUploading] = useState<boolean>(false);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
@@ -46,6 +51,7 @@ export default function ProfilePage() {
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState<boolean>(false);
   const [skillSearch, setSkillSearch] = useState<string>('');
   const skillDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -132,6 +138,57 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset agar file yang sama bisa dipilih lagi
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast.error('File harus berupa gambar (JPG, PNG, WebP).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast.error('Ukuran file foto maksimal 5MB.');
+      return;
+    }
+
+    const previous = photoPreview;
+    const localPreview = URL.createObjectURL(file);
+    setPhotoPreview(localPreview); // preview instan sebelum upload selesai
+    setPhotoUploading(true);
+    try {
+      const updated = await userService.uploadAvatar(file); // kompres + simpan di backend
+      const newUrl = updated.photoUrl || '';
+      setPhotoPreview(newUrl);
+      if (updateUser) updateUser({ avatarUrl: newUrl || undefined });
+      showToast.success('Foto profil berhasil diperbarui!');
+    } catch {
+      setPhotoPreview(previous); // rollback jika gagal
+      showToast.error('Gagal mengunggah foto. Coba lagi.');
+    } finally {
+      URL.revokeObjectURL(localPreview);
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!photoPreview) return;
+    const previous = photoPreview;
+    setPhotoPreview('');
+    setPhotoUploading(true);
+    try {
+      await userService.removeAvatar(); // hapus di backend
+      if (updateUser) updateUser({ avatarUrl: undefined });
+      showToast.info('Foto profil dihapus.');
+    } catch {
+      setPhotoPreview(previous); // rollback jika gagal
+      showToast.error('Gagal menghapus foto. Coba lagi.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const filteredSkills = skillOptions.filter((s) =>
     s.toLowerCase().includes(skillSearch.toLowerCase())
   );
@@ -175,7 +232,7 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!validateProfile()) return;
     try {
-      await userService.updateProfile({
+      const updated = await userService.updateProfile({
         name: formData.name.trim(),
         dateOfBirth: formData.dateOfBirth,
         phone: formData.phone.trim(),
@@ -189,7 +246,17 @@ export default function ProfilePage() {
         skills,
         bankName: formData.bankName.trim(),
         accountNumber: formData.accountNumber.trim(),
+        photoUrl: photoPreview,
       });
+
+      if (updateUser) {
+        updateUser({
+          name: updated?.name || formData.name.trim(),
+          email: updated?.email || formData.email.trim(),
+          avatarUrl: photoPreview || undefined,
+        });
+      }
+
       showToast.success('Profil berhasil diperbarui!');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memperbarui profil.';
@@ -218,10 +285,14 @@ export default function ProfilePage() {
     try {
       setIsChangingPass(true);
       await userService.changePassword(passwordForm.oldPassword, passwordForm.newPassword);
-      showToast.success('Kata sandi berhasil diubah! Gunakan kata sandi baru untuk login berikutnya.');
+      showToast.success('Kata sandi berhasil diubah! Silakan login kembali dengan kata sandi baru.');
       setIsPasswordModalOpen(false);
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
+      setTimeout(() => {
+        logout();
+        router.replace('/login');
+      }, 1200);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi lama Anda.';
       showToast.error(msg);
@@ -297,16 +368,76 @@ export default function ProfilePage() {
           </div>
 
           <div className="md:col-span-4 flex flex-col justify-start items-center md:items-start space-y-2">
-            <span className="text-xs font-semibold text-slate-700 block mb-1.5">
+            <span className="text-xs font-semibold text-slate-700 block mb-1">
               Profile Photo
             </span>
-            <div className="relative group cursor-pointer">
-              <img
-                src={photoPreview}
-                alt="Profile Avatar"
-                className="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover border-2 border-slate-100 shadow-xs"
-              />
+
+            {/* Hidden native file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+
+            {/* Avatar Preview with Camera Overlay */}
+            <div
+              onClick={() => { if (!photoUploading) fileInputRef.current?.click(); }}
+              className={`relative group inline-block ${photoUploading ? 'cursor-wait pointer-events-none opacity-80' : 'cursor-pointer'}`}
+              title="Klik untuk mengganti foto profil"
+            >
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt="Profile Avatar"
+                  className="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover border-2 border-slate-200 shadow-xs group-hover:opacity-90 transition-opacity"
+                />
+              ) : (
+                <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-primary-50 text-primary font-bold text-3xl flex items-center justify-center border-2 border-primary-200 shadow-xs">
+                  {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+
+              {/* Hover / Uploading Overlay */}
+              <div className={`absolute inset-0 rounded-full bg-slate-900/50 transition-opacity flex flex-col items-center justify-center text-white text-xs font-medium ${photoUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <Camera className="w-6 h-6 mb-1 text-white" />
+                <span>{photoUploading ? 'Mengunggah...' : 'Ubah Foto'}</span>
+              </div>
+
+              {/* Corner Camera Badge */}
+              <div className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-md border-2 border-white group-hover:scale-110 transition-transform">
+                <Camera className="w-4 h-4" />
+              </div>
             </div>
+
+            {/* Action Buttons & Format Helper */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={photoUploading}
+                className="text-xs font-semibold text-primary hover:text-primary-700 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Pilih Foto</span>
+              </button>
+              {photoPreview && (
+                <>
+                  <span className="text-slate-300">&bull;</span>
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    disabled={photoUploading}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus</span>
+                  </button>
+                </>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-400">Format: JPG, PNG, WebP (Maks. 5MB)</span>
           </div>
         </div>
 

@@ -267,7 +267,10 @@ async function loadBackendItems(): Promise<ApplicationCostItem[]> {
       const response = await apiClient.get<BackendProductionCost[]>(
         `/production-costs/project/${project.id}`
       );
-      return response.data.map((cost) => mapProductionCost(cost, project));
+      const raw = Array.isArray(response.data)
+        ? response.data
+        : (response.data as { data: BackendProductionCost[] })?.data || [];
+      return raw.map((cost) => mapProductionCost(cost, project));
     } catch {
       return [];
     }

@@ -82,8 +82,8 @@ export default function AddProjectPage() {
   const [pmId, setPmId] = useState('');
   const [clientType, setClientType] = useState('Corporate');
   const [partnershipModel, setPartnershipModel] = useState('Direct');
-  const [companyId, setCompanyId] = useState('cli-1');
-  const [picId, setPicId] = useState('pic-1');
+  const [companyId, setCompanyId] = useState('');
+  const [picId, setPicId] = useState('');
 
   const [companies, setCompanies] = useState<ClientCompany[]>([]);
   const [pics, setPics] = useState<ClientPIC[]>([]);
@@ -104,7 +104,18 @@ export default function AddProjectPage() {
       setCompanies(companyList);
       setPics(picList);
       setProjectManagers(pmList);
-      if (companyList.length > 0) setCompanyId(companyList[0].id);
+      if (companyList.length > 0) {
+        const firstComp = companyList[0];
+        setCompanyId(firstComp.id);
+        const relatedPics = picList.filter((p) => p.clientId === firstComp.id);
+        if (relatedPics.length > 0) {
+          setPicId(relatedPics[0].id);
+        } else if (picList.length > 0) {
+          setPicId(picList[0].id);
+        }
+      } else if (picList.length > 0) {
+        setPicId(picList[0].id);
+      }
       if (pmList.length > 0) setPmId(pmList[0].id);
     };
 
@@ -189,7 +200,8 @@ export default function AddProjectPage() {
   };
 
   const handleCreateProject = async (status: 'QUOTATION_PENDING' | 'DRAFT' = 'QUOTATION_PENDING') => {
-    if (!selectedPic) {
+    const effectivePic = selectedPic || filteredPics[0] || pics[0];
+    if (!effectivePic) {
       showToast.error('Pilih PIC client yang terhubung dengan perusahaan ini.');
       return;
     }
@@ -199,15 +211,15 @@ export default function AddProjectPage() {
       await projectService.createProject({
         name: projectName,
         category: category as ProjectCategory,
-        clientId: selectedPic.id,
-        clientName: selectedCompany?.name || '',
+        clientId: effectivePic.id,
+        clientName: selectedCompany?.name || effectivePic.company || '',
         clientType,
         partnershipModel,
-        picClientId: selectedPic.id,
-        picClientName: selectedPic
-          ? `${selectedPic.name}${selectedPic.position ? ` (${selectedPic.position})` : ''}`
+        picClientId: effectivePic.id,
+        picClientName: effectivePic
+          ? `${effectivePic.name}${effectivePic.position ? ` (${effectivePic.position})` : ''}`
           : '',
-        projectManagerId: pmId,
+        projectManagerId: pmId || undefined,
         projectManagerName: selectedPM?.name || '',
         startDate: projectStarts,
         endDate: deadline,

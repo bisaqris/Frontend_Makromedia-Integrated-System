@@ -15,7 +15,9 @@ const isApiEnvelope = (value: unknown): value is ApiEnvelope =>
   'message' in value &&
   'data' in value;
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+const baseURL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://compact-double-sao-vii.trycloudflare.com/api/v1';
 
 export const apiClient = axios.create({
   baseURL,

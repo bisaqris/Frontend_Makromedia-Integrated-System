@@ -48,8 +48,11 @@ export default function ApplicationCostDetailPage() {
       await applicationCostService.updateStatus(id, 'Production Cost', status, notes);
       showToast.success(message);
       router.push('/application-cost');
-    } catch {
-      showToast.error('Gagal memperbarui status pengajuan.');
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || 'Gagal memperbarui status pengajuan.';
+      showToast.error(msg);
     }
   };
 
