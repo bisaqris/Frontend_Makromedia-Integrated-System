@@ -85,3 +85,34 @@ export const parseNominal = (value: string | number | null | undefined): number 
   const clean = String(value).replace(/\D/g, '');
   return clean ? Number(clean) : 0;
 };
+
+/** Validasi apakah string merupakan format URL web yang valid */
+export const isValidUrl = (urlString?: string | null): boolean => {
+  if (!urlString) return false;
+  const clean = urlString.trim();
+  if (!clean) return false;
+
+  try {
+    const withProtocol = clean.startsWith('http://') || clean.startsWith('https://')
+      ? clean
+      : `https://${clean}`;
+    const parsed = new URL(withProtocol);
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      parsed.hostname.length > 3 &&
+      parsed.hostname.includes('.') &&
+      !parsed.hostname.endsWith('.')
+    );
+  } catch {
+    return false;
+  }
+};
+
+/** Normalisasi URL memastikan diawali https:// jika belum ada protokol */
+export const normalizeUrl = (urlString?: string | null): string => {
+  if (!urlString) return '';
+  const clean = urlString.trim();
+  if (!clean) return '';
+  if (clean.startsWith('http://') || clean.startsWith('https://')) return clean;
+  return `https://${clean}`;
+};

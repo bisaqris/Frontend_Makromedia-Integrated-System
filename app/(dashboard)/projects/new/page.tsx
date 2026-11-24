@@ -15,7 +15,7 @@ import { ClientCompany, ClientPIC } from '@/types/client';
 import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';
 import { USE_MOCK } from '@/lib/services/mockFlag';
-import { formatDateID, formatNominal } from '@/lib/utils';
+import { formatDateID, formatNominal, isValidUrl, normalizeUrl } from '@/lib/utils';
 import {
   Plus,
   Trash2,
@@ -133,6 +133,36 @@ export default function AddProjectPage() {
   const selectedPM = projectManagers.find((pm) => pm.id === pmId);
 
   const handleAddLink = () => {
+    // 1. Validasi Deliverables Link terlebih dahulu jika belum diisi atau tidak valid
+    if (!deliverablesLink.trim()) {
+      showToast.error('Isi Deliverables Link dengan URL valid terlebih dahulu sebelum menambah link baru.');
+      const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
+      el?.focus();
+      return;
+    }
+    if (!isValidUrl(deliverablesLink)) {
+      showToast.error('Format Deliverables Link tidak valid (contoh: https://drive.google.com/...).');
+      const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
+      el?.focus();
+      return;
+    }
+
+    // 2. Validasi link tambahan sebelumnya jika sudah ada
+    for (const link of additionalLinks) {
+      if (!link.url.trim()) {
+        showToast.error('Harap lengkapi link tambahan sebelumnya sebelum menambah baris baru.');
+        const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+        el?.focus();
+        return;
+      }
+      if (!isValidUrl(link.url)) {
+        showToast.error('Format URL link tambahan sebelumnya tidak valid (contoh: https://drive.google.com/...).');
+        const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+        el?.focus();
+        return;
+      }
+    }
+
     setAdditionalLinks((prev) => [
       ...prev,
       { id: `link-${Date.now()}`, url: '' },
@@ -183,6 +213,19 @@ export default function AddProjectPage() {
       errs.contractValue = 'Nilai kontrak harus lebih besar dari Rp 0.';
     }
 
+    // Validasi URL Deliverables Link jika diisi
+    if (deliverablesLink.trim() && !isValidUrl(deliverablesLink)) {
+      errs.deliverablesLink = 'Format Deliverables Link tidak valid (contoh: https://drive.google.com/...).';
+    }
+
+    // Validasi URL Additional Links jika ada
+    for (const link of additionalLinks) {
+      if (link.url.trim() && !isValidUrl(link.url)) {
+        errs.additionalLinks = 'Format Additional Link tidak valid (contoh: https://drive.google.com/...).';
+        break;
+      }
+    }
+
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
       showToast.error('Mohon lengkapi dan periksa kembali data proyek.');
@@ -224,8 +267,10 @@ export default function AddProjectPage() {
         deadline,
         venue,
         budget: Number(contractValue) || 0,
-        deliverablesLink,
-        additionalLinks,
+        deliverablesLink: deliverablesLink.trim() ? normalizeUrl(deliverablesLink) : '',
+        additionalLinks: additionalLinks
+          .filter((l) => l.url.trim())
+          .map((l) => ({ ...l, url: normalizeUrl(l.url) })),
         status,
       });
 
@@ -507,8 +552,15 @@ export default function AddProjectPage() {
                       type="text"
                       placeholder="https://drive.google.com/..."
                       value={deliverablesLink}
-                      onChange={(e) => setDeliverablesLink(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 focus:border-primary rounded-xl focus:outline-hidden text-slate-800 font-medium"
+                      onChange={(e) => {
+                        setDeliverablesLink(e.target.value);
+                        if (fieldErrors.deliverablesLink) setFieldErrors((prev) => ({ ...prev, deliverablesLink: '' }));
+                      }}
+                      className={`w-full pl-10 pr-4 py-2 text-xs bg-white border rounded-xl focus:outline-hidden text-slate-800 font-medium transition-colors ${
+                        (deliverablesLink.trim() && !isValidUrl(deliverablesLink)) || fieldErrors.deliverablesLink
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-slate-200 focus:border-primary'
+                      }`}
                     />
                   </div>
                   <button
@@ -525,63 +577,83 @@ export default function AddProjectPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDeliverablesLink('')}
+                    onClick={() => {
+                      setDeliverablesLink('');
+                      if (fieldErrors.deliverablesLink) setFieldErrors((prev) => ({ ...prev, deliverablesLink: '' }));
+                    }}
                     className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                     title="Clear Link"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+                {((deliverablesLink.trim() && !isValidUrl(deliverablesLink)) || fieldErrors.deliverablesLink) && (
+                  <p className="text-[11px] text-red-500 mt-1 font-medium">
+                    {fieldErrors.deliverablesLink || 'Format URL tidak valid. Gunakan format seperti https://drive.google.com/...'}
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-400 mt-1">
                   Google Drive, YouTube, or other platforms. Can be updated anytime from the Project List.
                 </p>
               </div>
 
-              {additionalLinks.map((link) => (
-                <div key={link.id} className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Additional Link
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        id={`additional-link-${link.id}`}
-                        type="text"
-                        placeholder="https://drive.google.com/..."
-                        value={link.url}
-                        onChange={(e) => {
-                          const newUrl = e.target.value;
-                          setAdditionalLinks((prev) =>
-                            prev.map((l) => (l.id === link.id ? { ...l, url: newUrl } : l))
-                          );
+              {additionalLinks.map((link) => {
+                const isInvalid = link.url.trim() !== '' && !isValidUrl(link.url);
+                return (
+                  <div key={link.id} className="space-y-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Additional Link
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          id={`additional-link-${link.id}`}
+                          type="text"
+                          placeholder="https://drive.google.com/..."
+                          value={link.url}
+                          onChange={(e) => {
+                            const newUrl = e.target.value;
+                            setAdditionalLinks((prev) =>
+                              prev.map((l) => (l.id === link.id ? { ...l, url: newUrl } : l))
+                            );
+                          }}
+                          className={`w-full pl-10 pr-4 py-2 text-xs bg-white border rounded-xl focus:outline-hidden text-slate-800 font-medium transition-colors ${
+                            isInvalid
+                              ? 'border-red-500 focus:border-red-500'
+                              : 'border-slate-200 focus:border-primary'
+                          }`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+                          el?.focus();
+                          el?.select();
                         }}
-                        className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary text-slate-800 font-medium"
-                      />
+                        className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                        title="Edit Link (Klik untuk mengedit url)"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLink(link.id)}
+                        className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Delete Link"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
-                        el?.focus();
-                        el?.select();
-                      }}
-                      className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                      title="Edit Link (Klik untuk mengedit url)"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLink(link.id)}
-                      className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Delete Link"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isInvalid && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">
+                        Format URL tidak valid. Gunakan format seperti https://drive.google.com/...
+                      </p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Step 1 Bottom Buttons */}

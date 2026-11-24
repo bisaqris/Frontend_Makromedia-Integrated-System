@@ -18,6 +18,7 @@ import ConfirmModal from '@/components/shared/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
 import projectService from '@/lib/services/projectService';
 import { projectWorkflowService } from '@/lib/services/projectWorkflowService';
+import { isValidUrl, normalizeUrl } from '@/lib/utils';
 import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
   ExternalLink,
@@ -206,11 +207,15 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       showToast.error('URL link wajib diisi.');
       return;
     }
+    if (!isValidUrl(newLinkUrl)) {
+      showToast.error('Format URL tidak valid (contoh: https://drive.google.com/...).');
+      return;
+    }
     try {
       setIsSubmittingLink(true);
       const created = await projectWorkflowService.createLink(project.id, {
         label: newLinkLabel.trim() || 'Link',
-        url: newLinkUrl.trim(),
+        url: normalizeUrl(newLinkUrl.trim()),
       });
       setProjectLinks((prev) => [...prev, created]);
       setNewLinkLabel('');
@@ -631,13 +636,24 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   onChange={(e) => setNewLinkLabel(e.target.value)}
                   className="w-full px-2.5 py-1.5 border border-slate-200 rounded bg-white text-xs focus:outline-none focus:border-blue-500"
                 />
-                <input
-                  type="url"
-                  placeholder="URL link (https://...)"
-                  value={newLinkUrl}
-                  onChange={(e) => setNewLinkUrl(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-slate-200 rounded bg-white text-xs focus:outline-none focus:border-blue-500"
-                />
+                <div>
+                  <input
+                    type="url"
+                    placeholder="URL link (contoh: https://drive.google.com/...)"
+                    value={newLinkUrl}
+                    onChange={(e) => setNewLinkUrl(e.target.value)}
+                    className={`w-full px-2.5 py-1.5 border rounded bg-white text-xs focus:outline-none transition-colors ${
+                      newLinkUrl.trim() && !isValidUrl(newLinkUrl)
+                        ? 'border-red-500 focus:border-red-500'
+                        : 'border-slate-200 focus:border-blue-500'
+                    }`}
+                  />
+                  {newLinkUrl.trim() && !isValidUrl(newLinkUrl) && (
+                    <p className="text-[10px] text-red-500 mt-0.5 font-medium">
+                      Format URL tidak valid. Gunakan format seperti https://drive.google.com/...
+                    </p>
+                  )}
+                </div>
                 <div className="flex justify-end gap-2 pt-1">
                   <Button
                     type="button"
