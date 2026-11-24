@@ -208,7 +208,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       return;
     }
     if (!isValidUrl(newLinkUrl)) {
-      showToast.error('Format URL tidak valid (contoh: https://drive.google.com/...).');
+      showToast.error('Format URL tidak valid. Harus diawali dengan http:// atau https://');
       return;
     }
     try {
@@ -639,7 +639,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                 <div>
                   <input
                     type="url"
-                    placeholder="URL link (contoh: https://drive.google.com/...)"
+                    placeholder="URL link (https://...)"
                     value={newLinkUrl}
                     onChange={(e) => setNewLinkUrl(e.target.value)}
                     className={`w-full px-2.5 py-1.5 border rounded bg-white text-xs focus:outline-none transition-colors ${
@@ -650,7 +650,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   />
                   {newLinkUrl.trim() && !isValidUrl(newLinkUrl) && (
                     <p className="text-[10px] text-red-500 mt-0.5 font-medium">
-                      Format URL tidak valid. Gunakan format seperti https://drive.google.com/...
+                      Format URL tidak valid. Harus diawali dengan http:// atau https://
                     </p>
                   )}
                 </div>

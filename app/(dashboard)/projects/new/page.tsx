@@ -141,7 +141,7 @@ export default function AddProjectPage() {
       return;
     }
     if (!isValidUrl(deliverablesLink)) {
-      showToast.error('Format Deliverables Link tidak valid (contoh: https://drive.google.com/...).');
+      showToast.error('Format Deliverables Link tidak valid. Harus diawali http:// atau https://');
       const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
       el?.focus();
       return;
@@ -156,7 +156,7 @@ export default function AddProjectPage() {
         return;
       }
       if (!isValidUrl(link.url)) {
-        showToast.error('Format URL link tambahan sebelumnya tidak valid (contoh: https://drive.google.com/...).');
+        showToast.error('Format URL link tambahan sebelumnya tidak valid. Harus diawali http:// atau https://');
         const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
         el?.focus();
         return;
@@ -215,13 +215,13 @@ export default function AddProjectPage() {
 
     // Validasi URL Deliverables Link jika diisi
     if (deliverablesLink.trim() && !isValidUrl(deliverablesLink)) {
-      errs.deliverablesLink = 'Format Deliverables Link tidak valid (contoh: https://drive.google.com/...).';
+      errs.deliverablesLink = 'Format Deliverables Link tidak valid (harus diawali http:// atau https://).';
     }
 
     // Validasi URL Additional Links jika ada
     for (const link of additionalLinks) {
       if (link.url.trim() && !isValidUrl(link.url)) {
-        errs.additionalLinks = 'Format Additional Link tidak valid (contoh: https://drive.google.com/...).';
+        errs.additionalLinks = 'Format Additional Link tidak valid (harus diawali http:// atau https://).';
         break;
       }
     }
@@ -550,7 +550,7 @@ export default function AddProjectPage() {
                     <input
                       id="deliverables-link-input"
                       type="text"
-                      placeholder="https://drive.google.com/..."
+                      placeholder="https://..."
                       value={deliverablesLink}
                       onChange={(e) => {
                         setDeliverablesLink(e.target.value);
@@ -589,11 +589,11 @@ export default function AddProjectPage() {
                 </div>
                 {((deliverablesLink.trim() && !isValidUrl(deliverablesLink)) || fieldErrors.deliverablesLink) && (
                   <p className="text-[11px] text-red-500 mt-1 font-medium">
-                    {fieldErrors.deliverablesLink || 'Format URL tidak valid. Gunakan format seperti https://drive.google.com/...'}
+                    {fieldErrors.deliverablesLink || 'Format URL tidak valid. Harus diawali dengan http:// atau https://'}
                   </p>
                 )}
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Google Drive, YouTube, or other platforms. Can be updated anytime from the Project List.
+                  Bisa berupa link Google Drive, YouTube, Figma, Dropbox, atau platform lainnya.
                 </p>
               </div>
 
@@ -610,7 +610,7 @@ export default function AddProjectPage() {
                         <input
                           id={`additional-link-${link.id}`}
                           type="text"
-                          placeholder="https://drive.google.com/..."
+                          placeholder="https://..."
                           value={link.url}
                           onChange={(e) => {
                             const newUrl = e.target.value;
@@ -648,7 +648,7 @@ export default function AddProjectPage() {
                     </div>
                     {isInvalid && (
                       <p className="text-[11px] text-red-500 mt-1 font-medium">
-                        Format URL tidak valid. Gunakan format seperti https://drive.google.com/...
+                        Format URL tidak valid. Harus diawali dengan http:// atau https://
                       </p>
                     )}
                   </div>

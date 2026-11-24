@@ -86,23 +86,18 @@ export const parseNominal = (value: string | number | null | undefined): number 
   return clean ? Number(clean) : 0;
 };
 
-/** Validasi apakah string merupakan format URL web yang valid */
+/** Validasi apakah string merupakan format URL web yang valid (wajib diawali http:// atau https://) */
 export const isValidUrl = (urlString?: string | null): boolean => {
   if (!urlString) return false;
   const clean = urlString.trim();
   if (!clean) return false;
 
+  // Harus diawali http:// atau https://
+  if (!/^https?:\/\//i.test(clean)) return false;
+
   try {
-    const withProtocol = clean.startsWith('http://') || clean.startsWith('https://')
-      ? clean
-      : `https://${clean}`;
-    const parsed = new URL(withProtocol);
-    return (
-      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
-      parsed.hostname.length > 3 &&
-      parsed.hostname.includes('.') &&
-      !parsed.hostname.endsWith('.')
-    );
+    const parsed = new URL(clean);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && Boolean(parsed.hostname);
   } catch {
     return false;
   }
