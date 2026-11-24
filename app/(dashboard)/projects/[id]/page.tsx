@@ -82,13 +82,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
         {(role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES') && (
           <Button
-            variant="primary"
+            variant="outline"
             size="md"
-            className="min-w-[150px] px-7 py-2.5 rounded-xl font-semibold bg-[#0066ff] hover:bg-blue-700 text-white flex items-center justify-center gap-2 shadow-xs hover:shadow-md transition-all cursor-pointer"
+            leftIcon={<Pencil className="w-4 h-4 text-orange-500" />}
+            className="min-w-[140px] px-6 py-2.5 rounded-xl font-semibold border-orange-400 text-orange-500 hover:bg-orange-50 hover:border-orange-500 transition-colors shadow-2xs cursor-pointer inline-flex items-center gap-2"
             onClick={() => router.push(`/projects/${id}/edit`)}
           >
-            <Pencil className="w-4 h-4" />
-            <span>Edit Project</span>
+            Edit Project
           </Button>
         )}
       </div>
