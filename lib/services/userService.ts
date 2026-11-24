@@ -3,25 +3,25 @@ import { UpdateUserProfileDTO, User, UserProfile } from '@/types/user';
 import { mockUsers, mockUserProfile } from '@/lib/mock/users.mock';
 import { cloneMock, USE_MOCK } from './mockFlag';
 
-const getStoredAvatar = (): string | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  return localStorage.getItem('makromedia_user_avatar') || undefined;
-};
-
 // Store in-memory untuk mode mock (direset saat halaman di-reload).
 let profileStore: UserProfile | null = null;
-const getProfileStore = (): UserProfile => {
-  const store = (profileStore ??= cloneMock(mockUserProfile));
-  const storedAvatar = getStoredAvatar();
-  if (storedAvatar) store.photoUrl = storedAvatar;
-  return store;
-};
+const getProfileStore = (): UserProfile => (profileStore ??= cloneMock(mockUserProfile));
+
+// Baca file gambar menjadi data URL (untuk preview instan & mode mock).
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
 
 interface BackendUserProfile {
   id: string;
   name: string;
   email: string;
   role: string;
+  avatarUrl?: string | null; // data URL base64 foto profil dari backend
   phone?: string | null;
   dateOfBirth?: string | null;
   country?: string | null;
@@ -63,7 +63,7 @@ const mapBackendProfile = (api: BackendUserProfile, base: UserProfile): UserProf
   accountHolder: api.accountHolder ?? base.accountHolder,
   position: api.position?.name ?? base.position,
   skills: api.skills?.map((s) => s.skill.name) ?? base.skills,
-  photoUrl: getStoredAvatar() ?? base.photoUrl,
+  photoUrl: api.avatarUrl ?? base.photoUrl,
 });
 
 export const userService = {
@@ -83,14 +83,6 @@ export const userService = {
   },
 
   updateProfile: async (data: UpdateUserProfileDTO): Promise<UserProfile> => {
-    if (data.photoUrl !== undefined && typeof window !== 'undefined') {
-      if (data.photoUrl) {
-        localStorage.setItem('makromedia_user_avatar', data.photoUrl);
-      } else {
-        localStorage.removeItem('makromedia_user_avatar');
-      }
-    }
-
     if (USE_MOCK) {
       profileStore = mergeProfile(getProfileStore(), data);
       return cloneMock(profileStore);
@@ -120,6 +112,39 @@ export const userService = {
     } catch (err) {
       throw err;
     }
+  },
+
+  /**
+   * Upload foto profil (multipart, field `file`) ke PATCH /auth/me/avatar.
+   * Backend meng-kompres + menyimpan sebagai data URL base64 dan mengembalikan
+   * profil terbaru. FormData dibiarkan agar browser set boundary multipart.
+   */
+  uploadAvatar: async (file: File): Promise<UserProfile> => {
+    if (USE_MOCK) {
+      const dataUrl = await fileToDataUrl(file);
+      profileStore = mergeProfile(getProfileStore(), { photoUrl: dataUrl });
+      return cloneMock(profileStore);
+    }
+
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.patch<BackendUserProfile>('/auth/me/avatar', form);
+    const base = getProfileStore();
+    profileStore = mapBackendProfile(response.data, base);
+    return cloneMock(profileStore);
+  },
+
+  /** Hapus foto profil via DELETE /auth/me/avatar. Mengembalikan profil terbaru. */
+  removeAvatar: async (): Promise<UserProfile> => {
+    if (USE_MOCK) {
+      profileStore = mergeProfile(getProfileStore(), { photoUrl: undefined });
+      return cloneMock(profileStore);
+    }
+
+    const response = await apiClient.delete<BackendUserProfile>('/auth/me/avatar');
+    const base = getProfileStore();
+    profileStore = mapBackendProfile(response.data, base);
+    return cloneMock(profileStore);
   },
 
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {

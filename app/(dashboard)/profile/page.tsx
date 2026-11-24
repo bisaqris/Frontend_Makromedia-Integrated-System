@@ -33,6 +33,7 @@ export default function ProfilePage() {
 
   const [skills, setSkills] = useState<string[]>([]);
   const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [photoUploading, setPhotoUploading] = useState<boolean>(false);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
@@ -137,8 +138,9 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // reset agar file yang sama bisa dipilih lagi
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -151,33 +153,40 @@ export default function ProfilePage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      if (dataUrl) {
-        setPhotoPreview(dataUrl);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('makromedia_user_avatar', dataUrl);
-        }
-        if (updateUser) {
-          updateUser({ avatarUrl: dataUrl });
-        }
-        showToast.success('Foto profil berhasil dipilih!');
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    const previous = photoPreview;
+    const localPreview = URL.createObjectURL(file);
+    setPhotoPreview(localPreview); // preview instan sebelum upload selesai
+    setPhotoUploading(true);
+    try {
+      const updated = await userService.uploadAvatar(file); // kompres + simpan di backend
+      const newUrl = updated.photoUrl || '';
+      setPhotoPreview(newUrl);
+      if (updateUser) updateUser({ avatarUrl: newUrl || undefined });
+      showToast.success('Foto profil berhasil diperbarui!');
+    } catch {
+      setPhotoPreview(previous); // rollback jika gagal
+      showToast.error('Gagal mengunggah foto. Coba lagi.');
+    } finally {
+      URL.revokeObjectURL(localPreview);
+      setPhotoUploading(false);
+    }
   };
 
-  const handleRemovePhoto = () => {
+  const handleRemovePhoto = async () => {
+    if (!photoPreview) return;
+    const previous = photoPreview;
     setPhotoPreview('');
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('makromedia_user_avatar');
+    setPhotoUploading(true);
+    try {
+      await userService.removeAvatar(); // hapus di backend
+      if (updateUser) updateUser({ avatarUrl: undefined });
+      showToast.info('Foto profil dihapus.');
+    } catch {
+      setPhotoPreview(previous); // rollback jika gagal
+      showToast.error('Gagal menghapus foto. Coba lagi.');
+    } finally {
+      setPhotoUploading(false);
     }
-    if (updateUser) {
-      updateUser({ avatarUrl: undefined });
-    }
-    showToast.info('Foto profil dihapus.');
   };
 
   const filteredSkills = skillOptions.filter((s) =>
@@ -374,8 +383,8 @@ export default function ProfilePage() {
 
             {/* Avatar Preview with Camera Overlay */}
             <div
-              onClick={() => fileInputRef.current?.click()}
-              className="relative group cursor-pointer inline-block"
+              onClick={() => { if (!photoUploading) fileInputRef.current?.click(); }}
+              className={`relative group inline-block ${photoUploading ? 'cursor-wait pointer-events-none opacity-80' : 'cursor-pointer'}`}
               title="Klik untuk mengganti foto profil"
             >
               {photoPreview ? (
@@ -390,10 +399,10 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* Hover Overlay */}
-              <div className="absolute inset-0 rounded-full bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-medium">
+              {/* Hover / Uploading Overlay */}
+              <div className={`absolute inset-0 rounded-full bg-slate-900/50 transition-opacity flex flex-col items-center justify-center text-white text-xs font-medium ${photoUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                 <Camera className="w-6 h-6 mb-1 text-white" />
-                <span>Ubah Foto</span>
+                <span>{photoUploading ? 'Mengunggah...' : 'Ubah Foto'}</span>
               </div>
 
               {/* Corner Camera Badge */}
@@ -407,7 +416,8 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-xs font-semibold text-primary hover:text-primary-700 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-primary-50"
+                disabled={photoUploading}
+                className="text-xs font-semibold text-primary hover:text-primary-700 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-primary-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span>Pilih Foto</span>
@@ -418,7 +428,8 @@ export default function ProfilePage() {
                   <button
                     type="button"
                     onClick={handleRemovePhoto}
-                    className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50"
+                    disabled={photoUploading}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>Hapus</span>
