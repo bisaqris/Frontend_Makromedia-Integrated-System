@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { User as UserIcon, LogOut, ChevronDown, Bell, Menu } from 'lucide-react';
+import { User as UserIcon, LogOut, ChevronDown, Menu } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { usePageTitle } from '@/context/PageTitleContext';
 import { useSidebar } from '@/context/SidebarContext'; // 1. Import useSidebar
@@ -133,18 +133,6 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4">
-        <button
-          type="button"
-          onClick={() => showToast.info('Tidak ada notifikasi baru.')}
-          className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors relative cursor-pointer"
-          title="Notifikasi"
-        >
-          <Bell className="w-4.5 h-4.5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-accent" />
-        </button>
-
-        <div className="h-4 w-px bg-slate-200" />
-
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
