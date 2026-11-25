@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, X, Search, Check, Lock, Eye, EyeOff, Camera, Upload, Trash2 } from 'lucide-react';
+import { ChevronDown, X, Search, Check, Eye, EyeOff, Camera, Upload, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -31,7 +31,7 @@ const BANK_OPTIONS = [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, updateUser, logout } = useAuth();
+  const { updateUser, logout } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     dateOfBirth: '',
@@ -81,8 +81,8 @@ export default function ProfilePage() {
     const loadData = async () => {
       const [profile, positions, masterSkills] = await Promise.all([
         userService.getProfile(),
-        positionService.getAll(),
-        skillService.getAll(),
+        positionService.getActive(),
+        skillService.getActive(),
       ]);
 
       if (!isMounted) return;
@@ -109,7 +109,11 @@ export default function ProfilePage() {
       setInitialPhoto(profile.photoUrl || '');
       setPositionsList(positions);
       setSkillsList(masterSkills);
-      setPositionOptions(positions.map((p) => p.name));
+      const posNames = positions.map((p) => p.name);
+      if (profile.position && !posNames.includes(profile.position)) {
+        posNames.unshift(profile.position);
+      }
+      setPositionOptions(posNames);
       setSkillOptions(masterSkills.map((s) => s.name));
     };
 
@@ -139,6 +143,22 @@ export default function ProfilePage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    if (name === 'phone') {
+      const digits = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, phone: digits }));
+      if (profileErrors.phone) {
+        setProfileErrors((prev) => ({ ...prev, phone: '' }));
+      }
+      return;
+    }
+    if (name === 'accountNumber') {
+      const digits = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, accountNumber: digits }));
+      if (profileErrors.accountNumber) {
+        setProfileErrors((prev) => ({ ...prev, accountNumber: '' }));
+      }
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -175,8 +195,10 @@ export default function ProfilePage() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast.error('Ukuran file foto maksimal 5MB.');
+    const MAX_PROFILE_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_PROFILE_PHOTO_SIZE) {
+      showToast.error('Ukuran file foto melebihi batas maksimal 10MB.');
+      if (e.target) e.target.value = '';
       return;
     }
 
@@ -231,8 +253,10 @@ export default function ProfilePage() {
 
     if (!formData.phone.trim()) {
       errs.phone = 'Nomor telepon wajib diisi.';
-    } else if (formData.phone.trim().replace(/\D/g, '').length < 10) {
-      errs.phone = 'Nomor telepon minimal 10 digit.';
+    } else if (!/^\d+$/.test(formData.phone.trim())) {
+      errs.phone = 'Nomor telepon harus berupa angka.';
+    } else if (formData.phone.trim().length < 10) {
+      errs.phone = 'Nomor telepon minimal 10 digit angka.';
     }
 
     if (formData.bankName.trim() && !formData.accountNumber.trim()) {
@@ -255,21 +279,36 @@ export default function ProfilePage() {
     if (!validateProfile()) return;
     try {
       // Cari positionId berdasarkan nama posisi yang dipilih
+      const trimmedPosition = formData.position.trim();
       const matchedPosition = positionsList.find(
-        (p) => p.name.toLowerCase() === formData.position.trim().toLowerCase()
+        (p) => p.name.trim().toLowerCase() === trimmedPosition.toLowerCase()
       );
-      const positionId = matchedPosition?.id;
+
+      let positionId: string | null = matchedPosition ? matchedPosition.id : null;
+      if (!positionId && trimmedPosition) {
+        try {
+          const newPos = await positionService.create({ name: trimmedPosition });
+          positionId = newPos.id;
+          setPositionsList((prev) => [...prev, newPos]);
+          setPositionOptions((prev) => [...prev, newPos.name]);
+        } catch {
+          // Abaikan jika tidak diizinkan membuat posisi baru
+        }
+      }
 
       // Cari / buat skillIds
       const skillIds: string[] = [];
       for (const skillName of skills) {
+        const trimmedSkill = skillName.trim();
+        if (!trimmedSkill) continue;
         let matched = skillsList.find(
-          (s) => s.name.toLowerCase() === skillName.trim().toLowerCase()
+          (s) => s.name.trim().toLowerCase() === trimmedSkill.toLowerCase()
         );
-        if (!matched && skillName.trim()) {
+        if (!matched) {
           try {
-            matched = await skillService.create({ name: skillName.trim() });
+            matched = await skillService.create({ name: trimmedSkill });
             setSkillsList((prev) => [...prev, matched!]);
+            setSkillOptions((prev) => [...prev, matched!.name]);
           } catch {
             // ignore jika pembuatan skill baru gagal
           }
@@ -290,7 +329,7 @@ export default function ProfilePage() {
         village: formData.village,
         detailAddress: formData.detailAddress,
         position: formData.position,
-        positionId,
+        positionId: positionId ?? undefined,
         skills,
         skillIds,
         bankName: formData.bankName.trim(),
@@ -306,12 +345,15 @@ export default function ProfilePage() {
         });
       }
 
+      setInitialFormData({ ...formData });
+      setInitialSkills([...skills]);
+      setInitialPhoto(photoPreview);
+
       showToast.success('Profil berhasil diperbarui!');
-      setTimeout(() => {
-        window.location.reload();
-      }, 700);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memperbarui profil.';
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : 'Gagal memperbarui profil.');
       showToast.error(msg);
     }
   };
@@ -357,10 +399,9 @@ export default function ProfilePage() {
       setSkills(initialSkills);
       setPhotoPreview(initialPhoto);
       setProfileErrors({});
-      showToast.info('Perubahan pada formulir profil dibatalkan.');
-    } else {
-      router.push('/dashboard');
     }
+    showToast.info('Batal mengedit profil.');
+    router.push('/dashboard');
   };
 
   return (
@@ -475,7 +516,7 @@ export default function ProfilePage() {
                 </>
               )}
             </div>
-            <span className="text-[11px] text-slate-400">Format: JPG, PNG, WebP (Maks. 5MB)</span>
+            <span className="text-[11px] text-slate-400">Format: JPG, PNG, WebP (Maks. 10MB)</span>
           </div>
         </div>
 

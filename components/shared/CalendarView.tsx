@@ -264,13 +264,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     {placedEvents.map((evt) => {
                       const event = evt.event;
                       const colorStyle =
-                        CATEGORY_COLORS[event.category || ""] ||
-                        CATEGORY_COLORS["Default"];
+                        event.type === "TASK"
+                          ? { bg: "bg-purple-600", text: "text-white", border: "border-purple-700" }
+                          : event.type === "INVOICE_DUE"
+                            ? { bg: "bg-rose-600", text: "text-white", border: "border-rose-700" }
+                            : (CATEGORY_COLORS[event.category || ""] || CATEGORY_COLORS["Default"]);
+
+                      const getTargetUrl = () => {
+                        if (event.type === "TASK") return `/projects/${event.projectId}?tab=task`;
+                        if (event.type === "INVOICE_DUE") return `/projects/${event.projectId}?tab=payment&subtab=invoice`;
+                        return `/projects/${event.projectId}?tab=info`;
+                      };
 
                       return (
                         <div
                           key={`evt-${event.id}-w${weekIdx}`}
-                          onClick={() => router.push(`/projects/${event.projectId}`)}
+                          onClick={() => router.push(getTargetUrl())}
                           style={{
                             gridColumnStart: evt.startCol + 1,
                             gridColumnEnd: `span ${evt.span}`,

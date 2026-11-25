@@ -10,7 +10,7 @@ import DatePickerInput from '@/components/ui/DatePickerInput';
 import projectService from '@/lib/services/projectService';
 import { clientService } from '@/lib/services/clientService';
 import { userService } from '@/lib/services/userService';
-import { Project, ProjectCategory, ProjectStatus } from '@/types/project';
+import { ProjectCategory, ProjectStatus } from '@/types/project';
 import { ClientCompany, ClientPIC } from '@/types/client';
 import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';

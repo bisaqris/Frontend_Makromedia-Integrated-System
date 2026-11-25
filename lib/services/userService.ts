@@ -49,20 +49,20 @@ const mapBackendProfile = (api: BackendUserProfile, base: UserProfile): UserProf
   id: api.id,
   name: api.name,
   email: api.email,
-  phone: api.phone ?? base.phone,
-  dateOfBirth: api.dateOfBirth ? api.dateOfBirth.slice(0, 10) : base.dateOfBirth,
-  country: api.country ?? base.country,
-  province: api.province ?? base.province,
-  city: api.city ?? base.city,
-  subdistrict: api.subdistrict ?? base.subdistrict,
-  village: api.village ?? base.village,
-  postalCode: api.postalCode ?? base.postalCode,
-  detailAddress: api.detailAddress ?? base.detailAddress,
-  bankName: api.bankName ?? base.bankName,
-  accountNumber: api.bankAccountNo ?? base.accountNumber,
-  accountHolder: api.accountHolder ?? base.accountHolder,
-  position: api.position?.name ?? base.position,
-  skills: api.skills?.map((s) => s.skill.name) ?? base.skills,
+  phone: api.phone ?? '',
+  dateOfBirth: api.dateOfBirth ? api.dateOfBirth.slice(0, 10) : '',
+  country: api.country ?? '',
+  province: api.province ?? '',
+  city: api.city ?? '',
+  subdistrict: api.subdistrict ?? '',
+  village: api.village ?? '',
+  postalCode: api.postalCode ?? '',
+  detailAddress: api.detailAddress ?? '',
+  bankName: api.bankName ?? '',
+  accountNumber: api.bankAccountNo ?? '',
+  accountHolder: api.accountHolder ?? '',
+  position: api.position?.name ?? '',
+  skills: Array.isArray(api.skills) ? api.skills.map((s) => s.skill.name) : [],
   photoUrl: getStoredAvatar() ?? base.photoUrl,
 });
 
@@ -101,7 +101,14 @@ export const userService = {
       if (data.name !== undefined) payload.name = data.name;
       if (data.email !== undefined) payload.email = data.email;
       if (data.phone !== undefined) payload.phone = data.phone;
-      if (data.dateOfBirth !== undefined) payload.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : undefined;
+      if (data.dateOfBirth !== undefined) {
+        if (!data.dateOfBirth) {
+          payload.dateOfBirth = null;
+        } else {
+          const d = new Date(data.dateOfBirth);
+          payload.dateOfBirth = isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+        }
+      }
       if (data.country !== undefined) payload.country = data.country;
       if (data.province !== undefined) payload.province = data.province;
       if (data.city !== undefined) payload.city = data.city;
@@ -127,6 +134,17 @@ export const userService = {
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
     if (USE_MOCK) return;
     await apiClient.patch('/auth/me/password', { oldPassword, newPassword });
+  },
+
+  getUsers: async (): Promise<User[]> => {
+    if (USE_MOCK) return cloneMock(mockUsers);
+
+    try {
+      const response = await apiClient.get<User[]>('/users');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return cloneMock(mockUsers);
+    }
   },
 
   /** User dengan role PROJECT_MANAGER, untuk dropdown filter & form project. */

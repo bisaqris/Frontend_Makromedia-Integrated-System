@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { companyService } from '@/lib/services/companyService';
+import { invoiceSettingService } from '@/lib/services/invoiceSettingService';
 import { ApplicationCostItem, CompanyProfile } from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
@@ -22,6 +23,19 @@ export default function InvoicePreviewPage() {
   const [item, setItem] = useState<ApplicationCostItem | null>(null);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
+
+  useEffect(() => {
+    const handleSettingUpdate = () => {
+      setInvoiceSetting(invoiceSettingService.getSetting());
+    };
+    window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+    window.addEventListener('storage', handleSettingUpdate);
+    return () => {
+      window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+      window.removeEventListener('storage', handleSettingUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -74,6 +88,7 @@ export default function InvoicePreviewPage() {
       html2canvas: {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         scrollY: 0,
         scrollX: 0,
@@ -81,7 +96,10 @@ export default function InvoicePreviewPage() {
         onclone: (clonedDoc: Document) => {
           const sheet = clonedDoc.getElementById('pdf-preview-sheet');
           if (sheet) {
+            sheet.style.transform = 'none';
             sheet.style.boxShadow = 'none';
+            sheet.style.width = '100%';
+            sheet.style.maxWidth = '100%';
             const allEls = sheet.querySelectorAll('*');
             allEls.forEach((el) => {
               if (el instanceof HTMLElement) {
@@ -96,12 +114,21 @@ export default function InvoicePreviewPage() {
     };
 
     try {
-      const html2pdf = (await import('html2pdf.js')).default;
+      const html2pdfModule = await import('html2pdf.js');
+      type Html2PdfInstance = {
+        set: (opt: unknown) => {
+          from: (element: HTMLElement) => {
+            save: () => Promise<void>;
+          };
+        };
+      };
+      const html2pdf = ((html2pdfModule as unknown as { default?: () => Html2PdfInstance }).default ||
+        (html2pdfModule as unknown as () => Html2PdfInstance)) as () => Html2PdfInstance;
       await html2pdf().set(opt).from(element).save();
       showToast.success('PDF Invoice berhasil diunduh!');
-    } catch {
-      showToast.error('PDF gagal dibuat. Membuka dialog cetak sebagai alternatif.');
-      window.print();
+    } catch (err: unknown) {
+      console.error('PDF download error:', err);
+      showToast.error('Gagal mengunduh file PDF secara otomatis. Gunakan tombol Cetak jika diperlukan.');
     }
   };
 
@@ -126,9 +153,29 @@ export default function InvoicePreviewPage() {
     );
   }
 
+  const rawSignerName = invoiceSetting.signerName || item.projectOfficer || 'Budi Santoso';
+  const signerName = rawSignerName.replace(/\s*\([^)]*\)/g, '').trim();
+  const signerPosition = invoiceSetting.signerPosition || 'Penanggung Jawab';
+  const signatureUrl = invoiceSetting.signerSignatureUrl || item.signatureUrl;
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
-  const bankAccounts = item.bankAccounts ?? [];
+  const discountPercent = item.discountPercent ?? 0;
+  const effectivePphPercent = (item.pph !== undefined && item.pph > 0 && subTotal > 0)
+    ? Math.round((item.pph / subTotal) * 100 * 10) / 10
+    : invoiceSetting.pphPercent;
+  const effectivePph = (item.pph !== undefined && item.pph > 0)
+    ? item.pph
+    : (subTotal * effectivePphPercent) / 100;
+  const calculatedContractAmount = Math.max(0, subTotal - (subTotal * discountPercent) / 100 + effectivePph);
+  const previousPayment = item.previousPayment ?? 0;
+  const invoiceAmount = Math.max(0, calculatedContractAmount - previousPayment);
+  const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
+    ? invoiceSetting.bankAccounts
+    : (item.bankAccounts || []);
+  const termsList = (invoiceSetting.termsOfCondition && invoiceSetting.termsOfCondition.length > 0)
+    ? invoiceSetting.termsOfCondition
+    : (item.termsOfCondition || []);
+  const paymentInstruction = invoiceSetting.paymentInstruction || item.paymentInstruction || '';
 
   return (
     <div className="space-y-6 pb-16">
@@ -434,27 +481,23 @@ export default function InvoicePreviewPage() {
                     <span className="font-bold text-slate-800">{item.discountPercent}%</span>
                   </div>
                 )}
-                {item.pph !== undefined && (
-                  <div className="flex justify-between items-center text-slate-600 font-medium">
-                    <span>PPH</span>
-                    <span className="font-bold text-slate-800">
-                      {formatRupiahWithSpace(item.pph)}
-                    </span>
-                  </div>
-                )}
+                <div className="flex justify-between items-center text-slate-600 font-medium">
+                  <span>PPH ({effectivePphPercent}%)</span>
+                  <span className="font-bold text-slate-800">
+                    +{formatRupiahWithSpace(effectivePph)}
+                  </span>
+                </div>
 
                 <div className="border-b border-slate-200 pt-1" />
 
-                {item.contractValue !== undefined && (
-                  <div className="flex justify-between items-center text-slate-800 font-bold pt-0.5">
-                    <span>Contract Amount</span>
-                    <span>{formatRupiahWithSpace(item.contractValue)}</span>
-                  </div>
-                )}
-                {item.previousPayment !== undefined && (
+                <div className="flex justify-between items-center text-slate-800 font-bold pt-0.5">
+                  <span>Contract Amount</span>
+                  <span>{formatRupiahWithSpace(calculatedContractAmount)}</span>
+                </div>
+                {previousPayment > 0 && (
                   <div className="flex justify-between items-center text-slate-400 font-medium">
                     <span>Previous Payment</span>
-                    <span>- {formatRupiahWithSpace(item.previousPayment)}</span>
+                    <span>- {formatRupiahWithSpace(previousPayment)}</span>
                   </div>
                 )}
               </div>
@@ -468,20 +511,39 @@ export default function InvoicePreviewPage() {
                   <span className="text-[11px] text-orange-400 font-normal">For This Period</span>
                 </div>
                 <span className="text-base sm:text-lg font-bold text-orange-600">
-                  {formatRupiahWithSpace(item.totalCost)}
+                  {formatRupiahWithSpace(invoiceAmount)}
                 </span>
               </div>
             </div>
 
-            {(item.paymentInstruction || item.notes) && (
-              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2 text-xs">
-                <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
-                  Payment Instructions
-                </h4>
-                <div className="text-slate-600 space-y-1.5 leading-relaxed text-[11px]">
-                  {item.paymentInstruction && <p>{item.paymentInstruction}</p>}
-                  {item.notes && <p>{item.notes}</p>}
-                </div>
+            {/* Term of Condition & Payment Instructions Card */}
+            {(termsList.length > 0 || paymentInstruction) && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 text-xs">
+                {termsList.length > 0 && (
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
+                      TERM OF CONDITION
+                    </h4>
+                    <div className="text-slate-600 space-y-1 leading-relaxed text-[11px]">
+                      {termsList.map((term, i) => (
+                        <p key={i}>
+                          <strong className="text-slate-700">{i + 1}.</strong> {term}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {paymentInstruction && (
+                  <div className={`space-y-1 ${termsList.length > 0 ? 'pt-2 border-t border-slate-100' : ''}`}>
+                    <h4 className="font-bold text-blue-600 tracking-wider uppercase text-[11px]">
+                      PAYMENT INSTRUCTIONS
+                    </h4>
+                    <p className="text-slate-600 text-[11px] leading-relaxed">
+                      {paymentInstruction}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -513,21 +575,30 @@ export default function InvoicePreviewPage() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              {(item.projectOfficer || item.signatureUrl) && (
-                <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
-                  <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
-                  {item.signatureUrl && (
-                    <div className="h-14 flex items-center justify-center">
-                      <img
-                        src={item.signatureUrl}
-                        alt="Tanda tangan"
-                        className="max-h-12 w-auto object-contain"
+              <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
+                <p className="font-bold text-slate-800 text-sm">{signerName}</p>
+                <div className="h-14 flex items-center justify-center">
+                  {signatureUrl ? (
+                    <img
+                      src={signatureUrl}
+                      alt="Tanda tangan"
+                      className="max-h-12 w-auto object-contain"
+                    />
+                  ) : (
+                    <svg className="w-24 h-10 text-slate-800 stroke-current fill-none" viewBox="0 0 100 40">
+                      <path
+                        d="M10,25 C25,5 35,35 45,15 C55,-5 65,30 85,20 C70,40 50,30 30,35"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                       />
-                    </div>
+                    </svg>
                   )}
-                  <p className="text-slate-700 font-medium text-xs">Penanggung Jawab</p>
                 </div>
-              )}
+                <div className="border-t border-slate-300 pt-1">
+                  <p className="text-slate-700 font-medium text-xs">{signerPosition}</p>
+                </div>
+              </div>
               {profile?.instagram || profile?.tagline ? (
                 <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-2.5 flex flex-col justify-end">
                   {profile.instagram && (

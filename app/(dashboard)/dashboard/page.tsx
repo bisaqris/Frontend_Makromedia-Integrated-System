@@ -53,6 +53,11 @@ const MONTH_OPTIONS = [
   { value: "11", label: "Desember" },
 ];
 
+const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => {
+  const y = new Date().getFullYear() - 3 + i;
+  return { value: y.toString(), label: y.toString() };
+});
+
 export default function DashboardPage() {
   const { role } = useAuth();
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -107,7 +112,7 @@ export default function DashboardPage() {
           0,
         ).toISOString();
 
-        setEvents(await dashboardService.getCalendarEvents({ start, end }));
+        setEvents(await dashboardService.getCalendarEvents({ start, end }, role || undefined));
       } catch {
         setEvents([]);
         showToast.error('Gagal memuat event kalender.');
@@ -117,7 +122,7 @@ export default function DashboardPage() {
     };
 
     fetchCalendarData();
-  }, [currentDate]);
+  }, [currentDate, role]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<ProjectCategory, number> = {
@@ -143,6 +148,11 @@ export default function DashboardPage() {
   const handleMonthSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedMonth = parseInt(e.target.value, 10);
     setCurrentDate(new Date(currentDate.getFullYear(), selectedMonth, 1));
+  };
+
+  const handleYearSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedYear = parseInt(e.target.value, 10);
+    setCurrentDate(new Date(selectedYear, currentDate.getMonth(), 1));
   };
 
   const handlePrevMonth = () => {
@@ -209,6 +219,15 @@ export default function DashboardPage() {
               value={currentDate.getMonth().toString()}
               onChange={handleMonthSelect}
               options={MONTH_OPTIONS}
+              className="h-9 py-0 text-xs bg-white border-slate-200 hover:border-slate-300 rounded-lg font-semibold leading-none flex items-center shadow-2xs"
+            />
+          </div>
+
+          <div className="w-28">
+            <Select
+              value={currentDate.getFullYear().toString()}
+              onChange={handleYearSelect}
+              options={YEAR_OPTIONS}
               className="h-9 py-0 text-xs bg-white border-slate-200 hover:border-slate-300 rounded-lg font-semibold leading-none flex items-center shadow-2xs"
             />
           </div>

@@ -313,31 +313,34 @@ export const applicationCostService = {
     id: string,
     documentType?: ApplicationCostDocType
   ): Promise<ApplicationCostItem | null> => {
+    let item: ApplicationCostItem | null = null;
     if (USE_MOCK) {
-      return cloneMock(getMockStore().find((item) => item.id === id) ?? null);
-    }
-
-    if (documentType === 'Production Cost') {
-      return (await loadBackendItems()).find((item) => item.id === id) ?? null;
-    }
-
-    if (documentType === 'Quotation') {
+      item = cloneMock(getMockStore().find((i) => i.id === id) ?? null);
+    } else if (documentType === 'Production Cost') {
+      item = (await loadBackendItems()).find((i) => i.id === id) ?? null;
+    } else if (documentType === 'Quotation') {
       const response = await apiClient.get<BackendQuotation>(`/quotations/${id}`);
       const projectResponse = await apiClient.get<BackendProject>(
         `/projects/${response.data.projectId}`
       );
-      return mapQuotation(response.data, projectResponse.data);
-    }
-
-    if (documentType === 'Invoice') {
+      item = mapQuotation(response.data, projectResponse.data);
+    } else if (documentType === 'Invoice') {
       const response = await apiClient.get<BackendInvoice>(`/invoices/${id}`);
       const projectResponse = await apiClient.get<BackendProject>(
         `/projects/${response.data.projectId}`
       );
-      return mapInvoice(response.data, projectResponse.data);
+      item = mapInvoice(response.data, projectResponse.data);
+    } else {
+      item = (await loadBackendItems()).find((i) => i.id === id) ?? null;
     }
 
-    return (await loadBackendItems()).find((item) => item.id === id) ?? null;
+    if (item && typeof window !== 'undefined') {
+      const savedNote = localStorage.getItem(`app_cost_notes_${id}`);
+      if (savedNote) {
+        item.notes = savedNote;
+      }
+    }
+    return item;
   },
 
   updateStatus: async (
@@ -346,6 +349,10 @@ export const applicationCostService = {
     status: ApplicationCostStatus,
     notes?: string
   ): Promise<void> => {
+    if (notes !== undefined && typeof window !== 'undefined') {
+      localStorage.setItem(`app_cost_notes_${id}`, notes);
+    }
+
     if (USE_MOCK) {
       const item = getMockStore().find((record) => record.id === id);
       if (!item) throw new Error(`Dokumen dengan id "${id}" tidak ditemukan.`);
@@ -379,14 +386,33 @@ export const applicationCostService = {
       if (!['SENT', 'APPROVED', 'REJECTED'].includes(apiStatus)) {
         throw new Error(`Status "${status}" tidak didukung untuk quotation.`);
       }
-      await apiClient.patch(`/quotations/${id}/status`, { status: apiStatus });
+      try {
+        await apiClient.patch(`/quotations/${id}/status`, { status: apiStatus });
+      } catch (err: unknown) {
+        if (apiStatus === 'APPROVED' || apiStatus === 'REJECTED') {
+          try {
+            await apiClient.patch(`/quotations/${id}/status`, { status: 'SENT' });
+            await apiClient.patch(`/quotations/${id}/status`, { status: apiStatus });
+          } catch {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
       return;
     }
 
-    const apiStatus = status.toUpperCase();
-    if (!['SENT', 'PAID', 'OVERDUE'].includes(apiStatus)) {
-      throw new Error(`Status "${status}" tidak didukung untuk invoice.`);
+    // Invoice status translation
+    let apiStatus = status.toUpperCase();
+    if (apiStatus === 'APPROVED' || apiStatus === 'PAID') {
+      apiStatus = 'PAID';
+    } else if (apiStatus === 'REJECTED' || apiStatus === 'REVISE' || apiStatus === 'OVERDUE') {
+      apiStatus = 'OVERDUE';
+    } else if (apiStatus === 'PENDING' || apiStatus === 'DRAFT' || apiStatus === 'SENT') {
+      apiStatus = 'SENT';
     }
+
     await apiClient.patch(`/invoices/${id}/status`, { status: apiStatus });
   },
 };

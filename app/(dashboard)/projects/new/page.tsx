@@ -14,7 +14,6 @@ import { ProjectCategory } from '@/types/project';
 import { ClientCompany, ClientPIC } from '@/types/client';
 import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';
-import { USE_MOCK } from '@/lib/services/mockFlag';
 import { formatDateID, formatNominal, isValidUrl, normalizeUrl } from '@/lib/utils';
 import {
   Plus,
@@ -120,7 +119,7 @@ export default function AddProjectPage() {
   const [projectStarts, setProjectStarts] = useState(today);
   const [deadline, setDeadline] = useState(today);
   const [venue, setVenue] = useState('');
-  const [contractValue, setContractValue] = useState<string>('350000000');
+  const [contractValue, setContractValue] = useState<string>('0');
 
   const [deliverablesLink, setDeliverablesLink] = useState('');
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
@@ -201,15 +200,20 @@ export default function AddProjectPage() {
       errs.projectStarts = 'Tanggal mulai proyek wajib diisi.';
     } else if (projectStarts < today) {
       errs.projectStarts = 'Tanggal mulai proyek tidak boleh sebelum hari ini.';
+    } else if (eventDate && projectStarts > eventDate) {
+      errs.projectStarts = 'Tanggal mulai proyek tidak boleh melebihi Event Date.';
     }
 
     if (!deadline) {
       errs.deadline = 'Deadline proyek wajib diisi.';
     } else if (projectStarts && deadline < projectStarts) {
       errs.deadline = 'Deadline tidak boleh sebelum tanggal mulai proyek.';
+    } else if (eventDate && deadline > eventDate) {
+      errs.deadline = 'Deadline tidak boleh melebihi Event Date.';
     }
 
-    if (contractValue === '' || Number(contractValue) <= 0) {
+    const rawVal = Number(contractValue.replace(/\D/g, '')) || 0;
+    if (rawVal <= 0) {
       errs.contractValue = 'Nilai kontrak harus lebih besar dari Rp 0.';
     }
 
@@ -501,26 +505,57 @@ export default function AddProjectPage() {
                   )}
                 </div>
 
-                <Input
-                  label="Venue / Location"
-                  placeholder="e.g. Malang, East Java"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                  required
-                />
-                <Input
-                  label="Contract Value"
-                  placeholder="0"
-                  leftIcon={<span className="text-xs font-bold text-slate-500">Rp</span>}
-                  value={formatNominal(contractValue)}
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    setContractValue(raw);
-                    if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
-                  }}
-                  error={fieldErrors.contractValue}
-                  required
-                />
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Venue / Location <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="venue"
+                    name="venue"
+                    placeholder="e.g. Malang, East Java"
+                    value={venue}
+                    onChange={(e) => {
+                      setVenue(e.target.value);
+                      if (fieldErrors.venue) setFieldErrors((prev) => ({ ...prev, venue: '' }));
+                    }}
+                    className={`w-full rounded-xl border bg-white px-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-hidden ${
+                      fieldErrors.venue ? 'border-red-500' : 'border-slate-200'
+                    }`}
+                    required
+                  />
+                  {fieldErrors.venue && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.venue}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Contract Value <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-4 text-xs font-bold text-slate-500 pointer-events-none">Rp</span>
+                    <input
+                      type="text"
+                      id="contractValue"
+                      name="contractValue"
+                      placeholder="0"
+                      value={formatNominal(contractValue)}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '');
+                        setContractValue(raw);
+                        if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
+                      }}
+                      className={`w-full rounded-xl border bg-white pl-10 pr-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-hidden ${
+                        fieldErrors.contractValue ? 'border-red-500' : 'border-slate-200'
+                      }`}
+                      required
+                    />
+                  </div>
+                  {fieldErrors.contractValue && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.contractValue}</p>
+                  )}
+                </div>
               </div>
             </div>
 

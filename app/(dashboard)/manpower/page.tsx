@@ -2,16 +2,22 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { manpowerService } from '@/lib/services/manpowerService';
+import { positionService } from '@/lib/services/positionService';
+import { skillService } from '@/lib/services/skillService';
 import { ManpowerRecord } from '@/types/manpower';
 import ErrorState from '@/components/shared/ErrorState';
+import ConfirmModal from '@/components/shared/ConfirmModal';
+import { showToast } from '@/components/ui/Toast';
 
 export default function ManpowerPage() {
     const [search, setSearch] = useState('');
     const [positionFilter, setPositionFilter] = useState('');
     const [skillFilter, setSkillFilter] = useState('');
     const [employees, setEmployees] = useState<ManpowerRecord[]>([]);
+    const [activePositions, setActivePositions] = useState<string[]>([]);
+    const [activeSkills, setActiveSkills] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
 
@@ -19,26 +25,47 @@ export default function ManpowerPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage, setEntriesPerPage] = useState(10);
 
-    const loadData = useCallback(async () => {
-        setIsLoading(true);
-        setLoadError(false);
-        try {
-            setEmployees(await manpowerService.getAll());
-        } catch {
-            setLoadError(true);
-        } finally {
-            setIsLoading(false);
-        }
+    const loadData = useCallback(() => {
+        manpowerService.getAll()
+            .then((res) => {
+                setEmployees(res);
+                setLoadError(false);
+            })
+            .catch(() => {
+                setLoadError(true);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
     }, []);
 
     useEffect(() => {
         loadData();
+        Promise.all([
+            positionService.getActiveNames(),
+            skillService.getActiveNames(),
+        ]).then(([posNames, sklNames]) => {
+            setActivePositions(posNames);
+            setActiveSkills(sklNames);
+        }).catch(() => {});
     }, [loadData]);
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Apakah Anda yakin ingin menghapus karyawan ini?')) {
-            await manpowerService.delete(id);
+    // Modal state for delete confirmation
+    const [employeeToDelete, setEmployeeToDelete] = useState<{ id: string; name: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleConfirmDelete = async () => {
+        if (!employeeToDelete) return;
+        setIsDeleting(true);
+        try {
+            await manpowerService.delete(employeeToDelete.id);
+            showToast.success(`Karyawan "${employeeToDelete.name}" berhasil dihapus.`);
+            setEmployeeToDelete(null);
             await loadData();
+        } catch {
+            showToast.error(`Gagal menghapus karyawan "${employeeToDelete.name}".`);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -58,8 +85,14 @@ export default function ManpowerPage() {
     };
 
     // Extract options
-    const positionOptions = Array.from(new Set(employees.map((e) => e.position).filter(Boolean))).sort();
-    const skillOptions = Array.from(new Set(employees.flatMap((e) => e.skills || []).filter(Boolean))).sort();
+    const positionOptions = (activePositions.length > 0
+        ? activePositions
+        : Array.from(new Set(employees.map((e) => e.position).filter(Boolean)))
+    ).sort();
+    const skillOptions = (activeSkills.length > 0
+        ? activeSkills
+        : Array.from(new Set(employees.flatMap((e) => e.skills || []).filter(Boolean)))
+    ).sort();
 
     // Filter Data
     const filteredEmployees = employees.filter((emp) => {
@@ -89,7 +122,7 @@ export default function ManpowerPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search by project..."
+                        placeholder="Search by all..."
                         value={search}
                         onChange={(e) => {
                             setSearch(e.target.value);
@@ -179,7 +212,20 @@ export default function ManpowerPage() {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-6 text-gray-600">
-                                                {emp.skills.length > 0 ? emp.skills.join(', ') : '-'}
+                                                {emp.skills.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                                        {emp.skills.map((sk) => (
+                                                            <span
+                                                                key={sk}
+                                                                className="inline-block bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-medium"
+                                                            >
+                                                                {sk}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    '-'
+                                                )}
                                             </td>
                                             <td className="py-4 px-6 text-gray-600">{emp.position || '-'}</td>
                                             <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
@@ -194,7 +240,11 @@ export default function ManpowerPage() {
                                                     <Link href={`/manpower/${emp.id}/edit`} className="text-amber-500 hover:text-amber-700">
                                                         <Edit className="w-4 h-4" />
                                                     </Link>
-                                                    <button onClick={() => handleDelete(emp.id)} className="text-rose-500 hover:text-rose-700">
+                                                    <button
+                                                        onClick={() => setEmployeeToDelete({ id: emp.id, name: emp.fullName })}
+                                                        className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                                                        title="Hapus Karyawan"
+                                                    >
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -255,6 +305,18 @@ export default function ManpowerPage() {
                     </div>
                 </div>
             )}
+
+            {/* CONFIRM DELETE MODAL */}
+            <ConfirmModal
+                isOpen={!!employeeToDelete}
+                onClose={() => setEmployeeToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Hapus Karyawan"
+                message={`Apakah Anda yakin ingin menghapus data karyawan "${employeeToDelete?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+                confirmText="Hapus"
+                cancelText="Batal"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

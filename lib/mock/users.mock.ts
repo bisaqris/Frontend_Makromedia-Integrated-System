@@ -3,7 +3,7 @@ import { User, UserProfile, Role } from '@/types/user';
 export const mockUsers: User[] = [
   {
     id: 'usr-direktur',
-    name: 'Pak Pakuwon (Direktur)',
+    name: 'Pak Pakuwon',
     email: 'direktur@makromedia.id',
     role: 'DIREKTUR',
     department: 'CV. Makromedia Visual',
@@ -11,7 +11,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'usr-finance',
-    name: 'Ibu Ratna (Finance)',
+    name: 'Ibu Ratna',
     email: 'finance@makromedia.id',
     role: 'FINANCE',
     department: 'CV. Makromedia Visual',
@@ -19,7 +19,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'usr-sales',
-    name: 'Budi Sales (Sales)',
+    name: 'Budi Santoso',
     email: 'sales@makromedia.id',
     role: 'SALES',
     department: 'CV. Makromedia Visual',
@@ -27,7 +27,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'usr-project_manager',
-    name: 'Andi PM (Project Manager)',
+    name: 'Andi Prasetyo',
     email: 'pm@makromedia.id',
     role: 'PROJECT_MANAGER',
     department: 'CV. Makromedia Visual',
@@ -35,7 +35,7 @@ export const mockUsers: User[] = [
   },
   {
     id: 'usr-produksi',
-    name: 'Tim Lapangan (Produksi)',
+    name: 'Rian Hidayat',
     email: 'produksi@makromedia.id',
     role: 'PRODUKSI',
     department: 'CV. Makromedia Visual',

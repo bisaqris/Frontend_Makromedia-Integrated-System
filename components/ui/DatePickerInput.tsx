@@ -52,7 +52,7 @@ export const DatePickerInput: React.FC<DatePickerInputProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`relative w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm flex items-center justify-between cursor-pointer transition-colors group ${
+      className={`relative w-full h-[42px] bg-white border rounded-xl px-3.5 py-2 text-xs sm:text-sm flex items-center justify-between cursor-pointer transition-colors group ${
         error
           ? 'border-red-500'
           : 'border-slate-200 hover:border-primary focus-within:border-primary'

@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Project, ProjectCostItem, ProjectLink, ProjectTask, PaymentHistoryItem } from '@/types/project';
 import { Role } from '@/types/user';
 import Tabs from '@/components/ui/Tabs';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import Badge from '@/components/ui/Badge';
 import LineItemTable from '@/components/shared/LineItemTable';
 import EmptyState from '@/components/shared/EmptyState';
@@ -17,7 +19,10 @@ import AddPaymentModal from '@/components/projects/AddPaymentModal';
 import ConfirmModal from '@/components/shared/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
 import projectService from '@/lib/services/projectService';
+import { userService } from '@/lib/services/userService';
 import { projectWorkflowService } from '@/lib/services/projectWorkflowService';
+import { invoiceSettingService } from '@/lib/services/invoiceSettingService';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import { isValidUrl, normalizeUrl } from '@/lib/utils';
 import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
@@ -132,10 +137,81 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     ];
   }, [isFinancialRole, isPM]);
 
-  const [activeMainTab, setActiveMainTab] = useState<string>(mainTabOptions[0].id);
+  const searchParams = useSearchParams();
+  const paramTab = searchParams.get('tab');
+  const paramSubtab = searchParams.get('subtab');
+
+  const [activeMainTab, setActiveMainTab] = useState<string>(() => {
+    if (paramTab && ['info', 'payment', 'production_cost', 'task'].includes(paramTab)) {
+      return paramTab;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem(`makromedia_project_${project.id}_tab`);
+        if (stored && ['info', 'payment', 'production_cost', 'task'].includes(stored)) {
+          return stored;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return mainTabOptions[0].id;
+  });
 
   // SubTab state inside Payment Status (for DIREKTUR, SALES, FINANCE)
-  const [activePaymentSubTab, setActivePaymentSubTab] = useState<'cost' | 'quotation' | 'invoice'>('cost');
+  const [activePaymentSubTab, setActivePaymentSubTab] = useState<'cost' | 'quotation' | 'invoice'>(() => {
+    if (paramSubtab && ['cost', 'quotation', 'invoice'].includes(paramSubtab)) {
+      return paramSubtab as 'cost' | 'quotation' | 'invoice';
+    }
+    return 'cost';
+  });
+
+  const updateUrlTab = (tab: string, subtab?: string) => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem(`makromedia_project_${project.id}_tab`, tab);
+      } catch {
+        // ignore
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      if (subtab) {
+        url.searchParams.set('subtab', subtab);
+      } else if (tab !== 'payment') {
+        url.searchParams.delete('subtab');
+      }
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
+  };
+
+  const handleSelectMainTab = (tabId: string) => {
+    setActiveMainTab(tabId);
+    onTabChange?.(tabId);
+    updateUrlTab(tabId, tabId === 'payment' ? activePaymentSubTab : undefined);
+  };
+
+  const handleSelectPaymentSubTab = (subtab: 'cost' | 'quotation' | 'invoice') => {
+    setActivePaymentSubTab(subtab);
+    updateUrlTab('payment', subtab);
+  };
+
+  const [assigneeOptions, setAssigneeOptions] = useState<Array<{ id: string; name: string; role?: string }>>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    userService.getUsers().then((users) => {
+      if (isMounted && Array.isArray(users)) {
+        setAssigneeOptions(
+          users.map((u) => ({
+            id: u.id,
+            name: u.name,
+            role: u.role,
+          }))
+        );
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   const [isAddCostModalOpen, setIsAddCostModalOpen] = useState<boolean>(false);
   const [editingCostItem, setEditingCostItem] = useState<ProjectCostItem | null>(null);
@@ -165,8 +241,106 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const [invoicePersisted, setInvoicePersisted] = useState(
     !USE_MOCK && Boolean(project.invoiceItems?.length)
   );
+  const [quotationDiscount, setQuotationDiscount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const stored = localStorage.getItem(`makromedia_project_${project.id}_tax`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.quotationDiscount === 'number') return parsed.quotationDiscount;
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  });
 
-  const [generalBrief, setGeneralBrief] = useState(project.generalBrief || '');
+  const [quotationPph, setQuotationPph] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const stored = localStorage.getItem(`makromedia_project_${project.id}_tax`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.quotationPph === 'number') return parsed.quotationPph;
+      }
+    } catch {
+      // ignore
+    }
+    return invoiceSettingService.getSetting().pphPercent;
+  });
+  const [isUpdatingQuotation, setIsUpdatingQuotation] = useState<boolean>(false);
+
+  const [invoiceDiscount, setInvoiceDiscount] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const stored = localStorage.getItem(`makromedia_project_${project.id}_tax`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (typeof parsed.invoiceDiscount === 'number') return parsed.invoiceDiscount;
+      }
+    } catch {
+      // ignore
+    }
+    return 0;
+  });
+
+  // Invoice PPh rate is centrally determined by Setting and locked from manual edit in project
+  const invoicePph = invoiceSettingService.getSetting().pphPercent;
+
+  const [invoiceDueDate, setInvoiceDueDate] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`makromedia_project_${project.id}_tax`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.invoiceDueDate) return parsed.invoiceDueDate;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+
+  const [isUpdatingInvoice, setIsUpdatingInvoice] = useState<boolean>(false);
+
+  const saveTaxState = (
+    qDisc = quotationDiscount,
+    qPph = quotationPph,
+    invDisc = invoiceDiscount,
+    invPph = invoicePph,
+    invDueDate = invoiceDueDate
+  ) => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          `makromedia_project_${project.id}_tax`,
+          JSON.stringify({
+            quotationDiscount: qDisc,
+            quotationPph: qPph,
+            invoiceDiscount: invDisc,
+            invoicePph: invPph,
+            invoiceDueDate: invDueDate,
+          })
+        );
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const [generalBrief, setGeneralBrief] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`makromedia_project_brief_${project.id}`);
+        if (stored !== null) return stored;
+      } catch {
+        // ignore
+      }
+    }
+    return project.generalBrief || '';
+  });
 
   // Tasks (sumber: data project; kosong jika project belum punya task)
   const [tasks, setTasks] = useState<ProjectTask[]>(() => project.tasks || []);
@@ -180,6 +354,13 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const [invoiceItems, setInvoiceItems] = useState<ProjectCostItem[]>(
     project.invoiceItems ?? project.costItems ?? []
   );
+
+  const [deliverablesLinkState, setDeliverablesLinkState] = useState<string>(
+    project.deliverablesLink || ''
+  );
+  const [isEditingDeliverables, setIsEditingDeliverables] = useState(false);
+  const [deliverablesInput, setDeliverablesInput] = useState('');
+  const [isSavingDeliverables, setIsSavingDeliverables] = useState(false);
 
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>(project.paymentHistory || []);
   const [projectLinks, setProjectLinks] = useState<ProjectLink[]>(() => project.additionalLinks || []);
@@ -229,6 +410,27 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
     }
   };
 
+  const handleSaveDeliverables = async () => {
+    if (deliverablesInput.trim() && !isValidUrl(deliverablesInput)) {
+      showToast.error('Format URL tidak valid. Harus diawali dengan http:// atau https://');
+      return;
+    }
+    setIsSavingDeliverables(true);
+    try {
+      const url = deliverablesInput.trim();
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`project_deliverables_${project.id}`, url);
+      }
+      setDeliverablesLinkState(url);
+      setIsEditingDeliverables(false);
+      showToast.success('Deliverables link berhasil disimpan!');
+    } catch {
+      showToast.error('Gagal menyimpan deliverables link.');
+    } finally {
+      setIsSavingDeliverables(false);
+    }
+  };
+
   const handleDeleteLink = async (linkId: string) => {
     try {
       await projectWorkflowService.deleteLink(project.id, linkId);
@@ -241,13 +443,21 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   const handleSaveBrief = async (newBrief: string) => {
     try {
-      if (!USE_MOCK) {
-        await projectService.updateProject(project.id, { generalBrief: newBrief });
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`makromedia_project_brief_${project.id}`, newBrief);
+          sessionStorage.setItem(`makromedia_project_${project.id}_tab`, 'task');
+        } catch {
+          // ignore
+        }
       }
       setGeneralBrief(newBrief);
-      showToast.success('General Brief berhasil diperbarui.');
+      updateUrlTab('task');
+
+      await projectService.updateProject(project.id, { generalBrief: newBrief });
+      showToast.success('General Brief berhasil disimpan.');
     } catch {
-      showToast.error('Gagal memperbarui General Brief.');
+      showToast.success('General Brief berhasil disimpan secara lokal.');
     }
   };
 
@@ -348,7 +558,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   // Quotation Handlers (Independent logic & data from Production Cost)
   const handleAddQuotationItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
-    if (!USE_MOCK && quotationPersisted) return;
     const item: ProjectCostItem = {
       ...newItem,
       id: `quot-${Date.now()}`,
@@ -361,12 +570,19 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const handleCreateQuotation = async () => {
     if (quotationItems.length === 0) return;
     try {
-      const savedItems = await projectWorkflowService.createQuotation(project.id, quotationItems);
+      setIsUpdatingQuotation(true);
+      const savedItems = await projectWorkflowService.createQuotation(project.id, quotationItems, {
+        discountPercent: quotationDiscount,
+        taxAmount: quotationPphAmount,
+      });
       setQuotationItems(savedItems);
       setQuotationPersisted(true);
-      showToast.success('Quotation berhasil dibuat.');
+      saveTaxState(quotationDiscount, quotationPph, invoiceDiscount, invoicePph);
+      showToast.success(quotationPersisted ? 'Quotation berhasil diperbarui.' : 'Quotation berhasil dibuat.');
     } catch {
-      showToast.error('Gagal membuat quotation.');
+      showToast.error('Gagal menyimpan quotation.');
+    } finally {
+      setIsUpdatingQuotation(false);
     }
   };
 
@@ -388,7 +604,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   // Invoice Handlers (Independent logic & data)
   const handleAddInvoiceItem = (newItem: Omit<ProjectCostItem, 'id' | 'projectId'>) => {
-    if (!USE_MOCK && invoicePersisted) return;
     const item: ProjectCostItem = {
       ...newItem,
       id: `inv-${Date.now()}`,
@@ -401,12 +616,18 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const handleCreateInvoice = async () => {
     if (!canCreateInvoice || invoiceItems.length === 0) return;
     try {
-      const savedItems = await projectWorkflowService.createInvoice(project.id, invoiceItems);
+      setIsUpdatingInvoice(true);
+      const savedItems = await projectWorkflowService.createInvoice(project.id, invoiceItems, {
+        dueDate: invoiceDueDate || undefined,
+      });
       setInvoiceItems(savedItems);
       setInvoicePersisted(true);
-      showToast.success('Invoice berhasil dibuat.');
+      saveTaxState(quotationDiscount, quotationPph, invoiceDiscount, invoicePph, invoiceDueDate);
+      showToast.success(invoicePersisted ? 'Invoice berhasil diperbarui.' : 'Invoice berhasil dibuat.');
     } catch {
-      showToast.error('Gagal membuat invoice.');
+      showToast.error('Gagal menyimpan invoice.');
+    } finally {
+      setIsUpdatingInvoice(false);
     }
   };
 
@@ -507,8 +728,15 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   const restOfBill = Math.max(0, contractValue - totalPaid);
   const totalProjectCost = costItems.reduce((acc, c) => acc + (c.totalCost || 0), 0);
   const quotationTotalCost = quotationItems.reduce((acc, c) => acc + (c.totalCost || 0), 0);
+  const quotationDiscountAmount = (quotationTotalCost * quotationDiscount) / 100;
+  const quotationPphAmount = (quotationTotalCost * quotationPph) / 100;
+  const quotationGrandTotal = Math.max(0, quotationTotalCost - quotationDiscountAmount + quotationPphAmount);
+
   const invoiceTotalCost = invoiceItems.reduce((acc, c) => acc + (c.totalCost || 0), 0);
-  const invoiceAmountForPeriod = Math.max(0, invoiceTotalCost - totalPaid);
+  const invoiceDiscountAmount = (invoiceTotalCost * invoiceDiscount) / 100;
+  const invoicePphAmount = (invoiceTotalCost * invoicePph) / 100;
+  const invoiceContractAmount = Math.max(0, invoiceTotalCost - invoiceDiscountAmount + invoicePphAmount);
+  const invoiceAmountForPeriod = Math.max(0, invoiceContractAmount - totalPaid);
   const totalProfit = Math.max(0, contractValue - totalProjectCost);
 
   const totalPaidPercentVal = contractValue ? (totalPaid / contractValue) * 100 : 0;
@@ -525,10 +753,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
       <Tabs
         tabs={mainTabOptions}
         activeTab={activeMainTab}
-        onChange={(tabId) => {
-          setActiveMainTab(tabId);
-          onTabChange?.(tabId);
-        }}
+        onChange={handleSelectMainTab}
         variant="pills"
       />
 
@@ -680,15 +905,61 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="text-slate-400 font-medium block mb-1">Deliverables Link</span>
-                {project.deliverablesLink ? (
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-slate-400 font-medium">Deliverables Link</span>
+                  {canManageTasks && !isEditingDeliverables && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeliverablesInput(deliverablesLinkState);
+                        setIsEditingDeliverables(true);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 cursor-pointer"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>{deliverablesLinkState ? 'Edit' : 'Tambah'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {isEditingDeliverables ? (
+                  <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl my-2">
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/..."
+                      value={deliverablesInput}
+                      onChange={(e) => setDeliverablesInput(e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsEditingDeliverables(false)}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        disabled={isSavingDeliverables}
+                        onClick={handleSaveDeliverables}
+                        className="bg-blue-600"
+                      >
+                        {isSavingDeliverables ? 'Menyimpan...' : 'Simpan'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : deliverablesLinkState ? (
                   <a
-                    href={project.deliverablesLink}
+                    href={deliverablesLinkState}
                     target="_blank"
                     rel="noreferrer"
                     className="text-accent hover:underline text-sm font-bold underline flex items-center gap-1.5 break-all"
                   >
-                    <span>{project.deliverablesLink}</span>
+                    <span>{deliverablesLinkState}</span>
                     <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                   </a>
                 ) : (
@@ -849,7 +1120,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
             <Tabs
               tabs={paymentSubTabOptions}
               activeTab={activePaymentSubTab}
-              onChange={(id) => setActivePaymentSubTab(id as 'cost' | 'quotation' | 'invoice')}
+              onChange={(id) => handleSelectPaymentSubTab(id as 'cost' | 'quotation' | 'invoice')}
               variant="pills"
             />
 
@@ -967,13 +1238,13 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       </Button>
                     ) : (
                       <Button
-                        variant="outline"
+                        variant={quotationPersisted ? 'outline' : 'primary'}
                         size="sm"
                         leftIcon={<Upload className="w-3.5 h-3.5" />}
                         onClick={handleCreateQuotation}
-                        disabled={quotationPersisted || quotationItems.length === 0}
+                        disabled={quotationItems.length === 0 || isUpdatingQuotation}
                       >
-                        {quotationPersisted ? 'Quotation Tersimpan' : 'Buat Quotation'}
+                        {quotationPersisted ? 'Perbarui Quotation' : 'Buat Quotation'}
                       </Button>
                     )}
                     <Button
@@ -981,7 +1252,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       size="sm"
                       leftIcon={<Plus className="w-3.5 h-3.5" />}
                       onClick={() => setIsAddQuotationModalOpen(true)}
-                      disabled={!USE_MOCK && quotationPersisted}
                     >
                       Add
                     </Button>
@@ -1016,9 +1286,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
-                            {(USE_MOCK || !quotationPersisted) && (
-                              <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
-                            )}
+                            <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
                           </tr>
                         </thead>
                         <tbody className="text-xs sm:text-sm text-slate-700">
@@ -1031,28 +1299,26 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                               <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
                               <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || 'hari'}</td>
                               <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
-                              {(USE_MOCK || !quotationPersisted) && (
-                                <td className="py-4 px-4 text-center whitespace-nowrap">
-                                  <div className="flex items-center justify-center gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingQuotationItem(item)}
-                                    className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                                    title="Edit Item"
-                                  >
-                                    <Pencil className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDeleteQuotationItemId(item.id)}
-                                    className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                                    title="Hapus Item"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                  </div>
-                                </td>
-                              )}
+                              <td className="py-4 px-4 text-center whitespace-nowrap">
+                                <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingQuotationItem(item)}
+                                  className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                  title="Edit Item"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteQuotationItemId(item.id)}
+                                  className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                  title="Hapus Item"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                </div>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -1060,23 +1326,58 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </div>
                   )}
 
-                  <div className="pt-6 border-t border-slate-100 space-y-6 text-sm sm:text-base">
+                  <div className="pt-6 border-t border-slate-100 space-y-4 text-sm sm:text-base">
                     <div className="flex justify-between items-center text-slate-600 font-medium">
                       <span>Sub Total</span>
                       <span className="font-bold text-slate-800">{formatRupiahWithSpace(quotationTotalCost)}</span>
                     </div>
                     <div className="flex justify-between items-center text-slate-600 font-medium">
-                      <span>Discount</span>
-                      <span className="font-bold text-slate-800">0%</span>
+                      <span>Discount (%)</span>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={quotationDiscount}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                            setQuotationDiscount(val);
+                            saveTaxState(val, quotationPph, invoiceDiscount, invoicePph);
+                          }}
+                          className="w-20 text-right h-8 text-xs font-semibold"
+                        />
+                        <span className="font-bold text-slate-800">%</span>
+                      </div>
                     </div>
                     <div className="flex justify-between items-center text-slate-600 font-medium">
-                      <span>PPH</span>
-                      <span className="font-bold text-slate-800">Rp 0</span>
+                      <div>
+                        <span>PPH (%)</span>
+                        {quotationPph > 0 && (
+                          <span className="text-[11px] text-slate-400 font-normal block">
+                            +{formatRupiahWithSpace(quotationPphAmount)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={quotationPph}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                            setQuotationPph(val);
+                            saveTaxState(quotationDiscount, val, invoiceDiscount, invoicePph);
+                          }}
+                          className="w-20 text-right h-8 text-xs font-semibold"
+                        />
+                        <span className="font-bold text-slate-800">%</span>
+                      </div>
                     </div>
 
                     <div className="p-4 sm:p-5 bg-orange-50/70 border border-orange-100/60 rounded-xl flex justify-between items-center mt-6">
                       <span className="text-sm sm:text-base font-extrabold text-accent">Grand Total</span>
-                      <span className="text-sm sm:text-base font-extrabold text-accent">{formatRupiahWithSpace(quotationTotalCost)}</span>
+                      <span className="text-sm sm:text-base font-extrabold text-accent">{formatRupiahWithSpace(quotationGrandTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -1095,7 +1396,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {(USE_MOCK || (!invoicePersisted && canCreateInvoice)) && (
+                    {canCreateInvoice && (
                       <Button
                         variant="primary"
                         size="sm"
@@ -1118,13 +1419,13 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       </Button>
                     ) : canCreateInvoice ? (
                       <Button
-                        variant="outline"
+                        variant={invoicePersisted ? 'outline' : 'primary'}
                         size="sm"
                         leftIcon={<Upload className="w-3.5 h-3.5" />}
                         onClick={handleCreateInvoice}
-                        disabled={invoicePersisted || invoiceItems.length === 0}
+                        disabled={invoiceItems.length === 0 || isUpdatingInvoice}
                       >
-                        {invoicePersisted ? 'Invoice Tersimpan' : 'Buat Invoice'}
+                        {invoicePersisted ? 'Perbarui Invoice' : 'Buat Invoice'}
                       </Button>
                     ) : null}
                     <Button
@@ -1132,7 +1433,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       size="sm"
                       leftIcon={<Plus className="w-3.5 h-3.5" />}
                       onClick={() => setIsAddInvoiceModalOpen(true)}
-                      disabled={!USE_MOCK && (invoicePersisted || !canCreateInvoice)}
+                      disabled={!canCreateInvoice}
                     >
                       Add
                     </Button>
@@ -1168,7 +1469,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
-                            {(USE_MOCK || !invoicePersisted) && (
+                            {canCreateInvoice && (
                               <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
                             )}
                           </tr>
@@ -1190,7 +1491,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                               <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
                               <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || '1'}</td>
                               <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
-                              {(USE_MOCK || !invoicePersisted) && (
+                              {canCreateInvoice && (
                                 <td className="py-4 px-4 text-center whitespace-nowrap">
                                   <div className="flex items-center justify-center gap-1.5">
                                   <button
@@ -1219,23 +1520,69 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </div>
                   )}
 
-                  <div className="pt-6 border-t border-slate-100 space-y-6 text-sm sm:text-base">
+                  <div className="pt-6 border-t border-slate-100 space-y-4 text-sm sm:text-base">
                     <div className="flex justify-between items-center text-slate-600 font-medium">
                       <span>Sub Total</span>
                       <span className="font-bold text-slate-800">{formatRupiahWithSpace(invoiceTotalCost)}</span>
                     </div>
                     <div className="flex justify-between items-center text-slate-600 font-medium">
-                      <span>Diskon</span>
-                      <span className="font-bold text-slate-800">0%</span>
+                      <span>Diskon (%)</span>
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={invoiceDiscount}
+                          onChange={(e) => {
+                            const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                            setInvoiceDiscount(val);
+                            saveTaxState(quotationDiscount, quotationPph, val, invoicePph, invoiceDueDate);
+                          }}
+                          className="w-20 text-right h-8 text-xs font-semibold"
+                        />
+                        <span className="font-bold text-slate-800">%</span>
+                      </div>
                     </div>
                     <div className="flex justify-between items-center text-slate-600 font-medium">
-                      <span>PPH</span>
-                      <span className="font-bold text-slate-800">Rp 0</span>
+                      <div>
+                        <span>PPH ({invoicePph}%)</span>
+                        {invoicePph > 0 && (
+                          <span className="text-[11px] text-slate-400 font-normal block">
+                            +{formatRupiahWithSpace(invoicePphAmount)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 min-w-16"
+                          title="Tarif PPh diatur secara terpusat pada menu Setting"
+                        >
+                          {invoicePph}%
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Jatuh Tempo (Due Date)</span>
+                      <div className="w-48 sm:w-56">
+                        <DatePickerInput
+                          value={invoiceDueDate}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setInvoiceDueDate(val);
+                            saveTaxState(quotationDiscount, quotationPph, invoiceDiscount, invoicePph, val);
+                          }}
+                          placeholder="Pilih tanggal jatuh tempo"
+                          className="h-8.5 text-xs font-medium"
+                          min={new Date().toISOString().split('T')[0]}
+                          disabled={!canCreateInvoice}
+                        />
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center pt-3 border-t border-slate-100">
                       <span className="font-extrabold text-slate-900">Contract Amount</span>
-                      <span className="font-extrabold text-slate-900">{formatRupiahWithSpace(invoiceTotalCost)}</span>
+                      <span className="font-extrabold text-slate-900">{formatRupiahWithSpace(invoiceContractAmount)}</span>
                     </div>
 
                     <div className="flex justify-between items-center text-slate-400 font-normal">
@@ -1512,14 +1859,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         isOpen={isAddCostModalOpen}
         onClose={() => setIsAddCostModalOpen(false)}
         onSave={handleAddCostItem}
-        existingCategories={Array.from(new Set(costItems.map((i) => i.category)))}
       />
 
       <AddCostItemModal
         isOpen={!!editingCostItem}
         onClose={() => setEditingCostItem(null)}
         onSave={handleUpdateCostItem}
-        existingCategories={Array.from(new Set(costItems.map((i) => i.category)))}
         editItem={editingCostItem || undefined}
       />
 
@@ -1586,7 +1931,10 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         onSave={handleSaveTask}
-        supportsPicName={USE_MOCK}
+        supportsPicName={true}
+        projectStartDate={project.startDate || project.projectStarts}
+        projectEndDate={project.endDate || project.deadline}
+        assignees={assigneeOptions}
       />
 
       <AddTaskModal
@@ -1594,7 +1942,10 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         onClose={() => setEditingTask(null)}
         onSave={handleSaveTask}
         editTask={editingTask || undefined}
-        supportsPicName={USE_MOCK}
+        supportsPicName={true}
+        projectStartDate={project.startDate || project.projectStarts}
+        projectEndDate={project.endDate || project.deadline}
+        assignees={assigneeOptions}
       />
 
       <ConfirmModal

@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { companyService } from '@/lib/services/companyService';
+import { invoiceSettingService } from '@/lib/services/invoiceSettingService';
 import { useAuth } from '@/context/AuthContext';
 import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
@@ -14,6 +15,12 @@ import {
   ApplicationCostStatus,
   CompanyProfile,
 } from '@/types/application-cost';
+
+const DEFAULT_INVOICE_TERMS = [
+  'Pembayaran wajib dilakukan maksimal sesuai tanggal jatuh tempo yang tertera.',
+  'Keterlambatan pembayaran dapat dikenakan penyesuaian jadwal serah terima proyek.',
+  'Pembayaran dianggap sah apabila telah melampirkan bukti transfer resmi ke finance.',
+];
 
 const formatRupiahWithSpace = (val: number) => {
   return `Rp ${(val || 0).toLocaleString('id-ID')}`;
@@ -31,6 +38,19 @@ export default function InvoiceDetailPage() {
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
+  const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
+
+  useEffect(() => {
+    const handleSettingUpdate = () => {
+      setInvoiceSetting(invoiceSettingService.getSetting());
+    };
+    window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+    window.addEventListener('storage', handleSettingUpdate);
+    return () => {
+      window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+      window.removeEventListener('storage', handleSettingUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -68,15 +88,6 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  const handleSend = () =>
-    handleStatusUpdate('SENT', `Invoice (${item?.projectName ?? ''}) berhasil dikirim.`, 'success');
-
-  const handlePaid = () =>
-    handleStatusUpdate('PAID', `Invoice (${item?.projectName ?? ''}) ditandai lunas.`, 'success');
-
-  const handleOverdue = () =>
-    handleStatusUpdate('OVERDUE', `Invoice (${item?.projectName ?? ''}) ditandai jatuh tempo.`, 'info');
-
   const handlePreview = () => {
     router.push(`/application-cost/invoice/${id}/preview`);
   };
@@ -102,14 +113,25 @@ export default function InvoiceDetailPage() {
     );
   }
 
-  const contractVal = item.contractValue ?? 0;
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
   const discountPercent = item.discountPercent ?? 0;
-  const pph = item.pph ?? 0;
+  const effectivePphPercent = (item.pph !== undefined && item.pph > 0 && subTotal > 0)
+    ? Math.round((item.pph / subTotal) * 100 * 10) / 10
+    : invoiceSetting.pphPercent;
+  const effectivePph = (item.pph !== undefined && item.pph > 0)
+    ? item.pph
+    : (subTotal * effectivePphPercent) / 100;
   const previousPayment = item.previousPayment ?? 0;
-  const invoiceAmount = contractVal;
-  const bankAccounts = item.bankAccounts ?? [];
+  const contractVal = Math.max(0, subTotal - (subTotal * discountPercent) / 100 + effectivePph);
+  const invoiceAmount = Math.max(0, contractVal - previousPayment);
+  const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
+    ? invoiceSetting.bankAccounts
+    : (item.bankAccounts || []);
+  const termsList = (invoiceSetting.termsOfCondition && invoiceSetting.termsOfCondition.length > 0)
+    ? invoiceSetting.termsOfCondition
+    : (item.termsOfCondition || DEFAULT_INVOICE_TERMS);
+  const paymentInstruction = invoiceSetting.paymentInstruction || item.paymentInstruction || '';
 
   return (
     <div className="space-y-6 pb-16">
@@ -271,8 +293,8 @@ export default function InvoiceDetailPage() {
             <span className="font-bold text-slate-800">{discountPercent}%</span>
           </div>
           <div className="flex justify-between items-center text-slate-600 font-medium">
-            <span>PPH</span>
-            <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
+            <span>PPH ({effectivePphPercent}%)</span>
+            <span className="font-bold text-slate-800">+{formatRupiahWithSpace(effectivePph)}</span>
           </div>
 
           <div className="border-b border-slate-200 pt-1" />
@@ -306,19 +328,24 @@ export default function InvoiceDetailPage() {
           TERM OF CONDITION
         </h4>
         <div className="text-slate-600 space-y-2 leading-relaxed">
-          <p>
-            Invoice ini adalah <strong className="font-bold text-slate-800">Proforma Invoice</strong>{' '}
-            atau pengajuan DP (Payment Term 1) senilai{' '}
-            <strong className="font-bold text-slate-800">... % dari nilai kontrak</strong> sementara.
-            Apabila terdapat perubahan nilai kontrak saat event selesai, akan dikondisikan selanjutnya.
-          </p>
-          <p>
-            Pengajuan Term 1 senilai ... % sudah sesuai kesepakatan antara ... dengan{' '}
-            <strong className="font-bold text-slate-800">{profile?.name || '-'}</strong>. Pembayaran dapat
-            dilakukan secara transfer ke rekening yang tertera dibawah.
-          </p>
+          {termsList.map((term: string, i: number) => (
+            <p key={i}>
+              <strong className="font-bold text-slate-700">{i + 1}.</strong> {term}
+            </p>
+          ))}
         </div>
       </div>
+
+      {paymentInstruction && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 space-y-2 shadow-2xs text-xs sm:text-sm">
+          <h4 className="font-bold text-[#0066ff] tracking-wider uppercase text-xs">
+            PAYMENT INSTRUCTIONS
+          </h4>
+          <p className="text-slate-600 leading-relaxed">
+            {paymentInstruction}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {bankAccounts.map((account) => (

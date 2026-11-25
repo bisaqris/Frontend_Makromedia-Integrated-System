@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Eye, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Eye, ChevronDown, ArrowLeft, ArrowRight, Search } from 'lucide-react';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { ApplicationCostItem, ApplicationCostStatus } from '@/types/application-cost';
 import { showToast } from '@/components/ui/Toast';
@@ -35,26 +35,56 @@ export default function ApplicationCostPage() {
   const [loadError, setLoadError] = useState<boolean>(false);
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [search, setSearch] = useState<string>('');
+  const [selectedDocType, setSelectedDocType] = useState<string>('ALL');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  const loadData = React.useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(false);
-    try {
-      const data = await applicationCostService.getAll();
-      setItems(data);
-    } catch {
-      setLoadError(true);
-      showToast.error('Gagal memuat daftar dokumen. Periksa akses dan koneksi backend.');
-    } finally {
-      setIsLoading(false);
-    }
+  const loadData = React.useCallback(() => {
+    let isMounted = true;
+    applicationCostService
+      .getAll()
+      .then((data) => {
+        if (!isMounted) return;
+        setItems(data);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setLoadError(true);
+        setIsLoading(false);
+        showToast.error('Gagal memuat daftar dokumen. Periksa akses dan koneksi backend.');
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    loadData();
+    return loadData();
   }, [loadData]);
 
-  const totalData = items.length;
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
+      !search.trim() ||
+      item.projectName.toLowerCase().includes(search.toLowerCase()) ||
+      item.applicationDocument.toLowerCase().includes(search.toLowerCase());
+
+    const matchesDocType =
+      selectedDocType === 'ALL' || item.applicationDocument === selectedDocType;
+
+    const matchesStatus =
+      selectedStatus === 'ALL' ||
+      (selectedStatus === 'Approved' &&
+        (item.status === 'Approved' || item.status === 'APPROVED' || item.status === 'PAID')) ||
+      (selectedStatus === 'Pending' &&
+        (item.status === 'Pending' || item.status === 'PENDING' || item.status === 'DRAFT' || item.status === 'SENT')) ||
+      (selectedStatus === 'Revise' &&
+        (item.status === 'Revise' || item.status === 'REJECTED' || item.status === 'OVERDUE'));
+
+    return matchesSearch && matchesDocType && matchesStatus;
+  });
+
+  const totalData = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalData / dataPerPage));
 
   // Ensure current page is bounded
@@ -62,7 +92,7 @@ export default function ApplicationCostPage() {
   const startIndex = (validCurrentPage - 1) * dataPerPage;
   const endIndex = Math.min(startIndex + dataPerPage, totalData);
 
-  const displayedItems = items.slice(startIndex, endIndex);
+  const displayedItems = filteredItems.slice(startIndex, endIndex);
 
   const handleDataPerPageChange = (newLimit: number) => {
     setDataPerPage(newLimit);
@@ -108,6 +138,61 @@ export default function ApplicationCostPage() {
       ) : (
       <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-8 shadow-2xs space-y-6">
         
+        {/* Controls: Search & Filters */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search by project or document..."
+              className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary transition-colors text-slate-800 placeholder:text-slate-400"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
+            {/* Document Type Filter */}
+            <div className="relative w-full sm:w-48">
+              <select
+                value={selectedDocType}
+                onChange={(e) => {
+                  setSelectedDocType(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3.5 py-2 pr-9 text-xs font-medium text-slate-700 cursor-pointer focus:outline-hidden focus:border-primary transition-colors"
+              >
+                <option value="ALL">All Documents</option>
+                <option value="Production Cost">Production Cost</option>
+                <option value="Quotation">Quotation</option>
+                <option value="Invoice">Invoice</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative w-full sm:w-40">
+              <select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full appearance-none bg-white border border-slate-200 rounded-xl px-3.5 py-2 pr-9 text-xs font-medium text-slate-700 cursor-pointer focus:outline-hidden focus:border-primary transition-colors"
+              >
+                <option value="ALL">All Status</option>
+                <option value="Approved">Approved / Paid</option>
+                <option value="Pending">Pending / Sent</option>
+                <option value="Revise">Revise / Rejected</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
         {/* 1. TAMPILAN DESKTOP (TABLE) */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[750px]">

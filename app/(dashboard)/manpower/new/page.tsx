@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { Search, Check, ChevronDown, X } from 'lucide-react';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
 import DatePickerInput from '@/components/ui/DatePickerInput';
 import { showToast } from '@/components/ui/Toast';
@@ -9,7 +10,6 @@ import { manpowerService } from '@/lib/services/manpowerService';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
 import { EmploymentStatus, Gender } from '@/types/manpower';
-import { USE_MOCK } from '@/lib/services/mockFlag';
 
 export default function AddManpowerPage() {
   const router = useRouter();
@@ -18,6 +18,12 @@ export default function AddManpowerPage() {
 
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
+
+  // Multi-select skill states (matching Profile page)
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState(false);
+  const [skillSearch, setSkillSearch] = useState('');
+  const skillDropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,7 +36,6 @@ export default function AddManpowerPage() {
     subdistrict: '',
     village: '',
     detailAddress: '',
-    skill: '',
     employmentStatus: 'Fulltime',
     position: '',
     bankAccount: '',
@@ -43,8 +48,8 @@ export default function AddManpowerPage() {
 
     const loadOptions = async () => {
       const [positions, skills] = await Promise.all([
-        positionService.getAll(),
-        skillService.getAll(),
+        positionService.getActive(),
+        skillService.getActive(),
       ]);
       if (!isMounted) return;
       setPositionOptions(positions.map((p) => p.name));
@@ -60,11 +65,59 @@ export default function AddManpowerPage() {
     };
   }, []);
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        skillDropdownRef.current &&
+        !skillDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsSkillDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleToggleSkill = (skill: string) => {
+    if (selectedSkills.includes(skill)) {
+      setSelectedSkills((prev) => prev.filter((s) => s !== skill));
+    } else {
+      setSelectedSkills((prev) => [...prev, skill]);
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setSelectedSkills((prev) => prev.filter((s) => s !== skillToRemove));
+  };
+
+  const handleAddCustomSkill = () => {
+    const trimmed = skillSearch.trim();
+    if (trimmed && !selectedSkills.includes(trimmed)) {
+      setSelectedSkills((prev) => [...prev, trimmed]);
+      setSkillSearch('');
+    }
+  };
+
+  const filteredSkills = skillOptions.filter((sk) =>
+    sk.toLowerCase().includes(skillSearch.toLowerCase())
+  );
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
+    if (name === 'phoneNumber') {
+      const numericVal = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, phoneNumber: numericVal }));
+      if (formErrors.phoneNumber) {
+        setFormErrors((prev) => ({ ...prev, phoneNumber: '' }));
+      }
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (formErrors[name]) {
+      setFormErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleRegionChange = (values: Partial<typeof formData>) => {
@@ -87,7 +140,9 @@ export default function AddManpowerPage() {
 
     if (!formData.phoneNumber.trim()) {
       errs.phoneNumber = 'Nomor telepon wajib diisi.';
-    } else if (formData.phoneNumber.trim().replace(/\D/g, '').length < 10) {
+    } else if (!/^\d+$/.test(formData.phoneNumber.trim())) {
+      errs.phoneNumber = 'Nomor telepon harus berupa angka.';
+    } else if (formData.phoneNumber.trim().length < 10) {
       errs.phoneNumber = 'Nomor telepon minimal 10 digit angka.';
     }
 
@@ -124,7 +179,7 @@ export default function AddManpowerPage() {
         phoneNumber: formData.phoneNumber.trim(),
         position: formData.position,
         employmentStatus: formData.employmentStatus as EmploymentStatus,
-        skills: formData.skill ? [formData.skill] : [],
+        skills: selectedSkills,
         province: formData.province,
         city: formData.city,
         subdistrict: formData.subdistrict,
@@ -160,21 +215,23 @@ export default function AddManpowerPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Name</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Name</label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Name"
-                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.name ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
+                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
+                  formErrors.name ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
                 required
               />
               {formErrors.name && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.name}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Date of Birth</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date of Birth</label>
               <DatePickerInput
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
@@ -184,25 +241,28 @@ export default function AddManpowerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Phone Number</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
               <input
                 type="tel"
+                inputMode="numeric"
                 name="phoneNumber"
                 value={formData.phoneNumber}
                 onChange={handleChange}
                 placeholder="08..."
-                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.phoneNumber ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
+                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
+                  formErrors.phoneNumber ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
               />
               {formErrors.phoneNumber && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.phoneNumber}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Gender</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Gender</label>
               <select
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+                className="w-full h-[42px] px-3.5 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary bg-white transition-colors"
               >
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -210,14 +270,16 @@ export default function AddManpowerPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Email</label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="user@gmail.com"
-                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none ${formErrors.email ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
+                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
+                  formErrors.email ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
               />
               {formErrors.email && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.email}</p>}
             </div>
@@ -229,14 +291,14 @@ export default function AddManpowerPage() {
             />
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Detail Address</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Detail Address</label>
               <input
                 type="text"
                 name="detailAddress"
                 value={formData.detailAddress}
                 onChange={handleChange}
                 placeholder="Jl. Simpang Surapati..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className="w-full h-[42px] px-3.5 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary transition-colors"
               />
             </div>
           </div>
@@ -246,30 +308,111 @@ export default function AddManpowerPage() {
           <h2 className="text-base font-bold text-blue-600">Manpower Status and Banking Information</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Skill</label>
-              <select
-                name="skill"
-                value={formData.skill}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+            {/* Multi-Select Skill Dropdown matching /profile */}
+            <div className="relative" ref={skillDropdownRef}>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Skill</label>
+              <div
+                onClick={() => setIsSkillDropdownOpen((prev) => !prev)}
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs sm:text-sm text-slate-800 flex items-center justify-between min-h-[42px] cursor-pointer hover:border-primary transition-colors"
               >
-                <option value="">Choose Skill</option>
-                {skillOptions.map((sk) => (
-                  <option key={sk} value={sk}>
-                    {sk}
-                  </option>
-                ))}
-              </select>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {selectedSkills.length === 0 ? (
+                    <span className="text-slate-400 text-xs">Pilih skill...</span>
+                  ) : (
+                    selectedSkills.map((sk) => (
+                      <span
+                        key={sk}
+                        className="bg-blue-50 text-[#0066ff] px-2.5 py-1 rounded-md text-xs font-medium inline-flex items-center gap-1.5"
+                      >
+                        {sk}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveSkill(sk);
+                          }}
+                          className="hover:text-blue-800 focus:outline-none cursor-pointer"
+                          title={`Hapus ${sk}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-400 flex-shrink-0 ml-2 transition-transform duration-200 ${
+                    isSkillDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </div>
+
+              {/* Interactive Search Dropdown Menu */}
+              {isSkillDropdownOpen && (
+                <div className="absolute top-full mt-1.5 left-0 right-0 z-30 bg-white border border-slate-200 rounded-xl shadow-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={skillSearch}
+                      onChange={(e) => setSkillSearch(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder="Cari skill..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="divide-y divide-slate-100 text-xs">
+                    {filteredSkills.map((sk) => {
+                      const isSelected = selectedSkills.includes(sk);
+                      return (
+                        <div
+                          key={sk}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSkill(sk);
+                          }}
+                          className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-blue-50/80 text-[#0066ff] font-semibold'
+                              : 'hover:bg-slate-50 text-slate-700 font-medium'
+                          }`}
+                        >
+                          <span>{sk}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-[#0066ff]" />}
+                        </div>
+                      );
+                    })}
+
+                    {filteredSkills.length === 0 && (
+                      <div className="p-2 text-center text-slate-400 text-xs">
+                        <p>Tidak ada skill yang cocok</p>
+                        {skillSearch.trim() && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddCustomSkill();
+                            }}
+                            className="mt-1 text-[#0066ff] font-bold hover:underline cursor-pointer"
+                          >
+                            + Tambah &quot;{skillSearch.trim()}&quot;
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Employment Status</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Employment Status</label>
               <select
                 name="employmentStatus"
                 value={formData.employmentStatus}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white"
+                className="w-full h-[42px] px-3.5 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary bg-white transition-colors"
               >
                 <option value="Fulltime">Fulltime</option>
                 <option value="Parttime">Part Time</option>
@@ -279,12 +422,14 @@ export default function AddManpowerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Position</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Position</label>
               <select
                 name="position"
                 value={formData.position}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none bg-white ${formErrors.position ? "border-red-500" : "border-gray-200 focus:border-blue-500"}`}
+                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none bg-white transition-colors ${
+                  formErrors.position ? 'border-red-500' : 'border-slate-200 focus:border-primary'
+                }`}
               >
                 <option value="">Select Position</option>
                 {positionOptions.map((pos) => (
@@ -293,42 +438,48 @@ export default function AddManpowerPage() {
                   </option>
                 ))}
               </select>
+              {formErrors.position && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.position}</p>}
             </div>
 
-            {/* Input Manual Bank */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Bank Name</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Bank Name</label>
               <input
                 type="text"
                 name="bankAccount"
                 value={formData.bankAccount}
                 onChange={handleChange}
                 placeholder="e.g. BCA, Mandiri, BNI"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className="w-full h-[42px] px-3.5 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary transition-colors"
               />
+              {formErrors.bankAccount && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.bankAccount}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Account Number</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Account Number</label>
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 name="accountNumber"
                 value={formData.accountNumber}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setFormData((prev) => ({ ...prev, accountNumber: val }));
+                }}
                 placeholder="Account number"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className="w-full h-[42px] px-3.5 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary transition-colors"
               />
+              {formErrors.accountNumber && <p className="mt-1 text-xs text-red-500 font-medium">{formErrors.accountNumber}</p>}
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Account Holder</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Account Holder</label>
               <input
                 type="text"
                 name="accountHolder"
                 value={formData.accountHolder}
                 onChange={handleChange}
                 placeholder="Account holder name"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                className="w-full h-[42px] px-3.5 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-primary transition-colors"
               />
             </div>
           </div>
@@ -339,14 +490,14 @@ export default function AddManpowerPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition"
+            className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 text-xs sm:text-sm font-semibold transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition disabled:opacity-50"
+            className="px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-700 text-xs sm:text-sm font-semibold transition disabled:opacity-50 cursor-pointer shadow-xs"
           >
             {submitting ? 'Submitting...' : 'Submit'}
           </button>

@@ -94,7 +94,7 @@ const categoryFromApi = (category?: string): ProjectCategory => {
     case 'FILM_PRODUCTION':
       return 'Film Production';
     case 'WEDDING':
-      return 'Wedding';32
+      return 'Wedding';
     case 'OTHER':
       return 'Content Video/Marketing';
     default:
@@ -139,6 +139,39 @@ const statusFromApi = (status: string): Project['status'] => {
   }
 };
 
+export const resolveProjectStatus = (
+  rawStatus: Project['status'] | string,
+  startDate?: string | null,
+  projectStarts?: string | null
+): Project['status'] => {
+  const normalized = typeof rawStatus === 'string' ? statusFromApi(rawStatus) : rawStatus;
+  // If explicitly finished, on hold, cancelled, or draft, keep as is
+  if (
+    normalized === 'DONE' ||
+    normalized === 'COMPLETED' ||
+    normalized === 'CANCELLED' ||
+    normalized === 'DRAFT' ||
+    normalized === 'ON_HOLD'
+  ) {
+    return normalized;
+  }
+
+  // Check start date against today (YYYY-MM-DD):
+  // When start date has arrived (today >= startDate), status becomes IN_PROGRESS. Otherwise NEW.
+  const targetDate = startDate || projectStarts;
+  if (targetDate) {
+    const today = new Date().toISOString().split('T')[0];
+    const cleanDate = targetDate.slice(0, 10);
+    if (today >= cleanDate) {
+      return 'IN_PROGRESS';
+    } else {
+      return 'NEW';
+    }
+  }
+
+  return normalized || 'NEW';
+};
+
 const statusToApi = (status?: Project['status']): string | undefined => {
   switch (status) {
     case 'DRAFT':
@@ -166,6 +199,25 @@ const mapBackendProject = (project: BackendProject): Project => {
   const totalCost =
     project.productionCosts?.reduce((total, item) => total + toNumber(item.amount), 0) ?? 0;
 
+  const deliverablesLinkObj = project.links?.find((l) =>
+    l.label?.toLowerCase().includes('deliverable')
+  );
+  const deliverablesFromStorage =
+    typeof window !== 'undefined'
+      ? localStorage.getItem(`project_deliverables_${project.id}`)
+      : undefined;
+  const deliverablesLink = deliverablesLinkObj?.url || deliverablesFromStorage || undefined;
+
+  const additionalLinks = (
+    deliverablesLinkObj
+      ? project.links?.filter((l) => l.id !== deliverablesLinkObj.id)
+      : project.links
+  )?.map((link) => ({
+    id: link.id,
+    title: link.label,
+    url: link.url,
+  })) || [];
+
   return {
     id: project.id,
     name: project.name,
@@ -175,7 +227,11 @@ const mapBackendProject = (project: BackendProject): Project => {
     clientType: project.clientType ?? undefined,
     projectManagerId: project.projectManagerId ?? undefined,
     projectManagerName: project.projectManager?.name,
-    status: statusFromApi(project.status),
+    status: resolveProjectStatus(
+      project.status,
+      project.startDate?.slice(0, 10),
+      project.eventDate?.slice(0, 10) ?? project.startDate?.slice(0, 10)
+    ),
     startDate: project.startDate?.slice(0, 10),
     endDate: project.endDate?.slice(0, 10),
     projectStarts: project.eventDate?.slice(0, 10) ?? project.startDate?.slice(0, 10),
@@ -188,11 +244,8 @@ const mapBackendProject = (project: BackendProject): Project => {
     generalBrief: project.description ?? '',
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
-    additionalLinks: project.links?.map((link) => ({
-      id: link.id,
-      title: link.label,
-      url: link.url,
-    })),
+    deliverablesLink,
+    additionalLinks,
     tasks: project.tasks?.map((task) => ({
       id: task.id,
       title: task.title,
@@ -290,16 +343,72 @@ export interface GetProjectsParams {
   limit?: number;
 }
 
-// Store in-memory untuk mode mock (direset saat halaman di-reload).
+const MOCK_STORAGE_KEY = 'makromedia_mock_projects';
+const BRIEF_STORAGE_KEY_PREFIX = 'makromedia_project_brief_';
+
+const normalizeCategory = (cat: string): string => {
+  const cleaned = cat.replace(/^\d+\.\s*/, '').trim();
+  if (cleaned.toLowerCase() === 'sewa alat & akomodasi') return 'Peralatan & Sewa';
+  if (cleaned.toLowerCase() === 'fee sdm external') return 'Fee SDM Internal';
+  return cleaned;
+};
+
+const sanitizeProjects = (projects: Project[]): Project[] => {
+  return projects.map((p) => {
+    if (p.costItems && p.costItems.length > 0) {
+      return {
+        ...p,
+        costItems: p.costItems.map((ci) => ({
+          ...ci,
+          category: normalizeCategory(ci.category),
+        })),
+      };
+    }
+    return p;
+  });
+};
+
 let mockStore: Project[] | null = null;
-const getMockStore = (): Project[] => (mockStore ??= cloneMock(mockProjects));
+const getMockStore = (): Project[] => {
+  if (mockStore) return mockStore;
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(MOCK_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          mockStore = sanitizeProjects(parsed);
+          return mockStore!;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  mockStore = sanitizeProjects(cloneMock(mockProjects));
+  return mockStore;
+};
+
+const saveMockStore = (store: Project[]) => {
+  mockStore = store;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(store));
+    } catch {
+      // ignore
+    }
+  }
+};
 
 export const projectService = {
   getProjects: async (
     params?: GetProjectsParams
   ): Promise<{ data: Project[]; total: number }> => {
     if (USE_MOCK) {
-      let filtered = getMockStore();
+      let filtered = getMockStore().map((p) => ({
+        ...p,
+        status: resolveProjectStatus(p.status, p.startDate, p.projectStarts),
+      }));
 
       if (params?.search) {
         const q = params.search.toLowerCase();
@@ -350,18 +459,49 @@ export const projectService = {
     const response = await apiClient.get<BackendPaginatedProjects>('/projects', {
       params: apiParams,
     });
+    let list = response.data.data.map(mapBackendProject);
+    if (params?.projectManagerId && params.projectManagerId !== 'ALL') {
+      list = list.filter(
+        (p) =>
+          p.projectManagerId === params.projectManagerId ||
+          (params.projectManagerId &&
+            p.projectManagerName?.toLowerCase() === params.projectManagerId.toLowerCase())
+      );
+    }
     return {
-      data: response.data.data.map(mapBackendProject),
-      total: response.data.meta.total,
+      data: list,
+      total:
+        params?.projectManagerId && params.projectManagerId !== 'ALL'
+          ? list.length
+          : response.data.meta.total,
     };
   },
 
   getProjectById: async (id: string): Promise<Project | null> => {
+    let proj: Project | null = null;
     if (USE_MOCK) {
-      return cloneMock(getMockStore().find((p) => p.id === id) ?? null);
+      proj = cloneMock(getMockStore().find((p) => p.id === id) ?? null);
+    } else {
+      const response = await apiClient.get<BackendProject>(`/projects/${id}`);
+      proj = mapBackendProject(response.data);
     }
-    const response = await apiClient.get<BackendProject>(`/projects/${id}`);
-    return mapBackendProject(response.data);
+
+    if (proj && typeof window !== 'undefined') {
+      try {
+        const savedBrief = localStorage.getItem(`${BRIEF_STORAGE_KEY_PREFIX}${id}`);
+        if (savedBrief !== null) {
+          proj.generalBrief = savedBrief;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (proj) {
+      proj.status = resolveProjectStatus(proj.status, proj.startDate, proj.projectStarts);
+    }
+
+    return proj;
   },
 
   createProject: async (projectData: Partial<Project>): Promise<Project> => {
@@ -391,7 +531,13 @@ export const projectService = {
         paymentHistory: [],
         tasks: [],
       };
+      if (projectData.generalBrief && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`${BRIEF_STORAGE_KEY_PREFIX}${newProject.id}`, projectData.generalBrief);
+        } catch {}
+      }
       store.unshift(newProject);
+      saveMockStore(store);
       return cloneMock(newProject);
     }
 
@@ -415,24 +561,50 @@ export const projectService = {
   },
 
   updateProject: async (id: string, projectData: Partial<Project>): Promise<Project> => {
+    if (projectData.generalBrief !== undefined && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`${BRIEF_STORAGE_KEY_PREFIX}${id}`, projectData.generalBrief);
+      } catch {
+        // ignore
+      }
+    }
+
     if (USE_MOCK) {
       const store = getMockStore();
       const index = store.findIndex((p) => p.id === id);
       if (index === -1) throw new Error(`Project dengan id "${id}" tidak ditemukan.`);
       store[index] = { ...store[index], ...projectData };
+      saveMockStore(store);
       return cloneMock(store[index]);
     }
 
-    const response = await apiClient.patch<BackendProject>(
-      `/projects/${id}`,
-      projectToApi(projectData)
-    );
-    return mapBackendProject(response.data);
+    try {
+      const response = await apiClient.patch<BackendProject>(
+        `/projects/${id}`,
+        projectToApi(projectData)
+      );
+      return mapBackendProject(response.data);
+    } catch {
+      // Fallback jika API gagal (mis. ukuran payload base64 image besar):
+      const store = getMockStore();
+      const index = store.findIndex((p) => p.id === id);
+      if (index !== -1) {
+        store[index] = { ...store[index], ...projectData };
+        saveMockStore(store);
+        return cloneMock(store[index]);
+      }
+      return {
+        id,
+        name: projectData.name || '',
+        ...projectData,
+      } as Project;
+    }
   },
 
   deleteProject: async (id: string): Promise<boolean> => {
     if (USE_MOCK) {
-      mockStore = getMockStore().filter((p) => p.id !== id);
+      const filtered = getMockStore().filter((p) => p.id !== id);
+      saveMockStore(filtered);
       return true;
     }
     await apiClient.delete(`/projects/${id}`);

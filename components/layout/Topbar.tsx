@@ -26,6 +26,8 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/clients/pic/new': { title: 'Add New PIC Client', subtitle: 'Add new PIC Client' },
   '/clients/company': { title: 'List Client Company', subtitle: 'List of All Client Company' },
   '/clients/company/new': { title: 'Add New Company Client', subtitle: 'Add new Company Client' },
+  '/settings/category-cost': { title: 'Category Cost Management', subtitle: 'List of Production Cost Categories' },
+  '/settings/invoice': { title: 'Invoice Setting', subtitle: 'Manage Invoice Defaults, Tax / PPh, and Payment Information' },
   '/profile': { title: 'Profile', subtitle: 'Director Profile' },
 };
 
@@ -77,6 +79,24 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       return { title: customTitle, subtitle: customSubtitle };
     }
     if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+    if (pathname.startsWith('/clients/company/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit Company Client', subtitle: 'Edit Company Client Information' };
+    }
+    if (pathname.startsWith('/clients/company/')) {
+      return { title: 'Detail Company Client', subtitle: 'Detail Company Client Information' };
+    }
+    if (pathname.startsWith('/clients/pic/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit PIC Client', subtitle: 'Edit PIC Client Information' };
+    }
+    if (pathname.startsWith('/clients/pic/')) {
+      return { title: 'Detail PIC Client', subtitle: 'Detail PIC Client Information' };
+    }
+    if (pathname.startsWith('/manpower/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit Manpower', subtitle: 'Edit Manpower Information' };
+    }
+    if (pathname.startsWith('/manpower/')) {
+      return { title: 'Detail Manpower', subtitle: 'Detail Manpower' };
+    }
     if (pathname.startsWith('/projects/') && pathname.endsWith('/edit')) {
       return { title: 'Edit Project', subtitle: 'Perbarui rincian data proyek' };
     }

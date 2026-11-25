@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Eye, Pencil, Trash2, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import ConfirmModal from '@/components/shared/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientCompany } from '@/types/client';
@@ -18,22 +19,27 @@ export default function ListClientCompanyPage() {
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(false);
-    try {
-      setData(await clientService.getCompanies());
-    } catch {
-      setLoadError(true);
-    } finally {
-      setIsLoading(false);
-    }
+  // Modal states
+  const [companyToDelete, setCompanyToDelete] = useState<ClientCompany | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  const loadData = useCallback(() => {
+    clientService.getCompanies()
+      .then((companies) => {
+        setData(companies);
+        setLoadError(false);
+      })
+      .catch(() => {
+        setLoadError(true);
+        showToast.error('Gagal memuat data Company Client.');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   useEffect(() => {
-    loadData().catch(() => {
-      showToast.error('Gagal memuat data Company Client.');
-    });
+    loadData();
   }, [loadData]);
 
   const cityOptions = useMemo(
@@ -66,15 +72,18 @@ export default function ListClientCompanyPage() {
   const endIndex = Math.min(startIndex + dataPerPage, totalFilteredCount);
   const displayedItems = filteredData.slice(startIndex, endIndex);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus Company Client "${name}"?`)) return;
-
+  const handleConfirmDelete = async () => {
+    if (!companyToDelete) return;
+    setIsDeleting(true);
     try {
-      await clientService.deleteCompany(id);
+      await clientService.deleteCompany(companyToDelete.id);
+      showToast.success(`Company Client "${companyToDelete.name}" berhasil dihapus.`);
+      setCompanyToDelete(null);
       await loadData();
-      showToast.success(`Company Client "${name}" berhasil dihapus.`);
     } catch {
-      showToast.error(`Gagal menghapus Company Client "${name}".`);
+      showToast.error(`Gagal menghapus Company Client "${companyToDelete.name}".`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -95,7 +104,7 @@ export default function ListClientCompanyPage() {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search by project..."
+            placeholder="Search by all..."
             className="w-full bg-white border border-slate-200/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary transition-colors shadow-2xs"
           />
         </div>
@@ -108,9 +117,9 @@ export default function ListClientCompanyPage() {
                 setSelectedCityFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="appearance-none bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:border-primary transition-colors cursor-pointer shadow-2xs"
+              className="appearance-none bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 pr-9 text-xs sm:text-sm font-medium text-slate-700 cursor-pointer focus:outline-none focus:border-primary shadow-2xs"
             >
-              <option value="City">City</option>
+              <option value="City">Semua Kota</option>
               {cityOptions.map((city) => (
                 <option key={city} value={city}>
                   {city}
@@ -122,13 +131,11 @@ export default function ListClientCompanyPage() {
 
           <Link href="/clients/company/new">
             <Button
-              type="button"
               variant="primary"
-              size="md"
-              leftIcon={<Plus className="w-4 h-4" />}
               className="bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl px-5 whitespace-nowrap shadow-2xs"
             >
-              Add Company Client
+              <Plus className="w-4 h-4 mr-1.5" />
+              <span>Add New Company</span>
             </Button>
           </Link>
         </div>
@@ -136,68 +143,67 @@ export default function ListClientCompanyPage() {
 
       {loadError ? (
         <ErrorState
-          title="Gagal Memuat Company Client"
-          message="Tidak dapat mengambil data perusahaan klien dari server backend. Pastikan server backend sedang aktif."
+          title="Gagal Memuat Data"
+          message="Terjadi kesalahan saat memuat daftar Client Company. Silakan coba lagi."
           onRetry={loadData}
-          isRetrying={isLoading}
         />
       ) : (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
-        
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-2xs space-y-4">
         {/* 1. TAMPILAN DESKTOP (TABLE) */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[750px] text-xs sm:text-sm">
+          <table className="w-full text-left text-xs sm:text-sm">
             <thead>
-              <tr className="border-b border-slate-100 text-slate-500 font-semibold">
-                <th className="py-4 px-6">Company Name</th>
+              <tr className="border-b border-slate-100 text-slate-400 font-medium">
+                <th className="py-4 px-6 text-center w-16">No</th>
+                <th className="py-4 px-6">Company Client</th>
                 <th className="py-4 px-6">Address</th>
                 <th className="py-4 px-6 text-center">City</th>
-                <th className="py-4 px-6 text-center">Phone Number</th>
+                <th className="py-4 px-6 text-center">Phone</th>
                 <th className="py-4 px-6 text-center">Email</th>
-                <th className="py-4 px-6 text-center">Action</th>
+                <th className="py-4 px-6 text-center w-28">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100/80 text-slate-700">
+            <tbody className="divide-y divide-slate-50">
               {displayedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400 text-sm">
                     {isLoading ? 'Memuat data...' : 'Tidak ada data Client Company yang ditemukan.'}
                   </td>
                 </tr>
               ) : (
-                displayedItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-slate-50/50 transition-colors"
-                  >
-                    <td className="py-5 px-6 font-medium text-slate-800">{item.name}</td>
-                    <td className="py-5 px-6 text-slate-600 font-normal">{item.address}</td>
-                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.city}</td>
-                    <td className="py-5 px-6 text-center text-slate-600 font-normal whitespace-nowrap">
-                      {item.phone}
+                displayedItems.map((item, index) => (
+                  <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="py-5 px-6 text-center font-normal text-slate-400">
+                      {startIndex + index + 1}
                     </td>
-                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.email}</td>
+                    <td className="py-5 px-6 font-semibold text-slate-900">{item.name}</td>
+                    <td className="py-5 px-6 text-slate-600 font-normal max-w-xs truncate" title={item.address}>
+                      {item.address || '-'}
+                    </td>
+                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.city || '-'}</td>
+                    <td className="py-5 px-6 text-center text-slate-600 font-normal whitespace-nowrap">
+                      {item.phone || '-'}
+                    </td>
+                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.email || '-'}</td>
                     <td className="py-5 px-6 text-center">
                       <div className="flex items-center justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => showToast.info(`Detail Company: ${item.name} (${item.city})`)}
+                        <Link
+                          href={`/clients/company/${item.id}`}
                           className="text-[#0066ff] hover:opacity-80 transition-opacity cursor-pointer p-1"
                           title="Lihat Detail Company Client"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => showToast.info(`Edit Company Client: ${item.name}`)}
+                        </Link>
+                        <Link
+                          href={`/clients/company/${item.id}/edit`}
                           className="text-[#f59e0b] hover:opacity-80 transition-opacity cursor-pointer p-1"
                           title="Edit Company Client"
                         >
                           <Pencil className="w-4 h-4" />
-                        </button>
+                        </Link>
                         <button
                           type="button"
-                          onClick={() => handleDelete(item.id, item.name)}
+                          onClick={() => setCompanyToDelete(item)}
                           className="text-red-500 hover:opacity-80 transition-opacity cursor-pointer p-1"
                           title="Hapus Company Client"
                         >
@@ -224,35 +230,33 @@ export default function ListClientCompanyPage() {
                 <div className="flex items-start justify-between gap-3">
                   <span className="font-semibold text-sm text-slate-900 leading-snug">{item.name}</span>
                   <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                    {item.city}
+                    {item.city || '-'}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1 text-xs text-slate-500">
-                  <span className="text-slate-700">{item.address}</span>
-                  <span>{item.email}</span>
-                  <span>{item.phone}</span>
+                  <span className="text-slate-700">{item.address || '-'}</span>
+                  <span>{item.email || '-'}</span>
+                  <span>{item.phone || '-'}</span>
                 </div>
                 <div className="flex items-center justify-end text-xs text-slate-500 pt-3 border-t border-slate-50">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => showToast.info(`Detail Company: ${item.name} (${item.city})`)}
+                    <Link
+                      href={`/clients/company/${item.id}`}
                       className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors"
                       title="Lihat Detail Company Client"
                     >
                       <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast.info(`Edit Company Client: ${item.name}`)}
+                    </Link>
+                    <Link
+                      href={`/clients/company/${item.id}/edit`}
                       className="p-1.5 rounded-lg text-amber-500 bg-amber-50 hover:bg-amber-100 transition-colors"
                       title="Edit Company Client"
                     >
                       <Pencil className="w-4 h-4" />
-                    </button>
+                    </Link>
                     <button
                       type="button"
-                      onClick={() => handleDelete(item.id, item.name)}
+                      onClick={() => setCompanyToDelete(item)}
                       className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
                       title="Hapus Company Client"
                     >
@@ -315,6 +319,18 @@ export default function ListClientCompanyPage() {
         </div>
       </div>
       )}
+
+      {/* CONFIRM DELETE MODAL */}
+      <ConfirmModal
+        isOpen={!!companyToDelete}
+        onClose={() => setCompanyToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus Company Client"
+        message={`Apakah Anda yakin ingin menghapus Company Client "${companyToDelete?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

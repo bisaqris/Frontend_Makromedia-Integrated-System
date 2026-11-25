@@ -200,7 +200,7 @@ export const mockApplicationCosts: ApplicationCostItem[] = [
     projectName: 'Film Pendek Dokumenter Makromedia',
     applicationDocument: 'Invoice',
     applicationDate: '5 Sept 2026',
-    totalCost: 70000000,
+    totalCost: 100000000,
     status: 'Approved',
     projectOfficer: 'Rian Hidayat',
     venue: 'Jakarta Selatan',

@@ -89,29 +89,29 @@ export default function ListProjectPage() {
     };
   }, []);
 
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(false);
-    try {
-      const res = await projectService.getProjects({
-        search,
-        category: selectedCategory as ProjectCategory | 'ALL',
-        projectManagerId: selectedPM,
-        page,
-        limit,
+  const fetchProjects = useCallback(() => {
+    projectService.getProjects({
+      search,
+      category: selectedCategory as ProjectCategory | 'ALL',
+      projectManagerId: selectedPM,
+      page,
+      limit,
+    })
+      .then((res) => {
+        startTransition(() => {
+          setProjects(res.data);
+          setTotal(res.total);
+          setLoadError(false);
+          setIsLoading(false);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setIsLoading(false);
+          setLoadError(true);
+        });
+        showToast.error('Gagal mengambil daftar proyek.');
       });
-      startTransition(() => {
-        setProjects(res.data);
-        setTotal(res.total);
-        setIsLoading(false);
-      });
-    } catch {
-      startTransition(() => {
-        setIsLoading(false);
-        setLoadError(true);
-      });
-      showToast.error('Gagal mengambil daftar proyek.');
-    }
   }, [search, selectedCategory, selectedPM, page, limit]);
 
   useEffect(() => {

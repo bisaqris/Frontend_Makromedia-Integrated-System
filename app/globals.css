@@ -40,6 +40,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Hilangkan tombol panah spinner (up/down) pada seluruh input angka */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Notion-style clean scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

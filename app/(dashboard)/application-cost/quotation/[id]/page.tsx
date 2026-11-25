@@ -8,6 +8,7 @@ import { showToast } from '@/components/ui/Toast';
 import { formatDateID } from '@/lib/utils';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { companyService } from '@/lib/services/companyService';
+import { invoiceSettingService } from '@/lib/services/invoiceSettingService';
 import { useAuth } from '@/context/AuthContext';
 import { USE_MOCK } from '@/lib/services/mockFlag';
 import {
@@ -24,8 +25,6 @@ export default function QuotationApprovalDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { role } = useAuth();
-  const canSendQuotation =
-    USE_MOCK || role === 'SALES' || role === 'FINANCE' || role === 'DIREKTUR';
   const canApproveQuotation = USE_MOCK || role === 'DIREKTUR';
 
   const id = params?.id as string;
@@ -75,9 +74,6 @@ export default function QuotationApprovalDetailPage() {
     }
   };
 
-  const handleSend = () =>
-    handleStatusUpdate('SENT', `Quotation (${item?.projectName ?? ''}) berhasil dikirim.`, 'success');
-
   const handleApprove = () =>
     handleStatusUpdate('APPROVED', `Dokumen Quotation (${item?.projectName ?? ''}) berhasil disetujui!`, 'success');
 
@@ -110,8 +106,12 @@ export default function QuotationApprovalDetailPage() {
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
   const discountPercent = item.discountPercent ?? 0;
   const pph = item.pph ?? 0;
+  const pphPercent = pph > 0 && subTotal > 0 ? Math.round((pph / subTotal) * 100 * 10) / 10 : 0;
   const grandTotal = subTotal - (subTotal * discountPercent) / 100 + pph;
-  const bankAccounts = item.bankAccounts ?? [];
+  const invoiceSetting = invoiceSettingService.getSetting();
+  const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
+    ? invoiceSetting.bankAccounts
+    : (item.bankAccounts ?? []);
 
   return (
     <div className="space-y-6 pb-16">
@@ -212,10 +212,10 @@ export default function QuotationApprovalDetailPage() {
                 >
                   <td className="py-4 px-4 font-normal text-slate-800">{lineItem.itemName}</td>
                   <td className="py-4 px-4 text-slate-500 text-xs space-y-2">
-                    {lineItem.descriptions?.map((description, index) => (
+                    {lineItem.descriptions?.map((description) => (
                       <p
                         key={description}
-                        className={index === 0 ? 'text-slate-600 mt-6' : 'text-slate-600'}
+                        className="text-slate-600"
                       >
                         {description}
                       </p>
@@ -255,7 +255,7 @@ export default function QuotationApprovalDetailPage() {
           </div>
 
           <div className="flex justify-between items-center text-xs sm:text-sm text-slate-600 font-medium">
-            <span>PPH</span>
+            <span>PPH {pphPercent > 0 ? `(${pphPercent}%)` : ''}</span>
             <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
           </div>
         </div>
@@ -346,7 +346,7 @@ export default function QuotationApprovalDetailPage() {
         )}
 
         <div className="flex items-center gap-4">
-          {(item.status === 'SENT' || item.status === 'Pending' || item.status === 'PENDING') && (
+          {canApproveQuotation && !(item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise') && (
             <Button
               type="button"
               variant="outline"
@@ -358,42 +358,28 @@ export default function QuotationApprovalDetailPage() {
             </Button>
           )}
 
-          {(item.status === 'DRAFT' || item.status === 'Pending') && canSendQuotation ? (
+          <Button
+            type="button"
+            variant="primary"
+            size="md"
+            leftIcon={<Printer className="w-4 h-4" />}
+            className="min-w-[130px] sm:min-w-[150px] px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl"
+            onClick={() => router.push(`/application-cost/quotation/${id}/preview`)}
+          >
+            Preview
+          </Button>
+
+          {canApproveQuotation && !(item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise') && (
             <Button
               type="button"
               variant="primary"
               size="md"
-              className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
-              onClick={handleSend}
+              className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
+              onClick={handleApprove}
             >
-              Send
+              Approve
             </Button>
-          ) : item.status === 'SENT' ? (
-            <>
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                leftIcon={<Printer className="w-4 h-4" />}
-                className="min-w-[130px] sm:min-w-[150px] px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl"
-                onClick={() => router.push(`/application-cost/quotation/${id}/preview`)}
-              >
-                Preview
-              </Button>
-
-              {canApproveQuotation && (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="md"
-                  className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
-                  onClick={handleApprove}
-                >
-                  Approve
-                </Button>
-              )}
-            </>
-          ) : null}
+          )}
         </div>
       </div>
 
