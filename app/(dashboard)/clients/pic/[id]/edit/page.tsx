@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown } from 'lucide-react';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
+import CountrySelect from '@/components/shared/CountrySelect';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientCompany } from '@/types/client';
@@ -133,11 +134,13 @@ export default function EditPICClientPage({
     if (!formData.companyAddress.trim()) {
       newErrors.companyAddress = 'Alamat perusahaan wajib diisi.';
     }
-    if (!formData.country.trim()) newErrors.country = 'Country (Negara) wajib diisi.';
-    if (!formData.province) newErrors.province = 'Province (Provinsi) wajib dipilih.';
-    if (!formData.city) newErrors.city = 'City (Kota) wajib dipilih.';
-    if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
-    if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
+    if (!formData.country.trim()) newErrors.country = 'Country (Negara) wajib dipilih.';
+    if (!formData.province) newErrors.province = 'Province / State wajib dipilih.';
+    if (!formData.city) newErrors.city = 'City wajib dipilih.';
+    if (formData.country === 'Indonesia') {
+      if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
+      if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
+    }
     if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
 
     setErrors(newErrors);
@@ -168,8 +171,8 @@ export default function EditPICClientPage({
         country: formData.country.trim(),
         province: formData.province,
         city: formData.city,
-        subdistrict: formData.subdistrict,
-        village: formData.village,
+        subdistrict: formData.subdistrict || '-',
+        village: formData.village || '-',
         postalCode: formData.postalCode.trim(),
       });
 
@@ -311,26 +314,26 @@ export default function EditPICClientPage({
               )}
             </div>
 
-            <div className="md:col-span-6">
-              <label htmlFor="country" className="text-xs font-semibold text-slate-700 block mb-1.5">
-                Country <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="country"
-                name="country"
-                value={formData.country}
-                onChange={handleInputChange}
-                placeholder="Country"
-                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
-                  errors.country ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                }`}
-              />
-              {errors.country && <p className="text-xs text-red-500 font-medium mt-1">{errors.country}</p>}
-            </div>
+            <CountrySelect
+              value={formData.country}
+              onChange={(val) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  country: val,
+                  province: '',
+                  city: '',
+                  subdistrict: val.toLowerCase() === 'indonesia' ? '' : '-',
+                  village: val.toLowerCase() === 'indonesia' ? '' : '-',
+                }));
+                if (errors.country) setErrors((prev) => ({ ...prev, country: '' }));
+              }}
+              error={errors.country}
+              className="md:col-span-6"
+            />
 
-            {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
+            {/* Wilayah berjenjang: Indonesia (wilayah.id) atau Global (country-state-city) */}
             <AddressRegionFields
+              country={formData.country}
               value={formData}
               onChange={handleRegionChange}
               fieldClassName="md:col-span-6"

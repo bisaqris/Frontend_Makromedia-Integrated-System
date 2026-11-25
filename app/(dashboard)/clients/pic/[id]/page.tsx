@@ -107,7 +107,9 @@ export default function DetailPICClientPage({
           </div>
 
           <div>
-            <p className="text-xs text-gray-400 font-medium">Province</p>
+            <p className="text-xs text-gray-400 font-medium">
+              {!data.country || data.country === 'Indonesia' ? 'Province' : 'State / Province'}
+            </p>
             <p className="text-sm font-semibold text-gray-900 mt-1">{data.province || '-'}</p>
           </div>
 
@@ -116,15 +118,19 @@ export default function DetailPICClientPage({
             <p className="text-sm font-semibold text-gray-900 mt-1">{data.city || '-'}</p>
           </div>
 
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Subdistrict</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.subdistrict || '-'}</p>
-          </div>
+          {(!data.country || data.country === 'Indonesia' || (data.subdistrict && data.subdistrict !== '-')) && (
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Subdistrict</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">{data.subdistrict || '-'}</p>
+            </div>
+          )}
 
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Village</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.village || '-'}</p>
-          </div>
+          {(!data.country || data.country === 'Indonesia' || (data.village && data.village !== '-')) && (
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Village</p>
+              <p className="text-sm font-semibold text-gray-900 mt-1">{data.village || '-'}</p>
+            </div>
+          )}
 
           <div>
             <p className="text-xs text-gray-400 font-medium">Postal Code</p>

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
+import CountrySelect from '@/components/shared/CountrySelect';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 
@@ -114,10 +114,12 @@ export default function EditCompanyClientPage({
     }
 
     if (!formData.country) newErrors.country = 'Country (Negara) wajib dipilih.';
-    if (!formData.province) newErrors.province = 'Province (Provinsi) wajib dipilih.';
-    if (!formData.city) newErrors.city = 'City (Kota) wajib dipilih.';
-    if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
-    if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
+    if (!formData.province) newErrors.province = 'Province / State wajib dipilih.';
+    if (!formData.city) newErrors.city = 'City wajib dipilih.';
+    if (formData.country === 'Indonesia') {
+      if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
+      if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
+    }
     if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
 
     if (!formData.companyAddress.trim()) {
@@ -147,8 +149,8 @@ export default function EditCompanyClientPage({
         country: formData.country,
         province: formData.province,
         city: formData.city,
-        subdistrict: formData.subdistrict,
-        village: formData.village,
+        subdistrict: formData.subdistrict || '-',
+        village: formData.village || '-',
         postalCode: formData.postalCode.trim(),
         address: formData.companyAddress.trim(),
       });
@@ -237,37 +239,26 @@ export default function EditCompanyClientPage({
               {errors.email && <p className="text-xs text-red-500 font-medium mt-1">{errors.email}</p>}
             </div>
 
-            <div className="md:col-span-6">
-              <label htmlFor="country" className="text-xs font-semibold text-slate-700 block mb-1.5">
-                Country <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  id="country"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                  className={`w-full h-[42px] appearance-none bg-white border ${
-                    errors.country ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                  } rounded-xl px-3.5 py-2 pr-10 text-xs sm:text-sm ${
-                    formData.country ? 'text-slate-800' : 'text-slate-400'
-                  } focus:outline-none transition-colors cursor-pointer`}
-                >
-                  <option value="" disabled hidden>
-                    Country
-                  </option>
-                  <option value="Indonesia">Indonesia</option>
-                  <option value="Singapore">Singapore</option>
-                  <option value="Malaysia">Malaysia</option>
-                  <option value="Australia">Australia</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              {errors.country && <p className="text-xs text-red-500 font-medium mt-1">{errors.country}</p>}
-            </div>
+            <CountrySelect
+              value={formData.country}
+              onChange={(val) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  country: val,
+                  province: '',
+                  city: '',
+                  subdistrict: val.toLowerCase() === 'indonesia' ? '' : '-',
+                  village: val.toLowerCase() === 'indonesia' ? '' : '-',
+                }));
+                if (errors.country) setErrors((prev) => ({ ...prev, country: '' }));
+              }}
+              error={errors.country}
+              className="md:col-span-6"
+            />
 
-            {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
+            {/* Wilayah berjenjang: Indonesia (wilayah.id) atau Global (country-state-city) */}
             <AddressRegionFields
+              country={formData.country}
               value={formData}
               onChange={handleRegionChange}
               fieldClassName="md:col-span-6"
