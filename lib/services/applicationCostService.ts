@@ -42,6 +42,7 @@ interface BackendQuotation {
   totalValue: number | string;
   status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED';
   notes?: string | null;
+  statusNote?: string | null;
   createdAt: string;
   items: BackendLineItem[];
   project?: { id: string; name: string };
@@ -52,10 +53,11 @@ interface BackendInvoice {
   projectId: string;
   invoiceNumber: string;
   amount: number | string;
-  status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE';
+  status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'PAID' | 'OVERDUE';
   dueDate?: string | null;
   paymentInstruction?: string | null;
   notes?: string | null;
+  statusNote?: string | null;
   createdAt: string;
   items: BackendLineItem[];
   project?: { id: string; name: string };
@@ -110,7 +112,12 @@ const mapQuotation = (
   applicationDocument: 'Quotation',
   applicationDate: formatDate(quotation.createdAt),
   totalCost: toNumber(quotation.totalValue),
-  status: quotation.status,
+  status:
+    quotation.status === 'REJECTED'
+      ? 'Revise'
+      : quotation.status === 'APPROVED'
+        ? 'Approved'
+        : quotation.status,
   venue: project.venue ?? undefined,
   eventDate: formatDate(project.eventDate),
   mainClient: project.client?.company?.name ?? project.client?.name,
@@ -120,7 +127,7 @@ const mapQuotation = (
   lineItems: mapLineItems(quotation.items),
   discountPercent: toNumber(quotation.discountPercent),
   pph: toNumber(quotation.taxAmount),
-  notes: quotation.notes ?? undefined,
+  notes: quotation.statusNote ?? quotation.notes ?? undefined,
 });
 
 const mapInvoice = (
@@ -133,7 +140,12 @@ const mapInvoice = (
   applicationDocument: 'Invoice',
   applicationDate: formatDate(invoice.createdAt),
   totalCost: toNumber(invoice.amount),
-  status: invoice.status,
+  status:
+    invoice.status === 'REJECTED'
+      ? 'Revise'
+      : invoice.status === 'APPROVED'
+        ? 'Approved'
+        : invoice.status,
   venue: project.venue ?? undefined,
   eventDate: formatDate(project.eventDate),
   mainClient: project.client?.company?.name ?? project.client?.name,
@@ -144,7 +156,7 @@ const mapInvoice = (
     project.contractValue == null ? undefined : toNumber(project.contractValue),
   lineItems: mapLineItems(invoice.items),
   paymentInstruction: invoice.paymentInstruction ?? undefined,
-  notes: invoice.notes ?? undefined,
+  notes: invoice.statusNote ?? invoice.notes ?? undefined,
 });
 
 const mapProductionCost = (
@@ -366,12 +378,13 @@ export const applicationCostService = {
 
     if (documentType === 'Production Cost') {
       if (status === 'APPROVED' || status === 'Approved') {
-        await apiClient.patch(`/production-costs/${id}/approve`);
+        await apiClient.patch(`/production-costs/${id}/approve`, { note: notes });
         return;
       }
       if (status === 'REJECTED' || status === 'Revise') {
         await apiClient.patch(`/production-costs/${id}/reject`, {
           rejectionNote: notes ?? '',
+          note: notes,
         });
         return;
       }
@@ -380,39 +393,34 @@ export const applicationCostService = {
 
     if (documentType === 'Quotation') {
       const apiStatus =
-        status === 'Approved' ? 'APPROVED' :
-        status === 'Revise' ? 'REJECTED' :
+        status === 'Approved' || status === 'APPROVED' ? 'APPROVED' :
+        status === 'Revise' || status === 'REJECTED' ? 'REJECTED' :
         status;
-      if (!['SENT', 'APPROVED', 'REJECTED'].includes(apiStatus)) {
-        throw new Error(`Status "${status}" tidak didukung untuk quotation.`);
+      if (!['APPROVED', 'REJECTED'].includes(apiStatus)) {
+        throw new Error(`Status "${status}" tidak didukung untuk quotation (hanya APPROVED atau REJECTED).`);
       }
-      try {
-        await apiClient.patch(`/quotations/${id}/status`, { status: apiStatus });
-      } catch (err: unknown) {
-        if (apiStatus === 'APPROVED' || apiStatus === 'REJECTED') {
-          try {
-            await apiClient.patch(`/quotations/${id}/status`, { status: 'SENT' });
-            await apiClient.patch(`/quotations/${id}/status`, { status: apiStatus });
-          } catch {
-            throw err;
-          }
-        } else {
-          throw err;
-        }
-      }
+      await apiClient.patch(`/quotations/${id}/status`, {
+        status: apiStatus,
+        note: notes,
+      });
       return;
     }
 
-    // Invoice status translation
-    let apiStatus = status.toUpperCase();
-    if (apiStatus === 'APPROVED' || apiStatus === 'PAID') {
+    // Invoice status handling (v2 workflow: DRAFT -> APPROVED|REJECTED -> PAID|OVERDUE)
+    let apiStatus: string = status;
+    if (status === 'Approved' || status === 'APPROVED') {
+      apiStatus = 'APPROVED';
+    } else if (status === 'Revise' || status === 'REJECTED') {
+      apiStatus = 'REJECTED';
+    } else if (status === 'PAID') {
       apiStatus = 'PAID';
-    } else if (apiStatus === 'REJECTED' || apiStatus === 'REVISE' || apiStatus === 'OVERDUE') {
+    } else if (status === 'OVERDUE') {
       apiStatus = 'OVERDUE';
-    } else if (apiStatus === 'PENDING' || apiStatus === 'DRAFT' || apiStatus === 'SENT') {
-      apiStatus = 'SENT';
     }
 
-    await apiClient.patch(`/invoices/${id}/status`, { status: apiStatus });
+    await apiClient.patch(`/invoices/${id}/status`, {
+      status: apiStatus,
+      note: notes,
+    });
   },
 };

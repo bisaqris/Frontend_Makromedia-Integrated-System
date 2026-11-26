@@ -43,11 +43,28 @@ const getMockStore = (): Skill[] => {
   return mockStore;
 };
 
+interface BackendSkill {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { manpower: number };
+}
+
+const mapBackendSkill = (item: BackendSkill): Skill => ({
+  id: item.id,
+  name: item.name,
+  status: item.isActive ? 'ACTIVE' : 'INACTIVE',
+  usedBy: item._count?.manpower ?? 0,
+  createdAt: item.createdAt,
+});
+
 export const skillService = {
   async getAll(): Promise<Skill[]> {
     if (USE_MOCK) return cloneMock(getMockStore());
-    const response = await apiClient.get<Skill[]>('/manpower/skills');
-    return response.data;
+    const response = await apiClient.get<BackendSkill[]>('/manpower/skills');
+    return Array.isArray(response.data) ? response.data.map(mapBackendSkill) : [];
   },
 
   async getActive(): Promise<Skill[]> {
@@ -86,12 +103,11 @@ export const skillService = {
       saveMockStore(updated);
       return cloneMock(newSkill);
     }
-    const response = await apiClient.post<Skill>('/manpower/skills', {
-      name: data.name,
-      status: data.status ?? 'ACTIVE',
-      category: data.category,
+    const response = await apiClient.post<BackendSkill>('/manpower/skills', {
+      name: data.name.trim(),
+      ...(data.status && { isActive: data.status === 'ACTIVE' }),
     });
-    return response.data;
+    return mapBackendSkill(response.data);
   },
 
   async update(id: string, data: UpdateSkillDTO): Promise<Skill> {
@@ -103,8 +119,12 @@ export const skillService = {
       saveMockStore([...store]);
       return cloneMock(store[index]);
     }
-    const response = await apiClient.patch<Skill>(`/manpower/skills/${id}`, data);
-    return response.data;
+    const payload: { name?: string; isActive?: boolean } = {};
+    if (data.name !== undefined) payload.name = data.name.trim();
+    if (data.status !== undefined) payload.isActive = data.status === 'ACTIVE';
+
+    const response = await apiClient.patch<BackendSkill>(`/manpower/skills/${id}`, payload);
+    return mapBackendSkill(response.data);
   },
 
   async delete(id: string): Promise<void> {

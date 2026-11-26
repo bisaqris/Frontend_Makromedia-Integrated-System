@@ -43,11 +43,28 @@ const getMockStore = (): Position[] => {
   return mockStore;
 };
 
+interface BackendPosition {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { users: number; manpower: number };
+}
+
+const mapBackendPosition = (item: BackendPosition): Position => ({
+  id: item.id,
+  name: item.name,
+  status: item.isActive ? 'ACTIVE' : 'INACTIVE',
+  usedBy: (item._count?.users ?? 0) + (item._count?.manpower ?? 0),
+  createdAt: item.createdAt,
+});
+
 export const positionService = {
   async getAll(): Promise<Position[]> {
     if (USE_MOCK) return cloneMock(getMockStore());
-    const response = await apiClient.get<Position[]>('/positions');
-    return response.data;
+    const response = await apiClient.get<BackendPosition[]>('/positions');
+    return Array.isArray(response.data) ? response.data.map(mapBackendPosition) : [];
   },
 
   async getActive(): Promise<Position[]> {
@@ -66,8 +83,8 @@ export const positionService = {
       if (!position) throw new Error(`Position dengan id "${id}" tidak ditemukan.`);
       return cloneMock(position);
     }
-    const response = await apiClient.get<Position>(`/positions/${id}`);
-    return response.data;
+    const response = await apiClient.get<BackendPosition>(`/positions/${id}`);
+    return mapBackendPosition(response.data);
   },
 
   async create(data: CreatePositionDTO): Promise<Position> {
@@ -84,12 +101,11 @@ export const positionService = {
       saveMockStore(updated);
       return cloneMock(newPosition);
     }
-    const response = await apiClient.post<Position>('/positions', {
-      name: data.name,
-      status: data.status ?? 'ACTIVE',
-      category: data.category,
+    const response = await apiClient.post<BackendPosition>('/positions', {
+      name: data.name.trim(),
+      ...(data.status && { isActive: data.status === 'ACTIVE' }),
     });
-    return response.data;
+    return mapBackendPosition(response.data);
   },
 
   async update(id: string, data: UpdatePositionDTO): Promise<Position> {
@@ -101,8 +117,12 @@ export const positionService = {
       saveMockStore([...store]);
       return cloneMock(store[index]);
     }
-    const response = await apiClient.patch<Position>(`/positions/${id}`, data);
-    return response.data;
+    const payload: { name?: string; isActive?: boolean } = {};
+    if (data.name !== undefined) payload.name = data.name.trim();
+    if (data.status !== undefined) payload.isActive = data.status === 'ACTIVE';
+
+    const response = await apiClient.patch<BackendPosition>(`/positions/${id}`, payload);
+    return mapBackendPosition(response.data);
   },
 
   async delete(id: string): Promise<void> {

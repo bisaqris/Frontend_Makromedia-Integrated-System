@@ -46,12 +46,32 @@ const saveToStorage = (categories: CostCategory[]) => {
   }
 };
 
+interface BackendCostCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { productionCosts: number };
+}
+
+const mapBackendCategory = (item: BackendCostCategory): CostCategory => ({
+  id: item.id,
+  name: item.name,
+  status: item.isActive ? 'ACTIVE' : 'INACTIVE',
+  usedCount: item._count?.productionCosts ?? 0,
+  createdAt: item.createdAt ? item.createdAt.slice(0, 10) : undefined,
+  updatedAt: item.updatedAt ? item.updatedAt.slice(0, 10) : undefined,
+});
+
 export const costCategoryService = {
   getAll: async (): Promise<CostCategory[]> => {
     if (USE_MOCK) return loadFromStorage();
     try {
-      const response = await apiClient.get<CostCategory[]>('/cost-categories');
-      if (Array.isArray(response.data)) return response.data;
+      const response = await apiClient.get<BackendCostCategory[]>('/production-cost-categories');
+      if (Array.isArray(response.data)) {
+        return response.data.map(mapBackendCategory);
+      }
     } catch {
       // Fallback to local storage if endpoint is not implemented on BE
     }
@@ -73,59 +93,79 @@ export const costCategoryService = {
   },
 
   create: async (data: CreateCostCategoryDTO): Promise<CostCategory> => {
-    const list = loadFromStorage();
-    const exists = list.some(
-      (c) => c.name.trim().toLowerCase() === data.name.trim().toLowerCase()
-    );
-    if (exists) {
-      throw new Error(`Kategori "${data.name.trim()}" sudah ada.`);
+    if (USE_MOCK) {
+      const list = loadFromStorage();
+      const exists = list.some(
+        (c) => c.name.trim().toLowerCase() === data.name.trim().toLowerCase()
+      );
+      if (exists) {
+        throw new Error(`Kategori "${data.name.trim()}" sudah ada.`);
+      }
+
+      const newCategory: CostCategory = {
+        id: `cat-${Date.now()}`,
+        name: data.name.trim(),
+        status: data.status,
+        usedCount: 0,
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0],
+      };
+
+      const updated = [newCategory, ...list];
+      saveToStorage(updated);
+      return newCategory;
     }
 
-    const newCategory: CostCategory = {
-      id: `cat-${Date.now()}`,
+    const response = await apiClient.post<BackendCostCategory>('/production-cost-categories', {
       name: data.name.trim(),
-      status: data.status,
-      usedCount: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-
-    const updated = [newCategory, ...list];
-    saveToStorage(updated);
-    return newCategory;
+      isActive: data.status === 'ACTIVE',
+    });
+    return mapBackendCategory(response.data);
   },
 
   update: async (id: string, data: Partial<CreateCostCategoryDTO>): Promise<CostCategory> => {
-    const list = loadFromStorage();
-    const idx = list.findIndex((c) => c.id === id);
-    if (idx === -1) {
-      throw new Error('Kategori biaya tidak ditemukan.');
-    }
-
-    if (data.name) {
-      const duplicate = list.some(
-        (c) => c.id !== id && c.name.trim().toLowerCase() === data.name!.trim().toLowerCase()
-      );
-      if (duplicate) {
-        throw new Error(`Kategori "${data.name.trim()}" sudah ada.`);
+    if (USE_MOCK) {
+      const list = loadFromStorage();
+      const idx = list.findIndex((c) => c.id === id);
+      if (idx === -1) {
+        throw new Error('Kategori biaya tidak ditemukan.');
       }
+
+      if (data.name) {
+        const duplicate = list.some(
+          (c) => c.id !== id && c.name.trim().toLowerCase() === data.name!.trim().toLowerCase()
+        );
+        if (duplicate) {
+          throw new Error(`Kategori "${data.name.trim()}" sudah ada.`);
+        }
+      }
+
+      const updatedItem: CostCategory = {
+        ...list[idx],
+        ...(data.name && { name: data.name.trim() }),
+        ...(data.status && { status: data.status }),
+        updatedAt: new Date().toISOString().split('T')[0],
+      };
+
+      list[idx] = updatedItem;
+      saveToStorage([...list]);
+      return updatedItem;
     }
 
-    const updatedItem: CostCategory = {
-      ...list[idx],
+    const response = await apiClient.patch<BackendCostCategory>(`/production-cost-categories/${id}`, {
       ...(data.name && { name: data.name.trim() }),
-      ...(data.status && { status: data.status }),
-      updatedAt: new Date().toISOString().split('T')[0],
-    };
-
-    list[idx] = updatedItem;
-    saveToStorage([...list]);
-    return updatedItem;
+      ...(data.status && { isActive: data.status === 'ACTIVE' }),
+    });
+    return mapBackendCategory(response.data);
   },
 
   delete: async (id: string): Promise<void> => {
-    const list = loadFromStorage();
-    const filtered = list.filter((c) => c.id !== id);
-    saveToStorage(filtered);
+    if (USE_MOCK) {
+      const list = loadFromStorage();
+      const filtered = list.filter((c) => c.id !== id);
+      saveToStorage(filtered);
+      return;
+    }
+    await apiClient.delete(`/production-cost-categories/${id}`);
   },
 };

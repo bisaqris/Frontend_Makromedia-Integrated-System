@@ -7,6 +7,7 @@ interface BackendProject {
   id: string;
   name: string;
   description?: string | null;
+  brief?: string | null;
   category?: string;
   clientId: string;
   client?: { name?: string; company?: { name?: string } };
@@ -241,7 +242,7 @@ const mapBackendProject = (project: BackendProject): Project => {
     totalPaid,
     restOfBill: Math.max(0, toNumber(project.contractValue) - totalPaid),
     totalCost,
-    generalBrief: project.description ?? '',
+    generalBrief: project.brief ?? project.description ?? '',
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     deliverablesLink,
@@ -328,6 +329,7 @@ const projectToApi = (project: Partial<Project>, includeStatus = true) => ({
     endDate: project.endDate || project.deadline,
   }),
   ...(project.projectStarts && { eventDate: project.projectStarts }),
+  ...(project.generalBrief !== undefined && { brief: project.generalBrief }),
   ...((project.description !== undefined || project.generalBrief !== undefined) && {
     description: project.description ?? project.generalBrief,
   }),
@@ -486,7 +488,7 @@ export const projectService = {
       proj = mapBackendProject(response.data);
     }
 
-    if (proj && typeof window !== 'undefined') {
+    if (proj && typeof window !== 'undefined' && !proj.generalBrief) {
       try {
         const savedBrief = localStorage.getItem(`${BRIEF_STORAGE_KEY_PREFIX}${id}`);
         if (savedBrief !== null) {
@@ -546,6 +548,15 @@ export const projectService = {
       projectToApi(projectData, false)
     );
     const created = response.data;
+    if (projectData.generalBrief) {
+      try {
+        await apiClient.patch<BackendProject>(`/projects/${created.id}`, {
+          brief: projectData.generalBrief,
+        });
+      } catch {
+        // Fallback jika patch brief gagal
+      }
+    }
     if (projectData.status && projectData.status !== 'DRAFT') {
       try {
         const patchRes = await apiClient.patch<BackendProject>(

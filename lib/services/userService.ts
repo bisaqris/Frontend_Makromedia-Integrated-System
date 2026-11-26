@@ -152,12 +152,20 @@ export const userService = {
     if (USE_MOCK) return cloneMock(mockUsers.filter((u) => u.role === 'PROJECT_MANAGER'));
 
     try {
-      const response = await apiClient.get<User[]>('/users');
-      const list = Array.isArray(response.data) ? response.data : [];
-      const pms = list.filter((u) => u.role === 'PROJECT_MANAGER');
-      return pms;
-    } catch {
+      const response = await apiClient.get<User[]>('/users/project-managers');
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
       return [];
+    } catch {
+      // Fallback jika endpoint tidak tersedia
+      try {
+        const response = await apiClient.get<User[]>('/users');
+        const list = Array.isArray(response.data) ? response.data : [];
+        return list.filter((u) => u.role === 'PROJECT_MANAGER');
+      } catch {
+        return [];
+      }
     }
   },
 };

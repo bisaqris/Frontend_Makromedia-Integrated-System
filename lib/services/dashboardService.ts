@@ -84,7 +84,14 @@ export const dashboardService = {
 
     // 1. Fetch raw calendar events and project metadata in parallel
     const [eventsResponse, projectsData] = await Promise.all([
-      apiClient.get<BackendCalendarEvent[]>('/calendar/events').catch(() => ({ data: [] as BackendCalendarEvent[] })),
+      apiClient
+        .get<BackendCalendarEvent[]>('/calendar/events', {
+          params:
+            params?.start && params?.end
+              ? { start: params.start, end: params.end }
+              : undefined,
+        })
+        .catch(() => ({ data: [] as BackendCalendarEvent[] })),
       projectService.getProjects({ limit: 100 }).catch(() => ({ data: [] as Project[], total: 0 })),
     ]);
 
