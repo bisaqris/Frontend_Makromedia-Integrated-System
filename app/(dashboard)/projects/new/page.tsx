@@ -354,11 +354,13 @@ export default function AddProjectPage() {
                   label="Project Manager"
                   value={pmId}
                   onChange={(e) => setPmId(e.target.value)}
-                  options={
-                    projectManagers.length > 0
-                      ? projectManagers.map((pm) => ({ value: pm.id, label: pm.name }))
-                      : [{ value: '', label: 'Pilih Project Manager' }]
-                  }
+                  options={[
+                    { value: '', label: 'Pilih Project Manager...' },
+                    ...projectManagers.map((pm) => ({
+                      value: pm.id,
+                      label: `${pm.name}${pm.email ? ` (${pm.email})` : ''}`,
+                    })),
+                  ]}
                   required
                 />
               </div>
