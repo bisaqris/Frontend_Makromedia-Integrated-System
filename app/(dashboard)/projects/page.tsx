@@ -15,6 +15,7 @@ import ConfirmModal from '@/components/shared/ConfirmModal';
 import EmptyState from '@/components/shared/EmptyState';
 import ErrorState from '@/components/shared/ErrorState';
 import { showToast } from '@/components/ui/Toast';
+import { formatDateID } from '@/lib/utils';
 import { Eye, Pencil, Trash2, Plus, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const formatRupiah = (val: number) => {
@@ -23,22 +24,6 @@ const formatRupiah = (val: number) => {
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(val || 0);
-};
-
-const formatDateID = (dateStr?: string) => {
-  if (!dateStr) return '-';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
-  const date = new Date(year, month, day);
-  return date.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 };
 
 const formatEventDate = (start?: string, end?: string) => {
@@ -104,29 +89,29 @@ export default function ListProjectPage() {
     };
   }, []);
 
-  const fetchProjects = useCallback(async () => {
-    setIsLoading(true);
-    setLoadError(false);
-    try {
-      const res = await projectService.getProjects({
-        search,
-        category: selectedCategory as ProjectCategory | 'ALL',
-        projectManagerId: selectedPM,
-        page,
-        limit,
+  const fetchProjects = useCallback(() => {
+    projectService.getProjects({
+      search,
+      category: selectedCategory as ProjectCategory | 'ALL',
+      projectManagerId: selectedPM,
+      page,
+      limit,
+    })
+      .then((res) => {
+        startTransition(() => {
+          setProjects(res.data);
+          setTotal(res.total);
+          setLoadError(false);
+          setIsLoading(false);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setIsLoading(false);
+          setLoadError(true);
+        });
+        showToast.error('Gagal mengambil daftar proyek.');
       });
-      startTransition(() => {
-        setProjects(res.data);
-        setTotal(res.total);
-        setIsLoading(false);
-      });
-    } catch {
-      startTransition(() => {
-        setIsLoading(false);
-        setLoadError(true);
-      });
-      showToast.error('Gagal mengambil daftar proyek.');
-    }
   }, [search, selectedCategory, selectedPM, page, limit]);
 
   useEffect(() => {
@@ -150,6 +135,8 @@ export default function ListProjectPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'DRAFT':
+        return <Badge variant="default">DRAFT</Badge>;
       case 'COMPLETED':
       case 'DONE':
         return <Badge variant="success">DONE</Badge>;
@@ -299,7 +286,7 @@ export default function ListProjectPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => router.push(`/projects/${proj.id}`)}
+                                onClick={() => router.push(`/projects/${proj.id}/edit`)}
                                 className="p-1 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
                                 title="Edit Project"
                               >
@@ -355,7 +342,7 @@ export default function ListProjectPage() {
                         <>
                           <button
                             type="button"
-                            onClick={() => router.push(`/projects/${proj.id}`)}
+                            onClick={() => router.push(`/projects/${proj.id}/edit`)}
                             className="p-1.5 rounded-lg text-amber-500 bg-amber-50 hover:bg-amber-100 transition-colors"
                             title="Edit Project"
                           >

@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import { applicationCostService } from '@/lib/services/applicationCostService';
 import { companyService } from '@/lib/services/companyService';
+import { invoiceSettingService } from '@/lib/services/invoiceSettingService';
 import { ApplicationCostItem, CompanyProfile } from '@/types/application-cost';
 
 const formatRupiahWithSpace = (val: number) => {
@@ -22,6 +23,19 @@ export default function QuotationPreviewPage() {
   const [item, setItem] = useState<ApplicationCostItem | null>(null);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
+
+  useEffect(() => {
+    const handleSettingUpdate = () => {
+      setInvoiceSetting(invoiceSettingService.getSetting());
+    };
+    window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+    window.addEventListener('storage', handleSettingUpdate);
+    return () => {
+      window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+      window.removeEventListener('storage', handleSettingUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -71,6 +85,7 @@ export default function QuotationPreviewPage() {
       html2canvas: {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         scrollY: 0,
         scrollX: 0,
@@ -78,7 +93,10 @@ export default function QuotationPreviewPage() {
         onclone: (clonedDoc: Document) => {
           const sheet = clonedDoc.getElementById('pdf-preview-sheet');
           if (sheet) {
+            sheet.style.transform = 'none';
             sheet.style.boxShadow = 'none';
+            sheet.style.width = '100%';
+            sheet.style.maxWidth = '100%';
             const allEls = sheet.querySelectorAll('*');
             allEls.forEach((el) => {
               if (el instanceof HTMLElement) {
@@ -93,11 +111,21 @@ export default function QuotationPreviewPage() {
     };
 
     try {
-      const html2pdf = (await import('html2pdf.js')).default;
+      const html2pdfModule = await import('html2pdf.js');
+      type Html2PdfInstance = {
+        set: (opt: unknown) => {
+          from: (element: HTMLElement) => {
+            save: () => Promise<void>;
+          };
+        };
+      };
+      const html2pdf = ((html2pdfModule as unknown as { default?: () => Html2PdfInstance }).default ||
+        (html2pdfModule as unknown as () => Html2PdfInstance)) as () => Html2PdfInstance;
       await html2pdf().set(opt).from(element).save();
       showToast.success('PDF Quotation berhasil diunduh!');
-    } catch {
-      window.print();
+    } catch (err: unknown) {
+      console.error('PDF download error:', err);
+      showToast.error('Gagal mengunduh file PDF secara otomatis. Gunakan tombol Cetak jika diperlukan.');
     }
   };
 
@@ -122,13 +150,21 @@ export default function QuotationPreviewPage() {
     );
   }
 
+  const rawSignerName = invoiceSetting.signerName || item.projectOfficer || 'Budi Santoso';
+  const signerName = rawSignerName.replace(/\s*\([^)]*\)/g, '').trim();
+  const signerPosition = invoiceSetting.signerPosition || 'Sales Manager';
+  const signatureUrl = invoiceSetting.signerSignatureUrl || item.signatureUrl;
+
   const contractVal = item.contractValue ?? 0;
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
   const discountPercent = item.discountPercent ?? 0;
   const pph = item.pph ?? 0;
+  const pphPercent = pph > 0 && subTotal > 0 ? Math.round((pph / subTotal) * 100 * 10) / 10 : 0;
   const grandTotal = subTotal - (subTotal * discountPercent) / 100 + pph;
-  const bankAccounts = item.bankAccounts ?? [];
+  const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
+    ? invoiceSetting.bankAccounts
+    : (item.bankAccounts || []);
 
   return (
     <div className="space-y-6 pb-16">
@@ -463,7 +499,7 @@ export default function QuotationPreviewPage() {
                   <span className="font-bold text-slate-800">{discountPercent}%</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
-                  <span>PPH</span>
+                  <span>PPH {pphPercent > 0 ? `(${pphPercent}%)` : ''}</span>
                   <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
                 </div>
               </div>
@@ -532,14 +568,14 @@ export default function QuotationPreviewPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="bg-white rounded-xl border border-slate-200 p-4 text-center space-y-2">
                 {/* 1. Name at top */}
-                <p className="font-bold text-slate-800 text-sm">{item.projectOfficer || '-'}</p>
+                <p className="font-bold text-slate-800 text-sm">{signerName}</p>
 
                 {/* 2. Signature Graphic / Custom Signature Image (dynamic placeholder) */}
                 <div className="h-14 flex items-center justify-center">
-                  {item.signatureUrl ? (
+                  {signatureUrl ? (
                     <img
-                      src={item.signatureUrl}
-                      alt="Tanda Tangan Sales Manager"
+                      src={signatureUrl}
+                      alt="Tanda Tangan"
                       className="max-h-12 w-auto object-contain"
                     />
                   ) : (
@@ -557,10 +593,10 @@ export default function QuotationPreviewPage() {
                 {/* 3. Best Regard */}
                 <p className="text-slate-700 font-medium text-xs">Best Regard</p>
 
-                {/* 4. Horizontal Line between Best Regard and Sales Manager */}
+                {/* 4. Horizontal Line between Best Regard and Position Title */}
                 <div className="border-t border-slate-300 pt-1">
-                  {/* 5. Sales Manager Title */}
-                  <p className="font-bold text-slate-800 text-xs">Sales Manager</p>
+                  {/* 5. Position Title */}
+                  <p className="font-bold text-slate-800 text-xs">{signerPosition}</p>
                 </div>
               </div>
 

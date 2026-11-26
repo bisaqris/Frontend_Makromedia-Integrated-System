@@ -6,6 +6,7 @@ import RoleGuard from '@/components/auth/RoleGuard';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import projectService from '@/lib/services/projectService';
 import { clientService } from '@/lib/services/clientService';
 import { userService } from '@/lib/services/userService';
@@ -13,7 +14,7 @@ import { ProjectCategory } from '@/types/project';
 import { ClientCompany, ClientPIC } from '@/types/client';
 import { User } from '@/types/user';
 import { showToast } from '@/components/ui/Toast';
-import { USE_MOCK } from '@/lib/services/mockFlag';
+import { formatDateID, formatNominal, isValidUrl, normalizeUrl } from '@/lib/utils';
 import {
   Plus,
   Trash2,
@@ -30,22 +31,6 @@ const formatRupiah = (val: number) => {
     currency: 'IDR',
     maximumFractionDigits: 0,
   }).format(val || 0);
-};
-
-const formatDateID = (dateStr?: string) => {
-  if (!dateStr) return '-';
-  const parts = dateStr.split('-');
-  if (parts.length !== 3) return dateStr;
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
-  const date = new Date(year, month, day);
-  return date.toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
 };
 
 const CATEGORY_OPTIONS = [
@@ -82,8 +67,8 @@ export default function AddProjectPage() {
   const [pmId, setPmId] = useState('');
   const [clientType, setClientType] = useState('Corporate');
   const [partnershipModel, setPartnershipModel] = useState('Direct');
-  const [companyId, setCompanyId] = useState('cli-1');
-  const [picId, setPicId] = useState('pic-1');
+  const [companyId, setCompanyId] = useState('');
+  const [picId, setPicId] = useState('');
 
   const [companies, setCompanies] = useState<ClientCompany[]>([]);
   const [pics, setPics] = useState<ClientPIC[]>([]);
@@ -104,7 +89,18 @@ export default function AddProjectPage() {
       setCompanies(companyList);
       setPics(picList);
       setProjectManagers(pmList);
-      if (companyList.length > 0) setCompanyId(companyList[0].id);
+      if (companyList.length > 0) {
+        const firstComp = companyList[0];
+        setCompanyId(firstComp.id);
+        const relatedPics = picList.filter((p) => p.clientId === firstComp.id);
+        if (relatedPics.length > 0) {
+          setPicId(relatedPics[0].id);
+        } else if (picList.length > 0) {
+          setPicId(picList[0].id);
+        }
+      } else if (picList.length > 0) {
+        setPicId(picList[0].id);
+      }
       if (pmList.length > 0) setPmId(pmList[0].id);
     };
 
@@ -118,11 +114,12 @@ export default function AddProjectPage() {
   }, []);
 
   const [projectName, setProjectName] = useState('');
-  const [eventDate, setEventDate] = useState('2026-05-04');
-  const [projectStarts, setProjectStarts] = useState('2026-04-20');
-  const [deadline, setDeadline] = useState('2026-05-15');
+  const today = new Date().toISOString().split('T')[0];
+  const [eventDate, setEventDate] = useState(today);
+  const [projectStarts, setProjectStarts] = useState(today);
+  const [deadline, setDeadline] = useState(today);
   const [venue, setVenue] = useState('');
-  const [contractValue, setContractValue] = useState<string>('350000000');
+  const [contractValue, setContractValue] = useState<string>('0');
 
   const [deliverablesLink, setDeliverablesLink] = useState('');
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
@@ -135,6 +132,36 @@ export default function AddProjectPage() {
   const selectedPM = projectManagers.find((pm) => pm.id === pmId);
 
   const handleAddLink = () => {
+    // 1. Validasi Deliverables Link terlebih dahulu jika belum diisi atau tidak valid
+    if (!deliverablesLink.trim()) {
+      showToast.error('Isi Deliverables Link dengan URL valid terlebih dahulu sebelum menambah link baru.');
+      const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
+      el?.focus();
+      return;
+    }
+    if (!isValidUrl(deliverablesLink)) {
+      showToast.error('Format Deliverables Link tidak valid. Harus diawali http:// atau https://');
+      const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
+      el?.focus();
+      return;
+    }
+
+    // 2. Validasi link tambahan sebelumnya jika sudah ada
+    for (const link of additionalLinks) {
+      if (!link.url.trim()) {
+        showToast.error('Harap lengkapi link tambahan sebelumnya sebelum menambah baris baru.');
+        const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+        el?.focus();
+        return;
+      }
+      if (!isValidUrl(link.url)) {
+        showToast.error('Format URL link tambahan sebelumnya tidak valid. Harus diawali http:// atau https://');
+        const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+        el?.focus();
+        return;
+      }
+    }
+
     setAdditionalLinks((prev) => [
       ...prev,
       { id: `link-${Date.now()}`, url: '' },
@@ -147,6 +174,8 @@ export default function AddProjectPage() {
 
   const validateStep1 = () => {
     const errs: Record<string, string> = {};
+    const today = new Date().toISOString().split('T')[0];
+
     if (!projectName.trim()) {
       errs.projectName = 'Project Name wajib diisi.';
     } else if (projectName.trim().length < 3) {
@@ -161,18 +190,44 @@ export default function AddProjectPage() {
       errs.picId = 'Pilih PIC Client yang terhubung.';
     }
 
+    if (!eventDate) {
+      errs.eventDate = 'Event date wajib diisi.';
+    } else if (eventDate < today) {
+      errs.eventDate = 'Event date tidak boleh sebelum hari ini.';
+    }
+
     if (!projectStarts) {
       errs.projectStarts = 'Tanggal mulai proyek wajib diisi.';
+    } else if (projectStarts < today) {
+      errs.projectStarts = 'Tanggal mulai proyek tidak boleh sebelum hari ini.';
+    } else if (eventDate && projectStarts > eventDate) {
+      errs.projectStarts = 'Tanggal mulai proyek tidak boleh melebihi Event Date.';
     }
 
     if (!deadline) {
       errs.deadline = 'Deadline proyek wajib diisi.';
     } else if (projectStarts && deadline < projectStarts) {
       errs.deadline = 'Deadline tidak boleh sebelum tanggal mulai proyek.';
+    } else if (eventDate && deadline > eventDate) {
+      errs.deadline = 'Deadline tidak boleh melebihi Event Date.';
     }
 
-    if (contractValue === '' || Number(contractValue) <= 0) {
+    const rawVal = Number(contractValue.replace(/\D/g, '')) || 0;
+    if (rawVal <= 0) {
       errs.contractValue = 'Nilai kontrak harus lebih besar dari Rp 0.';
+    }
+
+    // Validasi URL Deliverables Link jika diisi
+    if (deliverablesLink.trim() && !isValidUrl(deliverablesLink)) {
+      errs.deliverablesLink = 'Format Deliverables Link tidak valid (harus diawali http:// atau https://).';
+    }
+
+    // Validasi URL Additional Links jika ada
+    for (const link of additionalLinks) {
+      if (link.url.trim() && !isValidUrl(link.url)) {
+        errs.additionalLinks = 'Format Additional Link tidak valid (harus diawali http:// atau https://).';
+        break;
+      }
     }
 
     setFieldErrors(errs);
@@ -188,8 +243,9 @@ export default function AddProjectPage() {
     setCurrentStep(2);
   };
 
-  const handleCreateProject = async (status: 'QUOTATION_PENDING' | 'DRAFT' = 'QUOTATION_PENDING') => {
-    if (!selectedPic) {
+  const handleCreateProject = async (status: 'NEW' | 'DRAFT' = 'NEW') => {
+    const effectivePic = selectedPic || filteredPics[0] || pics[0];
+    if (!effectivePic) {
       showToast.error('Pilih PIC client yang terhubung dengan perusahaan ini.');
       return;
     }
@@ -199,15 +255,15 @@ export default function AddProjectPage() {
       await projectService.createProject({
         name: projectName,
         category: category as ProjectCategory,
-        clientId: selectedPic.id,
-        clientName: selectedCompany?.name || '',
+        clientId: effectivePic.id,
+        clientName: selectedCompany?.name || effectivePic.company || '',
         clientType,
         partnershipModel,
-        picClientId: selectedPic.id,
-        picClientName: selectedPic
-          ? `${selectedPic.name}${selectedPic.position ? ` (${selectedPic.position})` : ''}`
+        picClientId: effectivePic.id,
+        picClientName: effectivePic
+          ? `${effectivePic.name}${effectivePic.position ? ` (${effectivePic.position})` : ''}`
           : '',
-        projectManagerId: pmId,
+        projectManagerId: pmId || undefined,
         projectManagerName: selectedPM?.name || '',
         startDate: projectStarts,
         endDate: deadline,
@@ -215,8 +271,10 @@ export default function AddProjectPage() {
         deadline,
         venue,
         budget: Number(contractValue) || 0,
-        deliverablesLink,
-        additionalLinks,
+        deliverablesLink: deliverablesLink.trim() ? normalizeUrl(deliverablesLink) : '',
+        additionalLinks: additionalLinks
+          .filter((l) => l.url.trim())
+          .map((l) => ({ ...l, url: normalizeUrl(l.url) })),
         status,
       });
 
@@ -281,7 +339,7 @@ export default function AddProjectPage() {
         {currentStep === 1 && (
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary border-b border-slate-100 pb-3">
                 Internal Data
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -290,18 +348,26 @@ export default function AddProjectPage() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   options={CATEGORY_OPTIONS}
+                  required
                 />
                 <Select
                   label="Project Manager"
                   value={pmId}
                   onChange={(e) => setPmId(e.target.value)}
-                  options={projectManagers.map((pm) => ({ value: pm.id, label: pm.name }))}
+                  options={[
+                    { value: '', label: 'Pilih Project Manager...' },
+                    ...projectManagers.map((pm) => ({
+                      value: pm.id,
+                      label: `${pm.name}${pm.email ? ` (${pm.email})` : ''}`,
+                    })),
+                  ]}
+                  required
                 />
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary border-b border-slate-100 pb-3">
                 Client Data
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -310,12 +376,14 @@ export default function AddProjectPage() {
                   value={clientType}
                   onChange={(e) => setClientType(e.target.value)}
                   options={CLIENT_TYPE_OPTIONS}
+                  required
                 />
                 <Select
                   label="Partnership Model"
                   value={partnershipModel}
                   onChange={(e) => setPartnershipModel(e.target.value)}
                   options={PARTNERSHIP_OPTIONS}
+                  required
                 />
                 <Select
                   label="Company Name"
@@ -324,26 +392,41 @@ export default function AddProjectPage() {
                   onChange={(e) => {
                     const nextCompanyId = e.target.value;
                     setCompanyId(nextCompanyId);
-                    const firstPic = pics.find((p) => p.clientId === nextCompanyId);
-                    setPicId(firstPic ? firstPic.id : '');
+                    const relatedPics = pics.filter((p) => p.clientId === nextCompanyId);
+                    setPicId(relatedPics.length > 0 ? relatedPics[0].id : (pics[0]?.id || ''));
                   }}
-                  options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                  options={
+                    companies.length > 0
+                      ? companies.map((c) => ({ value: c.id, label: c.name }))
+                      : [{ value: '', label: 'Memuat Company...' }]
+                  }
+                  required
                 />
                 <Select
                   label="PIC Client"
                   value={picId}
                   error={fieldErrors.picId}
                   onChange={(e) => setPicId(e.target.value)}
-                  options={filteredPics.map((p) => ({
-                    value: p.id,
-                    label: p.position ? `${p.name} (${p.position})` : p.name,
-                  }))}
+                  options={
+                    filteredPics.length > 0
+                      ? filteredPics.map((p) => ({
+                          value: p.id,
+                          label: p.position ? `${p.name} (${p.position})` : p.name,
+                        }))
+                      : pics.length > 0
+                        ? pics.map((p) => ({
+                            value: p.id,
+                            label: p.position ? `${p.name} (${p.position})` : p.name,
+                          }))
+                        : [{ value: '', label: 'Pilih PIC Client' }]
+                  }
+                  required
                 />
               </div>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-primary border-b border-slate-100 pb-3">
                 Project Data
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -358,58 +441,117 @@ export default function AddProjectPage() {
                   error={fieldErrors.projectName}
                   required
                 />
-                <Input
-                  label="Event Date"
-                  type="date"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                />
-                <Input
-                  label="Project Date Starts"
-                  type="date"
-                  value={projectStarts}
-                  onChange={(e) => {
-                    setProjectStarts(e.target.value);
-                    if (fieldErrors.projectStarts) setFieldErrors((prev) => ({ ...prev, projectStarts: '' }));
-                  }}
-                  error={fieldErrors.projectStarts}
-                  required
-                />
-                <Input
-                  label="Project Deadlines"
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => {
-                    setDeadline(e.target.value);
-                    if (fieldErrors.deadline) setFieldErrors((prev) => ({ ...prev, deadline: '' }));
-                  }}
-                  error={fieldErrors.deadline}
-                  required
-                />
-                <Input
-                  label="Venue / Location"
-                  placeholder="e.g. Malang, East Java"
-                  value={venue}
-                  onChange={(e) => setVenue(e.target.value)}
-                />
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Contract Value
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Event Date <span className="text-red-500 ml-1">*</span>
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">
-                      Rp
-                    </span>
+                  <DatePickerInput
+                    id="eventDate"
+                    name="eventDate"
+                    min={today}
+                    value={eventDate}
+                    onChange={(e) => {
+                      setEventDate(e.target.value);
+                      if (fieldErrors.eventDate) setFieldErrors((prev) => ({ ...prev, eventDate: '' }));
+                    }}
+                    error={fieldErrors.eventDate}
+                    placeholder="Pilih tanggal event..."
+                    required
+                  />
+                  {fieldErrors.eventDate && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.eventDate}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Project Date Starts <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <DatePickerInput
+                    id="projectStarts"
+                    name="projectStarts"
+                    min={today}
+                    value={projectStarts}
+                    onChange={(e) => {
+                      setProjectStarts(e.target.value);
+                      if (fieldErrors.projectStarts) setFieldErrors((prev) => ({ ...prev, projectStarts: '' }));
+                    }}
+                    error={fieldErrors.projectStarts}
+                    placeholder="Pilih tanggal mulai..."
+                    required
+                  />
+                  {fieldErrors.projectStarts && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.projectStarts}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Project Deadlines <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <DatePickerInput
+                    id="deadline"
+                    name="deadline"
+                    min={projectStarts || today}
+                    value={deadline}
+                    onChange={(e) => {
+                      setDeadline(e.target.value);
+                      if (fieldErrors.deadline) setFieldErrors((prev) => ({ ...prev, deadline: '' }));
+                    }}
+                    error={fieldErrors.deadline}
+                    placeholder="Pilih deadline..."
+                    required
+                  />
+                  {fieldErrors.deadline && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.deadline}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Venue / Location <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="venue"
+                    name="venue"
+                    placeholder="e.g. Malang, East Java"
+                    value={venue}
+                    onChange={(e) => {
+                      setVenue(e.target.value);
+                      if (fieldErrors.venue) setFieldErrors((prev) => ({ ...prev, venue: '' }));
+                    }}
+                    className={`w-full rounded-xl border bg-white px-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-hidden ${
+                      fieldErrors.venue ? 'border-red-500' : 'border-slate-200'
+                    }`}
+                    required
+                  />
+                  {fieldErrors.venue && (
+                    <p className="mt-1 text-xs text-red-500 font-medium">{fieldErrors.venue}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 select-none block mb-1.5">
+                    Contract Value <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-4 text-xs font-bold text-slate-500 pointer-events-none">Rp</span>
                     <input
-                      type="number"
-                      value={contractValue}
+                      type="text"
+                      id="contractValue"
+                      name="contractValue"
+                      placeholder="0"
+                      value={formatNominal(contractValue)}
                       onChange={(e) => {
-                        setContractValue(e.target.value);
+                        const raw = e.target.value.replace(/\D/g, '');
+                        setContractValue(raw);
                         if (fieldErrors.contractValue) setFieldErrors((prev) => ({ ...prev, contractValue: '' }));
                       }}
-                      className={`w-full pl-9 pr-3 py-2 text-xs bg-white border rounded-xl focus:outline-hidden font-bold text-slate-800 ${
-                        fieldErrors.contractValue ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
+                      className={`w-full rounded-xl border bg-white pl-10 pr-4 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-hidden ${
+                        fieldErrors.contractValue ? 'border-red-500' : 'border-slate-200'
                       }`}
+                      required
                     />
                   </div>
                   {fieldErrors.contractValue && (
@@ -421,7 +563,7 @@ export default function AddProjectPage() {
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-2xs space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+                <h3 className="text-sm font-bold text-primary">
                   Progress Link
                 </h3>
                 <Button
@@ -429,16 +571,10 @@ export default function AddProjectPage() {
                   size="md"
                   leftIcon={<Plus className="w-4 h-4" />}
                   onClick={handleAddLink}
-                  disabled={!USE_MOCK}
                 >
                   Add
                 </Button>
               </div>
-              {!USE_MOCK && (
-                <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
-                  Progress Link belum didukung API, sehingga field ini dinonaktifkan dan tidak akan tersimpan.
-                </p>
-              )}
 
               {/* Deliverables Link Input */}
               <div>
@@ -451,81 +587,110 @@ export default function AddProjectPage() {
                     <input
                       id="deliverables-link-input"
                       type="text"
-                      placeholder="https://drive.google.com/..."
+                      placeholder="https://..."
                       value={deliverablesLink}
-                      onChange={(e) => setDeliverablesLink(e.target.value)}
-                      disabled={!USE_MOCK}
-                      className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-primary rounded-xl focus:outline-hidden text-slate-800 font-medium"
+                      onChange={(e) => {
+                        setDeliverablesLink(e.target.value);
+                        if (fieldErrors.deliverablesLink) setFieldErrors((prev) => ({ ...prev, deliverablesLink: '' }));
+                      }}
+                      className={`w-full pl-10 pr-4 py-2 text-xs bg-white border rounded-xl focus:outline-hidden text-slate-800 font-medium transition-colors ${
+                        (deliverablesLink.trim() && !isValidUrl(deliverablesLink)) || fieldErrors.deliverablesLink
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-slate-200 focus:border-primary'
+                      }`}
                     />
                   </div>
                   <button
                     type="button"
-                    onClick={() => document.getElementById('deliverables-link-input')?.focus()}
-                    disabled={!USE_MOCK}
+                    onClick={() => {
+                      const el = document.getElementById('deliverables-link-input') as HTMLInputElement | null;
+                      el?.focus();
+                      el?.select();
+                    }}
                     className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                    title="Edit Link"
+                    title="Edit Link (Klik untuk mengedit url)"
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDeliverablesLink('')}
-                    disabled={!USE_MOCK}
+                    onClick={() => {
+                      setDeliverablesLink('');
+                      if (fieldErrors.deliverablesLink) setFieldErrors((prev) => ({ ...prev, deliverablesLink: '' }));
+                    }}
                     className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
                     title="Clear Link"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+                {((deliverablesLink.trim() && !isValidUrl(deliverablesLink)) || fieldErrors.deliverablesLink) && (
+                  <p className="text-[11px] text-red-500 mt-1 font-medium">
+                    {fieldErrors.deliverablesLink || 'Format URL tidak valid. Harus diawali dengan http:// atau https://'}
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Google Drive, YouTube, or other platforms. Can be updated anytime from the Project List.
+                  Bisa berupa link Google Drive, YouTube, Figma, Dropbox, atau platform lainnya.
                 </p>
               </div>
 
-              {additionalLinks.map((link) => (
-                <div key={link.id} className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Additional Link
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      <input
-                        id={`additional-link-${link.id}`}
-                        type="text"
-                        placeholder="https://drive.google.com/..."
-                        value={link.url}
-                        disabled={!USE_MOCK}
-                        onChange={(e) => {
-                          const newUrl = e.target.value;
-                          setAdditionalLinks((prev) =>
-                            prev.map((l) => (l.id === link.id ? { ...l, url: newUrl } : l))
-                          );
+              {additionalLinks.map((link) => {
+                const isInvalid = link.url.trim() !== '' && !isValidUrl(link.url);
+                return (
+                  <div key={link.id} className="space-y-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Additional Link
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <LinkIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          id={`additional-link-${link.id}`}
+                          type="text"
+                          placeholder="https://..."
+                          value={link.url}
+                          onChange={(e) => {
+                            const newUrl = e.target.value;
+                            setAdditionalLinks((prev) =>
+                              prev.map((l) => (l.id === link.id ? { ...l, url: newUrl } : l))
+                            );
+                          }}
+                          className={`w-full pl-10 pr-4 py-2 text-xs bg-white border rounded-xl focus:outline-hidden text-slate-800 font-medium transition-colors ${
+                            isInvalid
+                              ? 'border-red-500 focus:border-red-500'
+                              : 'border-slate-200 focus:border-primary'
+                          }`}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const el = document.getElementById(`additional-link-${link.id}`) as HTMLInputElement | null;
+                          el?.focus();
+                          el?.select();
                         }}
-                        className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:border-primary text-slate-800 font-medium"
-                      />
+                        className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                        title="Edit Link (Klik untuk mengedit url)"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLink(link.id)}
+                        className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Delete Link"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById(`additional-link-${link.id}`)?.focus()}
-                      disabled={!USE_MOCK}
-                      className="p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                      title="Edit Link"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLink(link.id)}
-                      disabled={!USE_MOCK}
-                      className="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                      title="Delete Link"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isInvalid && (
+                      <p className="text-[11px] text-red-500 mt-1 font-medium">
+                        Format URL tidak valid. Harus diawali dengan http:// atau https://
+                      </p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Step 1 Bottom Buttons */}
@@ -712,6 +877,7 @@ export default function AddProjectPage() {
                 <Button
                   variant="outline"
                   size="md"
+                  className="border-accent text-accent hover:bg-orange-50"
                   onClick={() => setCurrentStep(1)}
                   disabled={isSubmitting}
                 >
@@ -720,7 +886,7 @@ export default function AddProjectPage() {
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={() => handleCreateProject('QUOTATION_PENDING')}
+                  onClick={() => handleCreateProject('NEW')}
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (

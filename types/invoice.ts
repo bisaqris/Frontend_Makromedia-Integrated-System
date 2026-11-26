@@ -1,4 +1,13 @@
-export type InvoiceStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type InvoiceStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'PAID'
+  | 'OVERDUE'
+  | 'SENT'
+  | 'UNPAID'
+  | 'PARTIALLY_PAID'
+  | 'CANCELLED';
 
 export interface InvoiceItem {
   id: string;

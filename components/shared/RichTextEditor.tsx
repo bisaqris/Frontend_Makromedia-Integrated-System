@@ -17,7 +17,6 @@ import {
   AlignCenter,
   AlignRight,
   Maximize2,
-  Square,
 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
@@ -52,6 +51,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [hasSelectedImg, setHasSelectedImg] = useState(false);
   const [imgWidthPx, setImgWidthPx] = useState<number>(400);
   const [imgRoundedPx, setImgRoundedPx] = useState<number>(12);
+  const [imgAlign, setImgAlign] = useState<'left' | 'center' | 'right'>('left');
 
   // Link Modal states
   const [linkUrl, setLinkUrl] = useState('');
@@ -75,11 +75,33 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         },
       }),
       Underline,
-      Image.configure({
-        inline: true,
+      Image.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            style: {
+              default: null,
+              parseHTML: (element) => element.getAttribute('style'),
+              renderHTML: (attributes) => {
+                if (!attributes.style) return {};
+                return { style: attributes.style };
+              },
+            },
+            width: {
+              default: null,
+              parseHTML: (element) => element.getAttribute('width') || element.style.width,
+              renderHTML: (attributes) => {
+                if (!attributes.width) return {};
+                return { width: attributes.width };
+              },
+            },
+          };
+        },
+      }).configure({
+        inline: false,
         allowBase64: true,
         HTMLAttributes: {
-          class: 'editor-image cursor-pointer rounded-xl my-2 transition-all duration-200 inline-block',
+          class: 'editor-image cursor-pointer my-2 transition-all duration-200 block',
         },
       }),
       Link.configure({
@@ -107,7 +129,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2 [&_ol_li]:my-1 ' +
           '[&_u]:underline [&_s]:line-through ' +
           '[&_a]:text-accent [&_a]:underline [&_a]:font-semibold ' +
-          '[&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-xl [&_img]:my-2 [&_img]:shadow-xs [&_img]:inline-block',
+          '[&_img]:max-w-full [&_img]:h-auto [&_img]:my-2 [&_img]:shadow-xs',
       },
     },
   });
@@ -117,26 +139,31 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     const target = e.target as HTMLElement;
     if (target && target.tagName === 'IMG') {
       if (selectedImgRef.current && selectedImgRef.current !== target) {
-        selectedImgRef.current.style.outline = 'none';
-        selectedImgRef.current.style.boxShadow = 'none';
+        selectedImgRef.current.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
       }
 
       const imgEl = target as HTMLImageElement;
-      imgEl.style.outline = '2px solid #2563eb';
-      imgEl.style.outlineOffset = '2px';
+      imgEl.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
       selectedImgRef.current = imgEl;
 
       // Extract current pixel width or default to clientWidth
-      const currentWidth = imgEl.clientWidth || parseInt(imgEl.style.width, 10) || 400;
-      const currentRounded = parseInt(imgEl.style.borderRadius, 10) || 12;
+      const currentWidth = parseInt(imgEl.style.width, 10) || imgEl.clientWidth || 400;
+      const currentRounded = parseInt(imgEl.style.borderRadius, 10) || 0;
+
+      let currentAlign: 'left' | 'center' | 'right' = 'left';
+      if (imgEl.style.marginLeft === 'auto' && imgEl.style.marginRight === 'auto') {
+        currentAlign = 'center';
+      } else if (imgEl.style.marginLeft === 'auto' && (imgEl.style.marginRight === '0px' || imgEl.style.marginRight === '0')) {
+        currentAlign = 'right';
+      }
 
       setImgWidthPx(currentWidth);
       setImgRoundedPx(currentRounded);
+      setImgAlign(currentAlign);
       setHasSelectedImg(true);
     } else {
       if (selectedImgRef.current) {
-        selectedImgRef.current.style.outline = 'none';
-        selectedImgRef.current.style.boxShadow = 'none';
+        selectedImgRef.current.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
         selectedImgRef.current = null;
       }
       setHasSelectedImg(false);
@@ -168,6 +195,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
     if (!file.type.startsWith('image/')) {
       showToast.error('File harus berupa gambar (JPG, PNG, WebP, GIF).');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    // Validasi maksimal ukuran gambar general brief: 20MB
+    const MAX_GENERAL_BRIEF_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB
+    if (file.size > MAX_GENERAL_BRIEF_IMAGE_SIZE) {
+      showToast.error('Ukuran gambar melebihi batas maksimal 20MB.');
+      if (e.target) e.target.value = '';
       return;
     }
 
@@ -262,17 +298,84 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     showToast.info('Link dihapus.');
   };
 
+  // Helper to synchronize style attributes directly to ProseMirror document node
+  const syncImageAttributes = (
+    imgEl: HTMLImageElement,
+    updates?: { width?: string; borderRadius?: string; align?: 'left' | 'center' | 'right' }
+  ) => {
+    if (!editor) return;
+
+    if (updates?.width) {
+      imgEl.style.width = updates.width;
+      imgEl.style.maxWidth = '100%';
+      imgEl.style.height = 'auto';
+    }
+    if (updates?.borderRadius !== undefined) {
+      imgEl.style.borderRadius = updates.borderRadius;
+    }
+    if (updates?.align) {
+      imgEl.style.display = 'block';
+      if (updates.align === 'center') {
+        imgEl.style.marginLeft = 'auto';
+        imgEl.style.marginRight = 'auto';
+      } else if (updates.align === 'right') {
+        imgEl.style.marginLeft = 'auto';
+        imgEl.style.marginRight = '0px';
+      } else {
+        imgEl.style.marginLeft = '0px';
+        imgEl.style.marginRight = 'auto';
+      }
+      setImgAlign(updates.align);
+    }
+
+    // Build clean inline style string
+    const parts: string[] = [];
+    if (imgEl.style.width) parts.push(`width: ${imgEl.style.width};`);
+    parts.push(`max-width: 100%;`);
+    parts.push(`height: auto;`);
+    if (imgEl.style.borderRadius) parts.push(`border-radius: ${imgEl.style.borderRadius};`);
+    if (imgEl.style.display) parts.push(`display: ${imgEl.style.display};`);
+    if (imgEl.style.marginLeft) parts.push(`margin-left: ${imgEl.style.marginLeft};`);
+    if (imgEl.style.marginRight) parts.push(`margin-right: ${imgEl.style.marginRight};`);
+
+    const cleanStyle = parts.join(' ');
+    imgEl.setAttribute('style', cleanStyle);
+
+    // Find the position in the ProseMirror doc by src
+    let foundPos: number | null = null;
+    const targetSrc = imgEl.getAttribute('src');
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image') {
+        if (node.attrs.src === targetSrc || node.attrs.src === imgEl.src) {
+          foundPos = pos;
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (foundPos !== null) {
+      const { tr } = editor.state;
+      const node = editor.state.doc.nodeAt(foundPos);
+      if (node) {
+        tr.setNodeMarkup(foundPos, undefined, {
+          ...node.attrs,
+          style: cleanStyle,
+          width: imgEl.style.width || node.attrs.width,
+        });
+        editor.view.dispatch(tr);
+      }
+    }
+
+    onChange?.(editor.getHTML());
+  };
+
   // Flexible Image Width Slider Handler
   const handleSliderWidthChange = (newWidthPx: number) => {
     setImgWidthPx(newWidthPx);
     const imgEl = selectedImgRef.current;
     if (!imgEl) return;
-
-    imgEl.style.width = `${newWidthPx}px`;
-    imgEl.style.maxWidth = '100%';
-    imgEl.style.height = 'auto';
-
-    onChange?.(editor.getHTML());
+    syncImageAttributes(imgEl, { width: `${newWidthPx}px` });
   };
 
   // Flexible Image Rounded Corner Radius Handler
@@ -280,48 +383,87 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     setImgRoundedPx(roundedPx);
     const imgEl = selectedImgRef.current;
     if (!imgEl) return;
-
-    if (roundedPx === 9999) {
-      imgEl.style.borderRadius = '9999px';
-    } else {
-      imgEl.style.borderRadius = `${roundedPx}px`;
-    }
-
-    onChange?.(editor.getHTML());
+    const radiusStr = roundedPx === 9999 ? '9999px' : `${roundedPx}px`;
+    syncImageAttributes(imgEl, { borderRadius: radiusStr });
     showToast.info(`Sudut kelengkungan gambar diubah ke ${roundedPx === 9999 ? 'Full' : `${roundedPx}px`}.`);
   };
 
   const handleSetImageAlignment = (align: 'left' | 'center' | 'right') => {
     const imgEl = selectedImgRef.current;
     if (!imgEl) return;
-
-    if (align === 'left') {
-      imgEl.style.display = 'block';
-      imgEl.style.marginLeft = '0';
-      imgEl.style.marginRight = 'auto';
-    } else if (align === 'center') {
-      imgEl.style.display = 'block';
-      imgEl.style.marginLeft = 'auto';
-      imgEl.style.marginRight = 'auto';
-    } else if (align === 'right') {
-      imgEl.style.display = 'block';
-      imgEl.style.marginLeft = 'auto';
-      imgEl.style.marginRight = '0';
-    }
-
-    onChange?.(editor.getHTML());
-    showToast.info(`Perataan gambar diubah ke ${align}.`);
+    syncImageAttributes(imgEl, { align });
+    showToast.info(`Perataan gambar diubah ke ${align === 'center' ? 'Tengah' : align === 'right' ? 'Kanan' : 'Kiri'}.`);
   };
 
   const handleDeleteImg = () => {
     const imgEl = selectedImgRef.current;
     if (!imgEl) return;
+    const targetSrc = imgEl.getAttribute('src');
+    imgEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
     imgEl.remove();
     selectedImgRef.current = null;
     setHasSelectedImg(false);
 
+    if (editor) {
+      let foundPos: number | null = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'image' && (node.attrs.src === targetSrc || node.attrs.src === imgEl.src)) {
+          foundPos = pos;
+          return false;
+        }
+        return true;
+      });
+      if (foundPos !== null) {
+        const { tr } = editor.state;
+        const node = editor.state.doc.nodeAt(foundPos);
+        if (node) {
+          tr.delete(foundPos, foundPos + node.nodeSize);
+          editor.view.dispatch(tr);
+        }
+      }
+    }
+
     onChange?.(editor.getHTML());
     showToast.success('Gambar berhasil dihapus.');
+  };
+
+  const syncAllImagesToDoc = () => {
+    if (!editor) return;
+    const editorDom = editor.view.dom;
+    const imgElements = editorDom.querySelectorAll('img');
+
+    imgElements.forEach((imgEl) => {
+      imgEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-blue-500');
+
+      const targetSrc = imgEl.getAttribute('src');
+      if (!targetSrc) return;
+
+      const styleAttr = imgEl.getAttribute('style') || '';
+
+      let foundPos: number | null = null;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'image') {
+          if (node.attrs.src === targetSrc) {
+            foundPos = pos;
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (foundPos !== null) {
+        const { tr } = editor.state;
+        const node = editor.state.doc.nodeAt(foundPos);
+        if (node) {
+          tr.setNodeMarkup(foundPos, undefined, {
+            ...node.attrs,
+            style: styleAttr || node.attrs.style || undefined,
+            width: imgEl.style.width || imgEl.getAttribute('width') || node.attrs.width || undefined,
+          });
+          editor.view.dispatch(tr);
+        }
+      }
+    });
   };
 
   if (readOnly) {
@@ -503,7 +645,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSetImageAlignment('left')}
-                  className="p-1 rounded text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className={`p-1 rounded transition-colors cursor-pointer ${
+                    imgAlign === 'left' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
                   title="Rata Kiri"
                 >
                   <AlignLeft className="w-3.5 h-3.5" />
@@ -511,7 +655,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSetImageAlignment('center')}
-                  className="p-1 rounded text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className={`p-1 rounded transition-colors cursor-pointer ${
+                    imgAlign === 'center' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
                   title="Rata Tengah"
                 >
                   <AlignCenter className="w-3.5 h-3.5" />
@@ -519,7 +665,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSetImageAlignment('right')}
-                  className="p-1 rounded text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className={`p-1 rounded transition-colors cursor-pointer ${
+                    imgAlign === 'right' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  }`}
                   title="Rata Kanan"
                 >
                   <AlignRight className="w-3.5 h-3.5" />
@@ -545,8 +693,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
               {/* Flexible Corner Radius / Rounded Selector */}
               <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-slate-200">
-                <span className="text-[11px] text-slate-500 font-medium mr-0.5 flex items-center gap-1">
-                  <Square className="w-3 h-3 text-slate-400" />
+                <span className="text-[11px] text-slate-500 font-medium mr-0.5">
                   Sudut:
                 </span>
                 <button
@@ -613,9 +760,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                 onClick={() => {
                   const imgEl = selectedImgRef.current;
                   if (imgEl) {
-                    imgEl.style.width = '100%';
+                    syncImageAttributes(imgEl, { width: '100%' });
                     setImgWidthPx(imgEl.clientWidth || 800);
-                    onChange?.(editor.getHTML());
                   }
                 }}
                 className="px-2 py-0.5 font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-md hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-1"
@@ -648,8 +794,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             variant="primary"
             size="sm"
             onClick={() => {
-              onSave(editor.getHTML());
-              showToast.success('General Brief berhasil disimpan.');
+              if (selectedImgRef.current) {
+                selectedImgRef.current.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+              }
+              syncAllImagesToDoc();
+              const html = editor.getHTML();
+              onSave(html);
             }}
           >
             Save Brief
@@ -706,7 +856,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
                   <>
                     <Upload className="w-8 h-8 text-primary mb-2" />
                     <p className="text-sm font-bold text-slate-700">Pilih File Gambar dari Komputer</p>
-                    <p className="text-xs text-slate-400 mt-1">Mendukung format JPG, PNG, WebP, GIF</p>
+                    <p className="text-xs text-slate-400 mt-1">Mendukung format JPG, PNG, WebP, GIF (Maks. 20MB)</p>
                   </>
                 )}
               </div>

@@ -1,34 +1,57 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Button from '@/components/ui/Button';
 import { ProjectCostItem } from '@/types/project';
+import { formatNominal } from '@/lib/utils';
+import { costCategoryService } from '@/lib/services/costCategoryService';
 
 interface AddCostItemModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (item: Omit<ProjectCostItem, 'id' | 'projectId'>) => void | Promise<void>;
-  existingCategories: string[];
+  existingCategories?: string[];
   editItem?: ProjectCostItem;
 }
-
-const NEW_CATEGORY_VALUE = '__new__';
 
 export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  existingCategories,
   editItem,
 }) => {
+  const [masterCategories, setMasterCategories] = useState<string[]>(() => {
+    return costCategoryService.getActiveNamesSync();
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      costCategoryService
+        .getActiveNames()
+        .then((names) => {
+          if (names && names.length > 0) setMasterCategories(names);
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
+  const availableCategories = useMemo(() => {
+    const list = [...masterCategories];
+    if (editItem?.category && !list.includes(editItem.category)) {
+      list.unshift(editItem.category);
+    }
+    return list;
+  }, [masterCategories, editItem]);
+
   const [prevEditItem, setPrevEditItem] = useState<ProjectCostItem | undefined>(editItem);
   const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
 
-  const [category, setCategory] = useState(editItem ? editItem.category || '' : existingCategories[0] || '');
-  const [customCategory, setCustomCategory] = useState('');
+  const [category, setCategory] = useState(
+    editItem ? editItem.category || availableCategories[0] || '' : availableCategories[0] || ''
+  );
   const [description, setDescription] = useState(editItem ? editItem.description || '' : '');
   const [executor, setExecutor] = useState(editItem ? editItem.executor || '' : '');
   const [unitCost, setUnitCost] = useState(editItem && editItem.unitCost !== undefined ? String(editItem.unitCost) : '');
@@ -46,8 +69,7 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
     if (isOpen) {
       setErrors({});
       if (editItem) {
-        setCategory(editItem.category || '');
-        setCustomCategory('');
+        setCategory(editItem.category || availableCategories[0] || '');
         setDescription(editItem.description || '');
         setExecutor(editItem.executor || '');
         setUnitCost(editItem.unitCost !== undefined ? String(editItem.unitCost) : '');
@@ -56,8 +78,7 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
         setFreq(editItem.freq !== undefined ? String(editItem.freq) : '1');
         setPeriod(editItem.period || '');
       } else {
-        setCategory(existingCategories[0] || '');
-        setCustomCategory('');
+        setCategory(availableCategories[0] || '');
         setDescription('');
         setExecutor('');
         setUnitCost('');
@@ -70,11 +91,8 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   }
 
   const categoryOptions = useMemo(
-    () => [
-      ...existingCategories.map((c) => ({ value: c, label: c })),
-      { value: NEW_CATEGORY_VALUE, label: '+ Kategori Baru...' },
-    ],
-    [existingCategories]
+    () => availableCategories.map((c) => ({ value: c, label: c })),
+    [availableCategories]
   );
 
   const subTotal = (Number(unitCost) || 0) * (Number(quantity) || 0) * (Number(freq) || 1);
@@ -83,11 +101,11 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
   const handleSubmit = async () => {
-    const finalCategory = category === NEW_CATEGORY_VALUE ? customCategory.trim() : category.trim();
+    const finalCategory = category.trim();
     const newErrors: Record<string, string> = {};
 
     if (!finalCategory) {
-      newErrors.category = 'Kategori wajib dipilih atau diisi.';
+      newErrors.category = 'Kategori wajib dipilih.';
     }
     if (!description.trim()) {
       newErrors.description = 'Deskripsi item biaya wajib diisi.';
@@ -137,19 +155,6 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
           options={categoryOptions}
           error={errors.category}
         />
-        {category === NEW_CATEGORY_VALUE && (
-          <Input
-            label="Nama Kategori Baru"
-            placeholder="misal: Konsumsi"
-            value={customCategory}
-            onChange={(e) => {
-              setCustomCategory(e.target.value);
-              setErrors((prev) => ({ ...prev, category: '' }));
-            }}
-            error={errors.category}
-            required
-          />
-        )}
         <Input
           label="Deskripsi"
           placeholder="misal: Rental Sound System 5000W"
@@ -170,15 +175,16 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <Input
             label="Biaya Satuan (Rp)"
-            type="number"
-            value={unitCost}
+            type="text"
+            placeholder="0"
+            value={formatNominal(unitCost)}
             onChange={(e) => {
-              setUnitCost(e.target.value);
+              const raw = e.target.value.replace(/\D/g, '');
+              setUnitCost(raw);
               setErrors((prev) => ({ ...prev, unitCost: '' }));
             }}
             error={errors.unitCost}
             required
-            min={0}
           />
           <Input
             label="Jumlah (Qty)"

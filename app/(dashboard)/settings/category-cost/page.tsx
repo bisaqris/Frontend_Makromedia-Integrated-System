@@ -1,0 +1,518 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { costCategoryService } from '@/lib/services/costCategoryService';
+import { CostCategory, CreateCostCategoryDTO } from '@/types/cost-category';
+import RoleGuard from '@/components/auth/RoleGuard';
+import ConfirmModal from '@/components/shared/ConfirmModal';
+import { toast } from 'react-hot-toast';
+import {
+  Search,
+  Pencil,
+  Trash2,
+  Tags,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
+
+const categorySchema = z.object({
+  name: z.string().min(1, 'Category name is required'),
+  status: z.enum(['ACTIVE', 'INACTIVE']),
+});
+
+type CategoryFormValues = z.infer<typeof categorySchema>;
+
+function CategoryCostContent() {
+  const [categories, setCategories] = useState<CostCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Search & Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+
+  // Form & Editing States
+  const [editingCategory, setEditingCategory] = useState<CostCategory | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+
+  // Delete State
+  const [deletingCategory, setDeletingCategory] = useState<CostCategory | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    control,
+    formState: { errors },
+  } = useForm<CategoryFormValues>({
+    resolver: zodResolver(categorySchema),
+    defaultValues: {
+      name: '',
+      status: 'ACTIVE',
+    },
+  });
+
+  const fetchCategories = async () => {
+    try {
+      setLoading(true);
+      const data = await costCategoryService.getAll();
+      setCategories(data || []);
+    } catch {
+      toast.error('Gagal memuat data kategori biaya');
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchCategories();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (editingCategory) {
+      reset({
+        name: editingCategory.name,
+        status: editingCategory.status || 'ACTIVE',
+      });
+    } else {
+      reset({
+        name: '',
+        status: 'ACTIVE',
+      });
+    }
+  }, [editingCategory, reset]);
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((cat) => {
+      const matchesSearch = cat.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus =
+        selectedStatus === 'ALL' || (cat.status || 'ACTIVE') === selectedStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [categories, searchTerm, selectedStatus]);
+
+  const totalData = filteredCategories.length;
+  const totalPages = Math.ceil(totalData / pageSize) || 1;
+
+  const paginatedCategories = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCategories.slice(start, start + pageSize);
+  }, [filteredCategories, currentPage, pageSize]);
+
+  const handleReset = () => {
+    setEditingCategory(null);
+    reset({
+      name: '',
+      status: 'ACTIVE',
+    });
+  };
+
+  const handleEditClick = (cat: CostCategory) => {
+    setEditingCategory(cat);
+  };
+
+  const onFormSubmit = async (formData: CategoryFormValues) => {
+    try {
+      setSubmitting(true);
+      if (editingCategory) {
+        await costCategoryService.update(editingCategory.id, formData as CreateCostCategoryDTO);
+        toast.success('Kategori biaya berhasil diperbarui');
+      } else {
+        await costCategoryService.create(formData as CreateCostCategoryDTO);
+        toast.success('Kategori biaya baru berhasil ditambahkan');
+      }
+      handleReset();
+      await fetchCategories();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan kategori';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingCategory) return;
+    try {
+      await costCategoryService.delete(deletingCategory.id);
+      toast.success('Kategori biaya berhasil dihapus');
+
+      if (editingCategory?.id === deletingCategory.id) {
+        handleReset();
+      }
+      await fetchCategories();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal menghapus kategori biaya';
+      toast.error(msg);
+    } finally {
+      setIsDeleteOpen(false);
+      setDeletingCategory(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* KOLOM KIRI - Table & Mobile Cards */}
+        <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+            <div className="flex items-center gap-3 flex-1 rounded-2xl border border-zinc-200 bg-white px-4 py-2.5">
+              <Search className="h-4 w-4 text-zinc-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search category cost..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full bg-transparent text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+              />
+            </div>
+
+            <div className="relative flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-3 shrink-0">
+              <select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="appearance-none bg-transparent pr-5 text-xs font-semibold text-zinc-700 focus:outline-none cursor-pointer text-center"
+              >
+                <option value="ALL">All Status</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 h-3.5 w-3.5 text-zinc-400" />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+            {loading ? (
+              <div className="flex h-64 items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+            ) : filteredCategories.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="rounded-full bg-zinc-100 p-3">
+                  <Tags className="h-6 w-6 text-zinc-400" />
+                </div>
+                <h3 className="mt-3 text-sm font-semibold text-zinc-900">
+                  Kategori tidak ditemukan
+                </h3>
+                <p className="mt-1 text-xs text-zinc-400">
+                  Belum ada data kategori biaya terdaftar dalam sistem.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-center text-sm border-collapse">
+                    <thead className="border-b border-zinc-200 bg-zinc-50/50 text-xs font-semibold text-zinc-500">
+                      <tr>
+                        <th scope="col" className="px-4 py-3.5 text-left">Category Name</th>
+                        <th scope="col" className="px-4 py-3.5 text-center">Status</th>
+                        <th scope="col" className="px-4 py-3.5 text-center">Used Count</th>
+                        <th scope="col" className="px-4 py-3.5 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200">
+                      {paginatedCategories.map((cat) => (
+                        <tr key={cat.id} className="hover:bg-zinc-50/50 transition-colors">
+                          <td className="px-4 py-3.5 font-medium text-zinc-900 text-left">
+                            {cat.name}
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span
+                              className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                                cat.status === 'INACTIVE'
+                                  ? 'border-zinc-300 bg-zinc-50 text-zinc-400'
+                                  : 'border-emerald-400 bg-emerald-50 text-emerald-600'
+                              }`}
+                            >
+                              {cat.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-center text-zinc-600 text-xs font-medium">
+                            {cat.usedCount ?? 0} item
+                          </td>
+                          <td className="px-4 py-3.5 text-center">
+                            <div className="inline-flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleEditClick(cat)}
+                                className="rounded-lg p-1 text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                title="Edit Kategori"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setDeletingCategory(cat);
+                                  setIsDeleteOpen(true);
+                                }}
+                                className="rounded-lg p-1 text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Hapus Kategori"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="block md:hidden divide-y divide-zinc-100 p-2">
+                  {paginatedCategories.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="p-3.5 rounded-xl bg-white space-y-3 border border-zinc-100 my-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm text-zinc-900">
+                          {cat.name}
+                        </span>
+                        <span
+                          className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                            cat.status === 'INACTIVE'
+                              ? 'border-zinc-300 bg-zinc-50 text-zinc-400'
+                              : 'border-emerald-400 bg-emerald-50 text-emerald-600'
+                          }`}
+                        >
+                          {cat.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-zinc-500 pt-1 border-t border-zinc-50">
+                        <span>Used: <strong className="text-zinc-800">{cat.usedCount ?? 0} item</strong></span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditClick(cat)}
+                            className="rounded-lg p-1.5 text-amber-500 bg-amber-50"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeletingCategory(cat);
+                              setIsDeleteOpen(true);
+                            }}
+                            className="rounded-lg p-1.5 text-rose-500 bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 bg-white text-xs">
+                  <div className="text-zinc-500 font-medium">
+                    Showing {paginatedCategories.length} data out of {totalData}
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-zinc-500">
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700 focus:outline-none"
+                      >
+                        {[5, 10, 20, 50].map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </select>
+                      <span>data per page</span>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="flex h-7 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+                      >
+                        <ChevronLeft className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="flex h-7 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+                      >
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* KOLOM KANAN - Form Inline */}
+        <div className="lg:col-span-5 xl:col-span-5 space-y-4">
+          <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-3 flex items-center justify-between">
+            <h2 className="text-sm font-bold text-blue-600">
+              {editingCategory ? 'Edit Category Cost' : 'Add Category Cost'}
+            </h2>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-5">
+            <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1.5">
+                  Category Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g Peralatan & Sewa"
+                  {...register('name')}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                />
+                {errors.name && (
+                  <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>
+                )}
+              </div>
+
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <label
+                      onClick={() => field.onChange('ACTIVE')}
+                      className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-all ${
+                        field.value === 'ACTIVE'
+                          ? 'border-blue-500 bg-blue-50/20 ring-1 ring-blue-500'
+                          : 'border-zinc-200 bg-white hover:border-zinc-300'
+                      }`}
+                    >
+                      <div className="mt-0.5">
+                        <div
+                          className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                            field.value === 'ACTIVE'
+                              ? 'border-blue-600 bg-blue-600'
+                              : 'border-zinc-300 bg-white'
+                          }`}
+                        >
+                          {field.value === 'ACTIVE' && (
+                            <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="block text-xs font-semibold text-zinc-900">
+                          Active
+                        </span>
+                        <span className="block text-[10px] text-zinc-400 mt-0.5 leading-tight">
+                          Bisa dipakai di proyek
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      onClick={() => field.onChange('INACTIVE')}
+                      className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-all ${
+                        field.value === 'INACTIVE'
+                          ? 'border-blue-500 bg-blue-50/20 ring-1 ring-blue-500'
+                          : 'border-zinc-200 bg-white hover:border-zinc-300'
+                      }`}
+                    >
+                      <div className="mt-0.5">
+                        <div
+                          className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                            field.value === 'INACTIVE'
+                              ? 'border-blue-600 bg-blue-600'
+                              : 'border-zinc-300 bg-white'
+                          }`}
+                        >
+                          {field.value === 'INACTIVE' && (
+                            <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="block text-xs font-semibold text-zinc-900">
+                          Inactive
+                        </span>
+                        <span className="block text-[10px] text-zinc-400 mt-0.5 leading-tight">
+                          Tidak muncul di pilihan
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                )}
+              />
+
+              <div className="flex items-center justify-end gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
+                >
+                  Reset
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : editingCategory ? (
+                    'Update'
+                  ) : (
+                    'Add'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setDeletingCategory(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Kategori Biaya"
+        message={`Apakah Anda yakin ingin menghapus kategori "${deletingCategory?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+      />
+    </div>
+  );
+}
+
+export default function CategoryCostPage() {
+  return (
+    <RoleGuard allowed={['DIREKTUR', 'SALES', 'FINANCE', 'PROJECT_MANAGER']} fallbackMode="redirect" redirectTo="/dashboard">
+      <CategoryCostContent />
+    </RoleGuard>
+  );
+}

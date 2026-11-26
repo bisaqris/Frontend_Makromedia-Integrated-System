@@ -1,17 +1,37 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, X, Search, Check, Lock, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ChevronDown, X, Search, Check, Eye, EyeOff, Camera, Upload, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { showToast } from '@/components/ui/Toast';
 import Combobox from '@/components/ui/Combobox';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import AddressRegionFields from '@/components/shared/AddressRegionFields';
 import { positionService } from '@/lib/services/positionService';
 import { skillService } from '@/lib/services/skillService';
 import { userService } from '@/lib/services/userService';
+import { toInputDateFormat } from '@/lib/utils';
+import { Position, Skill } from '@/types/manpower';
+
+const BANK_OPTIONS = [
+  { value: 'Bank Central Asia', label: 'Bank Central Asia' },
+  { value: 'Bank Mandiri', label: 'Bank Mandiri' },
+  { value: 'Bank Rakyat Indonesia', label: 'Bank Rakyat Indonesia' },
+  { value: 'Bank Negara Indonesia', label: 'Bank Negara Indonesia' },
+  { value: 'Bank Syariah Indonesia', label: 'Bank Syariah Indonesia' },
+  { value: 'Bank CIMB Niaga', label: 'Bank CIMB Niaga' },
+  { value: 'Bank Permata', label: 'Bank Permata' },
+  { value: 'Bank Danamon', label: 'Bank Danamon' },
+  { value: 'Bank Tabungan Negara', label: 'Bank Tabungan Negara' },
+  { value: 'Bank Mega', label: 'Bank Mega' },
+];
 
 export default function ProfilePage() {
+  const router = useRouter();
+  const { updateUser, logout } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     dateOfBirth: '',
@@ -31,7 +51,14 @@ export default function ProfilePage() {
   const [photoPreview, setPhotoPreview] = useState<string>('');
   const [skillOptions, setSkillOptions] = useState<string[]>([]);
   const [positionOptions, setPositionOptions] = useState<string[]>([]);
+  const [positionsList, setPositionsList] = useState<Position[]>([]);
+  const [skillsList, setSkillsList] = useState<Skill[]>([]);
   const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+
+  // Simpan data awal untuk tombol Cancel
+  const [initialFormData, setInitialFormData] = useState<typeof formData | null>(null);
+  const [initialSkills, setInitialSkills] = useState<string[]>([]);
+  const [initialPhoto, setInitialPhoto] = useState<string>('');
 
   // Password Modal States
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -46,6 +73,7 @@ export default function ProfilePage() {
   const [isSkillDropdownOpen, setIsSkillDropdownOpen] = useState<boolean>(false);
   const [skillSearch, setSkillSearch] = useState<string>('');
   const skillDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,15 +81,15 @@ export default function ProfilePage() {
     const loadData = async () => {
       const [profile, positions, masterSkills] = await Promise.all([
         userService.getProfile(),
-        positionService.getAll(),
-        skillService.getAll(),
+        positionService.getActive(),
+        skillService.getActive(),
       ]);
 
       if (!isMounted) return;
 
-      setFormData({
+      const loadedForm = {
         name: profile.name,
-        dateOfBirth: profile.dateOfBirth || '',
+        dateOfBirth: toInputDateFormat(profile.dateOfBirth),
         phone: profile.phone,
         email: profile.email,
         province: profile.province || '',
@@ -72,10 +100,20 @@ export default function ProfilePage() {
         position: profile.position || '',
         bankName: profile.bankName || '',
         accountNumber: profile.accountNumber || '',
-      });
+      };
+      setFormData(loadedForm);
+      setInitialFormData(loadedForm);
       setSkills(profile.skills);
+      setInitialSkills(profile.skills || []);
       setPhotoPreview(profile.photoUrl || '');
-      setPositionOptions(positions.map((p) => p.name));
+      setInitialPhoto(profile.photoUrl || '');
+      setPositionsList(positions);
+      setSkillsList(masterSkills);
+      const posNames = positions.map((p) => p.name);
+      if (profile.position && !posNames.includes(profile.position)) {
+        posNames.unshift(profile.position);
+      }
+      setPositionOptions(posNames);
       setSkillOptions(masterSkills.map((s) => s.name));
     };
 
@@ -105,6 +143,22 @@ export default function ProfilePage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+    if (name === 'phone') {
+      const digits = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, phone: digits }));
+      if (profileErrors.phone) {
+        setProfileErrors((prev) => ({ ...prev, phone: '' }));
+      }
+      return;
+    }
+    if (name === 'accountNumber') {
+      const digits = value.replace(/\D/g, '');
+      setFormData((prev) => ({ ...prev, accountNumber: digits }));
+      if (profileErrors.accountNumber) {
+        setProfileErrors((prev) => ({ ...prev, accountNumber: '' }));
+      }
+      return;
+    }
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -132,6 +186,53 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast.error('File harus berupa gambar (JPG, PNG, WebP).');
+      return;
+    }
+
+    const MAX_PROFILE_PHOTO_SIZE = 10 * 1024 * 1024; // 10MB
+    if (file.size > MAX_PROFILE_PHOTO_SIZE) {
+      showToast.error('Ukuran file foto melebihi batas maksimal 10MB.');
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setPhotoPreview(dataUrl);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('makromedia_user_avatar', dataUrl);
+          window.dispatchEvent(new CustomEvent('makromedia:avatar-updated'));
+        }
+        if (updateUser) {
+          updateUser({ avatarUrl: dataUrl });
+        }
+        showToast.success('Foto profil berhasil dipilih!');
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoPreview('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('makromedia_user_avatar');
+      window.dispatchEvent(new CustomEvent('makromedia:avatar-updated'));
+    }
+    if (updateUser) {
+      updateUser({ avatarUrl: undefined });
+    }
+    showToast.info('Foto profil dihapus.');
+  };
+
   const filteredSkills = skillOptions.filter((s) =>
     s.toLowerCase().includes(skillSearch.toLowerCase())
   );
@@ -152,8 +253,10 @@ export default function ProfilePage() {
 
     if (!formData.phone.trim()) {
       errs.phone = 'Nomor telepon wajib diisi.';
-    } else if (formData.phone.trim().replace(/\D/g, '').length < 10) {
-      errs.phone = 'Nomor telepon minimal 10 digit.';
+    } else if (!/^\d+$/.test(formData.phone.trim())) {
+      errs.phone = 'Nomor telepon harus berupa angka.';
+    } else if (formData.phone.trim().length < 10) {
+      errs.phone = 'Nomor telepon minimal 10 digit angka.';
     }
 
     if (formData.bankName.trim() && !formData.accountNumber.trim()) {
@@ -175,7 +278,47 @@ export default function ProfilePage() {
     e.preventDefault();
     if (!validateProfile()) return;
     try {
-      await userService.updateProfile({
+      // Cari positionId berdasarkan nama posisi yang dipilih
+      const trimmedPosition = formData.position.trim();
+      const matchedPosition = positionsList.find(
+        (p) => p.name.trim().toLowerCase() === trimmedPosition.toLowerCase()
+      );
+
+      let positionId: string | null = matchedPosition ? matchedPosition.id : null;
+      if (!positionId && trimmedPosition) {
+        try {
+          const newPos = await positionService.create({ name: trimmedPosition });
+          positionId = newPos.id;
+          setPositionsList((prev) => [...prev, newPos]);
+          setPositionOptions((prev) => [...prev, newPos.name]);
+        } catch {
+          // Abaikan jika tidak diizinkan membuat posisi baru
+        }
+      }
+
+      // Cari / buat skillIds
+      const skillIds: string[] = [];
+      for (const skillName of skills) {
+        const trimmedSkill = skillName.trim();
+        if (!trimmedSkill) continue;
+        let matched = skillsList.find(
+          (s) => s.name.trim().toLowerCase() === trimmedSkill.toLowerCase()
+        );
+        if (!matched) {
+          try {
+            matched = await skillService.create({ name: trimmedSkill });
+            setSkillsList((prev) => [...prev, matched!]);
+            setSkillOptions((prev) => [...prev, matched!.name]);
+          } catch {
+            // ignore jika pembuatan skill baru gagal
+          }
+        }
+        if (matched?.id) {
+          skillIds.push(matched.id);
+        }
+      }
+
+      const updated = await userService.updateProfile({
         name: formData.name.trim(),
         dateOfBirth: formData.dateOfBirth,
         phone: formData.phone.trim(),
@@ -186,13 +329,31 @@ export default function ProfilePage() {
         village: formData.village,
         detailAddress: formData.detailAddress,
         position: formData.position,
+        positionId: positionId ?? undefined,
         skills,
+        skillIds,
         bankName: formData.bankName.trim(),
         accountNumber: formData.accountNumber.trim(),
+        photoUrl: photoPreview,
       });
+
+      if (updateUser) {
+        updateUser({
+          name: updated?.name || formData.name.trim(),
+          email: updated?.email || formData.email.trim(),
+          avatarUrl: photoPreview || undefined,
+        });
+      }
+
+      setInitialFormData({ ...formData });
+      setInitialSkills([...skills]);
+      setInitialPhoto(photoPreview);
+
       showToast.success('Profil berhasil diperbarui!');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal memperbarui profil.';
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err instanceof Error ? err.message : 'Gagal memperbarui profil.');
       showToast.error(msg);
     }
   };
@@ -218,10 +379,12 @@ export default function ProfilePage() {
     try {
       setIsChangingPass(true);
       await userService.changePassword(passwordForm.oldPassword, passwordForm.newPassword);
-      showToast.success('Kata sandi berhasil diubah! Gunakan kata sandi baru untuk login berikutnya.');
+      showToast.success('Kata sandi berhasil diubah! Silakan login kembali dengan kata sandi baru.');
       setIsPasswordModalOpen(false);
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setPasswordErrors({});
+      logout();
+      router.replace('/login');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Gagal mengubah kata sandi. Periksa kata sandi lama Anda.';
       showToast.error(msg);
@@ -231,20 +394,29 @@ export default function ProfilePage() {
   };
 
   const handleCancel = () => {
-    showToast.info('Perubahan dibatalkan.');
+    if (initialFormData) {
+      setFormData(initialFormData);
+      setSkills(initialSkills);
+      setPhotoPreview(initialPhoto);
+      setProfileErrors({});
+    }
+    showToast.info('Batal mengedit profil.');
+    router.push('/dashboard');
   };
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 pb-16">
+    <>
+      <form onSubmit={handleSave} className="space-y-6 pb-16">
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+          {/* Left: Name and Date of Birth */}
           <div className="md:col-span-8 space-y-4">
             <div>
               <label
                 htmlFor="name"
                 className="text-xs font-semibold text-slate-700 block mb-1.5"
               >
-                Name
+                Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -265,60 +437,118 @@ export default function ProfilePage() {
               >
                 Date of Birth
               </label>
-              <input
-                type="text"
+              <DatePickerInput
                 id="dateOfBirth"
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-                placeholder="e.g. 10 January 2000"
+                placeholder="Pilih tanggal lahir..."
               />
-            </div>
-
-            <div>
-              <label
-                htmlFor="phone"
-                className="text-xs font-semibold text-slate-700 block mb-1.5"
-              >
-                Phone Number
-              </label>
-              <input
-                type="text"
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.phone ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
-                placeholder="Enter phone number"
-              />
-              {profileErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.phone}</p>}
             </div>
           </div>
 
+          {/* Right: Profile Photo */}
           <div className="md:col-span-4 flex flex-col justify-start items-center md:items-start space-y-2">
-            <span className="text-xs font-semibold text-slate-700 block mb-1.5">
+            <span className="text-xs font-semibold text-slate-700 block mb-1">
               Profile Photo
             </span>
-            <div className="relative group cursor-pointer">
-              <img
-                src={photoPreview}
-                alt="Profile Avatar"
-                className="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover border-2 border-slate-100 shadow-xs"
-              />
+
+            {/* Hidden native file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+
+            {/* Avatar Preview with Camera Overlay */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="relative group cursor-pointer inline-block"
+              title="Klik untuk mengganti foto profil"
+            >
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt="Profile Avatar"
+                  className="w-32 h-32 sm:w-36 sm:h-36 rounded-full object-cover border-2 border-slate-200 shadow-xs group-hover:opacity-90 transition-opacity"
+                />
+              ) : (
+                <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-primary-50 text-primary font-bold text-3xl flex items-center justify-center border-2 border-primary-200 shadow-xs">
+                  {formData.name ? formData.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
+
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 rounded-full bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-xs font-medium">
+                <Camera className="w-6 h-6 mb-1 text-white" />
+                <span>Ubah Foto</span>
+              </div>
+
+              {/* Corner Camera Badge */}
+              <div className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-md border-2 border-white group-hover:scale-110 transition-transform">
+                <Camera className="w-4 h-4" />
+              </div>
             </div>
+
+            {/* Action Buttons & Format Helper */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs font-semibold text-primary hover:text-primary-700 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-primary-50"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Pilih Foto</span>
+              </button>
+              {photoPreview && (
+                <>
+                  <span className="text-slate-300">&bull;</span>
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus</span>
+                  </button>
+                </>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-400">Format: JPG, PNG, WebP (Maks. 10MB)</span>
           </div>
         </div>
 
-        {/* Form Grid below Top Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        {/* Row 2: Phone Number, Email, Password (3 columns matching 05. Profile.pdf) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+          {/* Phone Number */}
+          <div>
+            <label
+              htmlFor="phone"
+              className="text-xs font-semibold text-slate-700 block mb-1.5"
+            >
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="phone"
+              name="phone"
+              value={formData.phone}
+              onChange={handleInputChange}
+              className={`w-full bg-white border rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none transition-colors ${profileErrors.phone ? "border-red-500" : "border-slate-200 focus:border-primary"}`}
+              placeholder="081234567890"
+            />
+            {profileErrors.phone && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.phone}</p>}
+          </div>
+
           {/* Email */}
           <div>
             <label
               htmlFor="email"
               className="text-xs font-semibold text-slate-700 block mb-1.5"
             >
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
@@ -332,10 +562,10 @@ export default function ProfilePage() {
             {profileErrors.email && <p className="mt-1 text-xs text-red-500 font-medium">{profileErrors.email}</p>}
           </div>
 
-          {/* Keamanan Akun / Ubah Password */}
+          {/* Password (with Eye icon and modal trigger matching 05. Profile.pdf) */}
           <div>
             <label className="text-xs font-semibold text-slate-700 block mb-1.5">
-              Keamanan Akun
+              Password
             </label>
             <button
               type="button"
@@ -344,16 +574,19 @@ export default function ProfilePage() {
                 setPasswordErrors({});
                 setIsPasswordModalOpen(true);
               }}
-              className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-700 font-semibold flex items-center justify-between transition-colors cursor-pointer"
+              className="w-full bg-white hover:bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 font-medium flex items-center justify-between transition-colors cursor-pointer group"
+              title="Klik untuk mengubah kata sandi"
             >
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-slate-400" />
-                <span>Ubah Kata Sandi Akun</span>
+              <span className="tracking-widest text-slate-600 font-bold">••••••••••••</span>
+              <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-primary transition-colors">
+                <Eye className="w-4 h-4" />
               </div>
-              <span className="text-xs text-primary font-medium">Ganti &rarr;</span>
             </button>
           </div>
+        </div>
 
+        {/* Region and Address */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           {/* Wilayah: search dropdown dari wilayah.id (Provinsi -> City -> Subdistrict -> Village) */}
           <AddressRegionFields value={formData} onChange={handleRegionChange} />
 
@@ -372,7 +605,7 @@ export default function ProfilePage() {
               value={formData.detailAddress}
               onChange={handleInputChange}
               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-              placeholder="Street name, building, unit number"
+              placeholder="Jl. Dharmawangsa No.74"
             />
           </div>
         </div>
@@ -497,23 +730,15 @@ export default function ProfilePage() {
             emptyText="Position tidak ditemukan"
           />
 
-          <div>
-            <label
-              htmlFor="bankName"
-              className="text-xs font-semibold text-slate-700 block mb-1.5"
-            >
-              Bank Account
-            </label>
-            <input
-              type="text"
-              id="bankName"
-              name="bankName"
-              value={formData.bankName}
-              onChange={handleInputChange}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm text-slate-800 focus:outline-none focus:border-primary transition-colors"
-              placeholder="Contoh: Bank Central Asia"
-            />
-          </div>
+          <Combobox
+            id="bankName"
+            label="Bank Account"
+            options={BANK_OPTIONS}
+            value={formData.bankName}
+            onChange={(value) => setFormData((prev) => ({ ...prev, bankName: value }))}
+            placeholder="Select bank account..."
+            emptyText="Bank tidak ditemukan"
+          />
 
           {/* Account Number */}
           <div>
@@ -556,6 +781,8 @@ export default function ProfilePage() {
           Save
         </Button>
       </div>
+      </form>
+
       {/* Modal Ubah Kata Sandi */}
       <Modal
         isOpen={isPasswordModalOpen}
@@ -679,6 +906,6 @@ export default function ProfilePage() {
           </div>
         </form>
       </Modal>
-    </form>
+    </>
   );
 }

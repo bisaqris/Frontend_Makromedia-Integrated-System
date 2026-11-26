@@ -3,9 +3,19 @@ import { UpdateUserProfileDTO, User, UserProfile } from '@/types/user';
 import { mockUsers, mockUserProfile } from '@/lib/mock/users.mock';
 import { cloneMock, USE_MOCK } from './mockFlag';
 
+const getStoredAvatar = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  return localStorage.getItem('makromedia_user_avatar') || undefined;
+};
+
 // Store in-memory untuk mode mock (direset saat halaman di-reload).
 let profileStore: UserProfile | null = null;
-const getProfileStore = (): UserProfile => (profileStore ??= cloneMock(mockUserProfile));
+const getProfileStore = (): UserProfile => {
+  const store = (profileStore ??= cloneMock(mockUserProfile));
+  const storedAvatar = getStoredAvatar();
+  if (storedAvatar) store.photoUrl = storedAvatar;
+  return store;
+};
 
 interface BackendUserProfile {
   id: string;
@@ -39,20 +49,21 @@ const mapBackendProfile = (api: BackendUserProfile, base: UserProfile): UserProf
   id: api.id,
   name: api.name,
   email: api.email,
-  phone: api.phone ?? base.phone,
-  dateOfBirth: api.dateOfBirth ? api.dateOfBirth.slice(0, 10) : base.dateOfBirth,
-  country: api.country ?? base.country,
-  province: api.province ?? base.province,
-  city: api.city ?? base.city,
-  subdistrict: api.subdistrict ?? base.subdistrict,
-  village: api.village ?? base.village,
-  postalCode: api.postalCode ?? base.postalCode,
-  detailAddress: api.detailAddress ?? base.detailAddress,
-  bankName: api.bankName ?? base.bankName,
-  accountNumber: api.bankAccountNo ?? base.accountNumber,
-  accountHolder: api.accountHolder ?? base.accountHolder,
-  position: api.position?.name ?? base.position,
-  skills: api.skills?.map((s) => s.skill.name) ?? base.skills,
+  phone: api.phone ?? '',
+  dateOfBirth: api.dateOfBirth ? api.dateOfBirth.slice(0, 10) : '',
+  country: api.country ?? '',
+  province: api.province ?? '',
+  city: api.city ?? '',
+  subdistrict: api.subdistrict ?? '',
+  village: api.village ?? '',
+  postalCode: api.postalCode ?? '',
+  detailAddress: api.detailAddress ?? '',
+  bankName: api.bankName ?? '',
+  accountNumber: api.bankAccountNo ?? '',
+  accountHolder: api.accountHolder ?? '',
+  position: api.position?.name ?? '',
+  skills: Array.isArray(api.skills) ? api.skills.map((s) => s.skill.name) : [],
+  photoUrl: getStoredAvatar() ?? base.photoUrl,
 });
 
 export const userService = {
@@ -72,6 +83,14 @@ export const userService = {
   },
 
   updateProfile: async (data: UpdateUserProfileDTO): Promise<UserProfile> => {
+    if (data.photoUrl !== undefined && typeof window !== 'undefined') {
+      if (data.photoUrl) {
+        localStorage.setItem('makromedia_user_avatar', data.photoUrl);
+      } else {
+        localStorage.removeItem('makromedia_user_avatar');
+      }
+    }
+
     if (USE_MOCK) {
       profileStore = mergeProfile(getProfileStore(), data);
       return cloneMock(profileStore);
@@ -80,8 +99,16 @@ export const userService = {
     try {
       const payload: Record<string, unknown> = {};
       if (data.name !== undefined) payload.name = data.name;
+      if (data.email !== undefined) payload.email = data.email;
       if (data.phone !== undefined) payload.phone = data.phone;
-      if (data.dateOfBirth !== undefined) payload.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : undefined;
+      if (data.dateOfBirth !== undefined) {
+        if (!data.dateOfBirth) {
+          payload.dateOfBirth = null;
+        } else {
+          const d = new Date(data.dateOfBirth);
+          payload.dateOfBirth = isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+        }
+      }
       if (data.country !== undefined) payload.country = data.country;
       if (data.province !== undefined) payload.province = data.province;
       if (data.city !== undefined) payload.city = data.city;
@@ -92,20 +119,32 @@ export const userService = {
       if (data.bankName !== undefined) payload.bankName = data.bankName;
       if (data.accountNumber !== undefined) payload.bankAccountNo = data.accountNumber;
       if (data.accountHolder !== undefined) payload.accountHolder = data.accountHolder;
+      if (data.positionId !== undefined) payload.positionId = data.positionId;
+      if (data.skillIds !== undefined) payload.skillIds = data.skillIds;
 
       const response = await apiClient.patch<BackendUserProfile>('/auth/me', payload);
       const base = getProfileStore();
       profileStore = mapBackendProfile(response.data, base);
       return cloneMock(profileStore);
-    } catch {
-      profileStore = mergeProfile(getProfileStore(), data);
-      return cloneMock(profileStore);
+    } catch (err) {
+      throw err;
     }
   },
 
   changePassword: async (oldPassword: string, newPassword: string): Promise<void> => {
     if (USE_MOCK) return;
     await apiClient.patch('/auth/me/password', { oldPassword, newPassword });
+  },
+
+  getUsers: async (): Promise<User[]> => {
+    if (USE_MOCK) return cloneMock(mockUsers);
+
+    try {
+      const response = await apiClient.get<User[]>('/users');
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return cloneMock(mockUsers);
+    }
   },
 
   /** User dengan role PROJECT_MANAGER, untuk dropdown filter & form project. */
@@ -117,19 +156,16 @@ export const userService = {
       if (Array.isArray(response.data)) {
         return response.data;
       }
+      return [];
     } catch {
-      // ignore
+      // Fallback jika endpoint tidak tersedia
+      try {
+        const response = await apiClient.get<User[]>('/users');
+        const list = Array.isArray(response.data) ? response.data : [];
+        return list.filter((u) => u.role === 'PROJECT_MANAGER');
+      } catch {
+        return [];
+      }
     }
-
-    try {
-      const response = await apiClient.get<User[]>('/users');
-      const list = Array.isArray(response.data) ? response.data : [];
-      const pms = list.filter((u) => u.role === 'PROJECT_MANAGER');
-      if (pms.length > 0) return pms;
-    } catch {
-      // ignore
-    }
-
-    return [];
   },
 };

@@ -263,10 +263,15 @@ export default function ProductionCostDetailPage() {
         <label className="block text-xs font-semibold text-slate-700">Notes</label>
         <textarea
           rows={3}
-          placeholder="Notes approval..."
+          placeholder={item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise' ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          className="w-full border border-slate-200 rounded-xl p-4 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary transition-colors resize-none"
+          disabled={item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise'}
+          className={`w-full border rounded-xl p-4 text-xs sm:text-sm resize-none transition-colors ${
+            item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise'
+              ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
+              : 'border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary'
+          }`}
         />
       </div>
 
@@ -292,7 +297,7 @@ export default function ProductionCostDetailPage() {
                 className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
                 onClick={handleRevise}
               >
-                Reject
+                Revise
               </Button>
               <Button
                 type="button"

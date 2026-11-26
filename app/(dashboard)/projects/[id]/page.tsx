@@ -8,7 +8,10 @@ import { Project } from '@/types/project';
 import projectService from '@/lib/services/projectService';
 import DetailProjectTabs from '@/components/projects/DetailProjectTabs';
 import Button from '@/components/ui/Button';
-import { Loader2 } from 'lucide-react';
+import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
+import { showToast } from '@/components/ui/Toast';
+import { Loader2, Pencil, CheckCircle2 } from 'lucide-react';
 
 interface ProjectDetailPageProps {
   params: Promise<{ id: string }>;
@@ -22,6 +25,12 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<string>('info');
+  const [isDoneModalOpen, setIsDoneModalOpen] = useState<boolean>(false);
+  const [isMarkingDone, setIsMarkingDone] = useState<boolean>(false);
+
+  const canManageProject =
+    role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES' || role === 'PROJECT_MANAGER';
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -42,6 +51,36 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       setPageTitle(null, null);
     };
   }, [project, setPageTitle]);
+
+  const handleMarkProjectDone = async () => {
+    if (!project) return;
+    try {
+      setIsMarkingDone(true);
+      const updated = await projectService.updateProject(project.id, { status: 'DONE' });
+      setProject((prev) => (prev ? { ...prev, status: 'DONE' } : updated));
+      setIsDoneModalOpen(false);
+      showToast.success(`Proyek "${project.name}" berhasil ditandai selesai (DONE).`);
+    } catch {
+      showToast.error('Gagal memperbarui status proyek.');
+    } finally {
+      setIsMarkingDone(false);
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'DRAFT':
+        return <Badge variant="default">DRAFT</Badge>;
+      case 'COMPLETED':
+      case 'DONE':
+        return <Badge variant="success">DONE</Badge>;
+      case 'IN_PROGRESS':
+        return <Badge variant="warning">ON PROGRESS</Badge>;
+      case 'NEW':
+      default:
+        return <Badge variant="info">NEW</Badge>;
+    }
+  };
 
   if (isLoading) {
     return (
@@ -64,22 +103,101 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     );
   }
 
+  const isProjectDone = project.status === 'DONE' || project.status === 'COMPLETED';
+
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs">
-        {/* Role-Specific Detail Tabs Component */}
-        <DetailProjectTabs project={project} role={role} />
+      {/* Top Header Card with Title & Status */}
+      <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-base sm:text-lg font-bold text-slate-800">{project.name}</h2>
+          <div>{getStatusBadge(project.status)}</div>
+        </div>
       </div>
 
-      <div className="flex justify-start">
+      {/* Role-Specific Detail Tabs Component */}
+      <DetailProjectTabs project={project} role={role} onTabChange={setActiveTab} />
+
+      {/* Bottom Action Footer */}
+      <div className="flex items-center justify-between pt-2">
         <Button
           variant="outline"
-          className="px-8 rounded-xl font-semibold"
+          size="md"
+          className="min-w-[130px] px-8 py-2.5 rounded-xl font-semibold border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
           onClick={() => router.push('/projects')}
         >
-          Cancel
+          {activeTab === 'payment' || activeTab === 'production_cost' ? 'Back' : 'Cancel'}
         </Button>
+
+        <div className="flex items-center gap-2.5">
+          {canManageProject && (
+            <button
+              type="button"
+              onClick={() => router.push(`/projects/${id}/edit`)}
+              className="min-w-[130px] px-6 py-2.5 rounded-xl font-semibold border border-orange-400 text-orange-500 bg-white hover:bg-orange-50 hover:border-orange-500 transition-colors shadow-2xs cursor-pointer inline-flex items-center justify-center gap-2 text-xs sm:text-sm active:scale-[0.99]"
+            >
+              <Pencil className="w-4 h-4 text-orange-500 shrink-0" />
+              <span className="whitespace-nowrap font-semibold">Edit Project</span>
+            </button>
+          )}
+
+          {canManageProject && (
+            isProjectDone ? (
+              <span className="min-w-[130px] px-5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-2 select-none shadow-2xs">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="whitespace-nowrap">Project Selesai (DONE)</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsDoneModalOpen(true)}
+                className="min-w-[130px] px-6 py-2.5 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-2xs cursor-pointer inline-flex items-center justify-center gap-2 text-xs sm:text-sm active:scale-[0.99]"
+              >
+                <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
+                <span className="whitespace-nowrap font-semibold">Done Project</span>
+              </button>
+            )
+          )}
+        </div>
       </div>
+
+      {/* Confirm Done Project Modal */}
+      <Modal
+        isOpen={isDoneModalOpen}
+        onClose={() => setIsDoneModalOpen(false)}
+        title="Selesaikan Proyek (Done Project)?"
+        maxWidth="sm"
+      >
+        <div className="flex items-start gap-3.5 py-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium">
+              Apakah Anda yakin ingin menyelesaikan proyek &quot;{project.name}&quot;?
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Status proyek akan diubah menjadi <strong className="text-emerald-600">DONE</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+          <Button variant="outline" size="sm" onClick={() => setIsDoneModalOpen(false)} disabled={isMarkingDone}>
+            Batal
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleMarkProjectDone}
+            disabled={isMarkingDone}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            leftIcon={<CheckCircle2 className="w-4 h-4" />}
+          >
+            {isMarkingDone ? 'Memproses...' : 'Ya, Selesaikan Proyek'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

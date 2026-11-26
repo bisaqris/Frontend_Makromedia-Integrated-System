@@ -4,13 +4,15 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Search, Plus, Eye, Pencil, Trash2, ChevronDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import ConfirmModal from '@/components/shared/ConfirmModal';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
-import { ClientPIC } from '@/types/client';
+import { ClientCompany, ClientPIC } from '@/types/client';
 import ErrorState from '@/components/shared/ErrorState';
 
 export default function DataPicClientPage() {
   const [data, setData] = useState<ClientPIC[]>([]);
+  const [companies, setCompanies] = useState<ClientCompany[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -18,17 +20,27 @@ export default function DataPicClientPage() {
   const [dataPerPage, setDataPerPage] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      setData(await clientService.getPICs());
-      setLoadError(false);
-    } catch {
-      setLoadError(true);
-      showToast.error('Gagal memuat data PIC Client.');
-    } finally {
-      setIsLoading(false);
-    }
+  // Modal states
+  const [picToDelete, setPicToDelete] = useState<ClientPIC | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  const loadData = useCallback(() => {
+    Promise.all([
+      clientService.getPICs(),
+      clientService.getCompanies().catch(() => []),
+    ])
+      .then(([picData, companyData]) => {
+        setData(picData);
+        setCompanies(companyData);
+        setLoadError(false);
+      })
+      .catch(() => {
+        setLoadError(true);
+        showToast.error('Gagal memuat data PIC Client.');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -38,11 +50,12 @@ export default function DataPicClientPage() {
   const companyOptions = useMemo(
     () =>
       Array.from(
-        new Set(
-          data.map((item) => item.company).filter((company): company is string => Boolean(company))
-        )
+        new Set([
+          ...companies.map((c) => c.name),
+          ...data.map((item) => item.company).filter((company): company is string => Boolean(company)),
+        ])
       ).sort(),
-    [data]
+    [data, companies]
   );
 
   const filteredData = data.filter((item) => {
@@ -65,15 +78,18 @@ export default function DataPicClientPage() {
   const endIndex = Math.min(startIndex + dataPerPage, totalFilteredCount);
   const displayedItems = filteredData.slice(startIndex, endIndex);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus PIC Client "${name}"?`)) return;
-
+  const handleConfirmDelete = async () => {
+    if (!picToDelete) return;
+    setIsDeleting(true);
     try {
-      await clientService.deletePIC(id);
+      await clientService.deletePIC(picToDelete.id);
+      showToast.success(`PIC Client "${picToDelete.name}" berhasil dihapus.`);
+      setPicToDelete(null);
       await loadData();
-      showToast.success(`PIC Client "${name}" berhasil dihapus.`);
     } catch {
-      showToast.error(`Gagal menghapus PIC Client "${name}".`);
+      showToast.error(`Gagal menghapus PIC Client "${picToDelete.name}".`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -94,7 +110,7 @@ export default function DataPicClientPage() {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            placeholder="Search by project..."
+            placeholder="Search by all..."
             className="w-full bg-white border border-slate-200/80 rounded-xl pl-10 pr-4 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary transition-colors shadow-2xs"
           />
         </div>
@@ -169,32 +185,30 @@ export default function DataPicClientPage() {
                     className="hover:bg-slate-50/50 transition-colors"
                   >
                     <td className="py-5 px-6 font-medium text-slate-800">{item.name}</td>
-                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.company}</td>
+                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.company || '-'}</td>
                     <td className="py-5 px-6 text-center text-slate-600 font-normal whitespace-nowrap">
-                      {item.phone}
+                      {item.phone || '-'}
                     </td>
-                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.email}</td>
+                    <td className="py-5 px-6 text-center text-slate-600 font-normal">{item.email || '-'}</td>
                     <td className="py-5 px-6 text-center">
                       <div className="flex items-center justify-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => showToast.info(`Detail PIC: ${item.name} (${item.company})`)}
+                        <Link
+                          href={`/clients/pic/${item.id}`}
                           className="text-[#0066ff] hover:opacity-80 transition-opacity cursor-pointer p-1"
                           title="Lihat Detail PIC Client"
                         >
                           <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => showToast.info(`Edit PIC Client: ${item.name}`)}
+                        </Link>
+                        <Link
+                          href={`/clients/pic/${item.id}/edit`}
                           className="text-[#f59e0b] hover:opacity-80 transition-opacity cursor-pointer p-1"
                           title="Edit PIC Client"
                         >
                           <Pencil className="w-4 h-4" />
-                        </button>
+                        </Link>
                         <button
                           type="button"
-                          onClick={() => handleDelete(item.id, item.name)}
+                          onClick={() => setPicToDelete(item)}
                           className="text-red-500 hover:opacity-80 transition-opacity cursor-pointer p-1"
                           title="Hapus PIC Client"
                         >
@@ -222,31 +236,29 @@ export default function DataPicClientPage() {
                   <span className="font-semibold text-sm text-slate-900 leading-snug">{item.name}</span>
                 </div>
                 <div className="flex flex-col gap-1 text-xs text-slate-500">
-                  <span className="font-medium text-slate-700">Company: {item.company}</span>
-                  <span>{item.email}</span>
-                  <span>{item.phone}</span>
+                  <span className="font-medium text-slate-700">Company: {item.company || '-'}</span>
+                  <span>{item.email || '-'}</span>
+                  <span>{item.phone || '-'}</span>
                 </div>
                 <div className="flex items-center justify-end text-xs text-slate-500 pt-3 border-t border-slate-50">
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => showToast.info(`Detail PIC: ${item.name} (${item.company})`)}
+                    <Link
+                      href={`/clients/pic/${item.id}`}
                       className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 transition-colors"
                       title="Lihat Detail PIC Client"
                     >
                       <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showToast.info(`Edit PIC Client: ${item.name}`)}
+                    </Link>
+                    <Link
+                      href={`/clients/pic/${item.id}/edit`}
                       className="p-1.5 rounded-lg text-amber-500 bg-amber-50 hover:bg-amber-100 transition-colors"
                       title="Edit PIC Client"
                     >
                       <Pencil className="w-4 h-4" />
-                    </button>
+                    </Link>
                     <button
                       type="button"
-                      onClick={() => handleDelete(item.id, item.name)}
+                      onClick={() => setPicToDelete(item)}
                       className="p-1.5 rounded-lg text-rose-500 bg-rose-50 hover:bg-rose-100 transition-colors"
                       title="Hapus PIC Client"
                     >
@@ -309,6 +321,19 @@ export default function DataPicClientPage() {
         </div>
       </div>
       )}
+
+      {/* CONFIRM DELETE MODAL */}
+      <ConfirmModal
+        isOpen={!!picToDelete}
+        onClose={() => setPicToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Hapus PIC Client"
+        message={`Apakah Anda yakin ingin menghapus PIC Client "${picToDelete?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus"
+        cancelText="Batal"
+        isLoading={isDeleting}
+      />
+
     </div>
   );
 }

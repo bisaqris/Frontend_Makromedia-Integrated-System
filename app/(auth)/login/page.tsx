@@ -9,16 +9,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { apiClient } from '@/lib/apiClient';
 import { showToast } from '@/components/ui/Toast';
-import { Role } from '@/types/user';
-import { mockUsers, mockUserByRole } from '@/lib/mock/users.mock';
 import Image from 'next/image';
-
-// Mock auth hanya untuk demo/development. Selalu MATI di production build
-// (NODE_ENV=production), dan bisa dimatikan eksplisit dengan NEXT_PUBLIC_ENABLE_MOCK_AUTH=0.
-// Saat integrasi backend, pastikan flag ini tidak "1" di environment production.
-const MOCK_AUTH_ENABLED =
-  process.env.NODE_ENV === 'development' &&
-  process.env.NEXT_PUBLIC_ENABLE_MOCK_AUTH !== '0';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email wajib diisi').email('Format email tidak valid'),
@@ -39,7 +30,6 @@ function LoginFormContent() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -61,63 +51,9 @@ function LoginFormContent() {
       showToast.success(`Selamat datang kembali, ${user.name || 'User'}!`);
       router.push(redirectPath);
     } catch {
-      // Fallback login mock — HANYA saat development & flag aktif.
-      // Tanpa flag ini, gagal API berarti login gagal (tidak ada bypass password).
-      if (!MOCK_AUTH_ENABLED) {
-        showToast.error('Email atau password salah, atau server tidak dapat dihubungi.');
-        return;
-      }
-      const matchedUser = mockUsers.find(
-        (u) => u.email.toLowerCase() === data.email.toLowerCase()
-      );
-
-      let targetUser = matchedUser;
-      if (!targetUser) {
-        const emailLower = data.email.toLowerCase();
-        let targetRole: Role = 'DIREKTUR';
-        if (emailLower.includes('finance')) targetRole = 'FINANCE';
-        else if (emailLower.includes('sales')) targetRole = 'SALES';
-        else if (emailLower.includes('pm') || emailLower.includes('project')) targetRole = 'PROJECT_MANAGER';
-        else if (emailLower.includes('produksi') || emailLower.includes('tim')) targetRole = 'PRODUKSI';
-
-        targetUser = {
-          ...mockUserByRole[targetRole],
-          email: data.email,
-        };
-      }
-
-      const mockToken = `mock-jwt-token-${targetUser.role.toLowerCase()}`;
-      login(mockToken, targetUser);
-      showToast.success(`Masuk sebagai ${targetUser.name} (${targetUser.role})`);
-      router.push(redirectPath);
+      showToast.error('Email atau password salah, atau server tidak dapat dihubungi.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleQuickDemoLogin = async (role: Role) => {
-    const demoEmail = `${role === 'PROJECT_MANAGER' ? 'pm' : role.toLowerCase()}@makromedia.id`;
-    const demoPassword = 'Password123!';
-    setValue('email', demoEmail);
-    setValue('password', demoPassword);
-
-    try {
-      const response = await apiClient.post('/auth/login', {
-        email: demoEmail,
-        password: demoPassword,
-      });
-      const token = response.data.accessToken || response.data.token;
-      const refreshToken = response.data.refreshToken;
-      const user = response.data.user;
-      login(token, user, refreshToken);
-      showToast.success(`Masuk sebagai ${user.name || role} (${role})`);
-      router.push(redirectPath);
-    } catch {
-      const mockToken = `mock-jwt-token-${role.toLowerCase()}-demo`;
-      const mockUser = mockUserByRole[role];
-      login(mockToken, mockUser);
-      showToast.success(`Masuk sebagai ${mockUser.name} (${role})`);
-      router.push(redirectPath);
     }
   };
 
@@ -195,51 +131,6 @@ function LoginFormContent() {
           </button>
         </div>
       </form>
-
-      {MOCK_AUTH_ENABLED && (
-        <div className="mt-10 pt-6 border-t border-white/15">
-          <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wider text-center mb-3">
-            Quick Demo Login (Role Tester)
-          </p>
-          <div className="flex flex-wrap gap-2 justify-center text-xs">
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('DIREKTUR')}
-              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
-            >
-              Direktur
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('FINANCE')}
-              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
-            >
-              Finance
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('SALES')}
-              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
-            >
-              Sales
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('PROJECT_MANAGER')}
-              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
-            >
-              PM
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('PRODUKSI')}
-              className="px-3 py-1.5 bg-white hover:bg-white/80 text-black border border-white/20 transition-colors font-medium rounded-lg cursor-pointer"
-            >
-              Produksi
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

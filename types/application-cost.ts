@@ -104,6 +104,7 @@ export interface ApplicationCostItem {
   previousPayment?: number;
   bankAccounts?: ApplicationCostBankAccount[];
   paymentInstruction?: string;
+  termsOfCondition?: string[];
 
   // 9 Grouped Categories
   categories?: ApplicationCostGroupCategory[];

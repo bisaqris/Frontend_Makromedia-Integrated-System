@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { User as UserIcon, LogOut, ChevronDown, Bell, Menu } from 'lucide-react';
+import { User as UserIcon, LogOut, ChevronDown, Menu, Bell } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { usePageTitle } from '@/context/PageTitleContext';
 import { useSidebar } from '@/context/SidebarContext'; // 1. Import useSidebar
@@ -19,12 +19,15 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/projects/new': { title: 'Add New Project', subtitle: 'Add new project' },
   '/projects/history': { title: 'History Project', subtitle: 'List of All Projects That Already Done' },
   '/application-cost': { title: 'List Application Cost', subtitle: 'List of Application Cost' },
-  '/manpower': { title: 'List Data Employee', subtitle: 'List of All Employees' },
-  '/manpower/skills': { title: 'Data Skill', subtitle: 'Employee skills and certifications' },
+  '/manpower': { title: 'Data Manpower', subtitle: 'List of All Manpower' },
+  '/manpower/new': { title: 'Add New Manpower', subtitle: 'Add new Manpower' },
+  '/manpower/skills': { title: 'Skill Management', subtitle: 'List of Man Power Skill Sets' },
   '/clients/pic': { title: 'Data PIC Client', subtitle: 'List of All PIC Client' },
   '/clients/pic/new': { title: 'Add New PIC Client', subtitle: 'Add new PIC Client' },
   '/clients/company': { title: 'List Client Company', subtitle: 'List of All Client Company' },
   '/clients/company/new': { title: 'Add New Company Client', subtitle: 'Add new Company Client' },
+  '/settings/category-cost': { title: 'Category Cost Management', subtitle: 'List of Production Cost Categories' },
+  '/settings/invoice': { title: 'Invoice Setting', subtitle: 'Manage Invoice Defaults, Tax / PPh, and Payment Information' },
   '/profile': { title: 'Profile', subtitle: 'Director Profile' },
 };
 
@@ -36,7 +39,24 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
   const { toggleSidebar } = useSidebar(); // 2. Ambil fungsi toggleSidebar dari context
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [avatar, setAvatar] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateAvatar = () => {
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('makromedia_user_avatar') : null;
+      setAvatar(user?.avatarUrl || stored || null);
+    };
+    updateAvatar();
+    window.addEventListener('storage', updateAvatar);
+    window.addEventListener('makromedia:avatar-updated', updateAvatar);
+    return () => {
+      window.removeEventListener('storage', updateAvatar);
+      window.removeEventListener('makromedia:avatar-updated', updateAvatar);
+    };
+  }, [user?.avatarUrl]);
+
+  const currentAvatar = user?.avatarUrl || avatar;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,6 +79,27 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
       return { title: customTitle, subtitle: customSubtitle };
     }
     if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+    if (pathname.startsWith('/clients/company/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit Company Client', subtitle: 'Edit Company Client Information' };
+    }
+    if (pathname.startsWith('/clients/company/')) {
+      return { title: 'Detail Company Client', subtitle: 'Detail Company Client Information' };
+    }
+    if (pathname.startsWith('/clients/pic/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit PIC Client', subtitle: 'Edit PIC Client Information' };
+    }
+    if (pathname.startsWith('/clients/pic/')) {
+      return { title: 'Detail PIC Client', subtitle: 'Detail PIC Client Information' };
+    }
+    if (pathname.startsWith('/manpower/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit Manpower', subtitle: 'Edit Manpower Information' };
+    }
+    if (pathname.startsWith('/manpower/')) {
+      return { title: 'Detail Manpower', subtitle: 'Detail Manpower' };
+    }
+    if (pathname.startsWith('/projects/') && pathname.endsWith('/edit')) {
+      return { title: 'Edit Project', subtitle: 'Perbarui rincian data proyek' };
+    }
     if (pathname.startsWith('/projects/')) {
       return { title: 'Detail Project', subtitle: 'Project details and overview' };
     }
@@ -129,17 +170,20 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleSidebar }) => {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-2 sm:gap-3 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100/80 transition-colors focus:outline-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden shrink-0">
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+            <div className="w-9 h-9 rounded-full bg-primary-100 text-primary font-bold text-xs flex items-center justify-center border border-primary-200 overflow-hidden shrink-0">
+              {currentAvatar ? (
+                <img src={currentAvatar} alt={user?.name || 'User'} className="w-full h-full object-cover" />
               ) : (
                 user?.name?.charAt(0).toUpperCase() || 'U'
               )}
             </div>
 
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
-                {user?.name || 'Pengguna'}
+              <span className="text-xs font-bold text-slate-900 leading-tight truncate max-w-30 md:max-w-none">
+                {user?.name || 'John Doe'}
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium leading-tight">
+                {user?.role === 'DIREKTUR' ? 'CEO' : user?.role || 'Staff'}
               </span>
             </div>
 

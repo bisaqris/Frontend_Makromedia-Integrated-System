@@ -13,7 +13,9 @@ import {
   Contact2,
   Building2,
   X,
-  SquareUserRound
+  SquareUserRound,
+  Tags,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext'; // 1. Import useSidebar
@@ -72,32 +74,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: p
     }
 
     if (userRole === 'DIREKTUR' || userRole === 'FINANCE' || userRole === 'SALES') {
+      const sections: MenuSection[] = [
+        {
+          title: 'sales',
+          items: [
+            { title: 'List Project', href: '/projects', icon: <FolderKanban className="w-4 h-4" /> },
+            { title: 'History', href: '/projects/history', icon: <History className="w-4 h-4" /> },
+          ],
+        },
+        {
+          title: 'manpower',
+          items: [
+            { title: 'List Data Employee', href: '/manpower', icon: <Users className="w-4 h-4" /> },
+            { title: 'Data Skill', href: '/manpower/skills', icon: <Award className="w-4 h-4" /> },
+            { title: 'Data Position', href: '/manpower/positions', icon: <SquareUserRound className="w-4 h-4" /> },
+          ],
+        },
+        {
+          title: 'client data',
+          items: [
+            { title: 'List Data Client', href: '/clients/pic', icon: <Contact2 className="w-4 h-4" /> },
+            { title: 'List Client Company', href: '/clients/company', icon: <Building2 className="w-4 h-4" /> },
+          ],
+        },
+      ];
+
+      // Setting section accessible by DIREKTUR, SALES, FINANCE, PROJECT_MANAGER
+      if (['DIREKTUR', 'SALES', 'FINANCE', 'PROJECT_MANAGER'].includes(userRole)) {
+        sections.push({
+          title: 'setting',
+          items: [
+            { title: 'Category Cost', href: '/settings/category-cost', icon: <Tags className="w-4 h-4" /> },
+            { title: 'Invoice Setting', href: '/settings/invoice', icon: <Receipt className="w-4 h-4" /> },
+          ],
+        });
+      }
+
       return {
         standaloneItems,
-        sections: [
-          {
-            title: 'sales',
-            items: [
-              { title: 'List Project', href: '/projects', icon: <FolderKanban className="w-4 h-4" /> },
-              { title: 'History', href: '/projects/history', icon: <History className="w-4 h-4" /> },
-            ],
-          },
-          {
-            title: 'manpower',
-            items: [
-              { title: 'List Data Employee', href: '/manpower', icon: <Users className="w-4 h-4" /> },
-              { title: 'Data Skill', href: '/manpower/skills', icon: <Award className="w-4 h-4" /> },
-              { title: 'Data Position', href: '/manpower/positions', icon: <SquareUserRound className="w-4 h-4" /> },
-            ],
-          },
-          {
-            title: 'client data',
-            items: [
-              { title: 'List Data Client', href: '/clients/pic', icon: <Contact2 className="w-4 h-4" /> },
-              { title: 'List Client Company', href: '/clients/company', icon: <Building2 className="w-4 h-4" /> },
-            ],
-          },
-        ],
+        sections,
       };
     }
 

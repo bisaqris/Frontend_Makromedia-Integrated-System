@@ -1,5 +1,6 @@
 export type ProjectStatus =
   | 'DRAFT'
+  | 'NEW'
   | 'QUOTATION_PENDING'
   | 'QUOTATION_APPROVED'
   | 'IN_PROGRESS'

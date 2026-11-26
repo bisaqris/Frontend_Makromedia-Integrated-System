@@ -2,42 +2,70 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { manpowerService } from '@/lib/services/manpowerService';
+import { positionService } from '@/lib/services/positionService';
+import { skillService } from '@/lib/services/skillService';
 import { ManpowerRecord } from '@/types/manpower';
 import ErrorState from '@/components/shared/ErrorState';
+import ConfirmModal from '@/components/shared/ConfirmModal';
+import { showToast } from '@/components/ui/Toast';
 
 export default function ManpowerPage() {
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState('');
+    const [positionFilter, setPositionFilter] = useState('');
+    const [skillFilter, setSkillFilter] = useState('');
     const [employees, setEmployees] = useState<ManpowerRecord[]>([]);
+    const [activePositions, setActivePositions] = useState<string[]>([]);
+    const [activeSkills, setActiveSkills] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
 
     // State Pagination
     const [currentPage, setCurrentPage] = useState(1);
-    const [entriesPerPage, setEntriesPerPage] = useState(5);
+    const [entriesPerPage, setEntriesPerPage] = useState(10);
 
-    const loadData = useCallback(async () => {
-        setIsLoading(true);
-        setLoadError(false);
-        try {
-            setEmployees(await manpowerService.getAll());
-        } catch {
-            setLoadError(true);
-        } finally {
-            setIsLoading(false);
-        }
+    const loadData = useCallback(() => {
+        manpowerService.getAll()
+            .then((res) => {
+                setEmployees(res);
+                setLoadError(false);
+            })
+            .catch(() => {
+                setLoadError(true);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
     }, []);
 
     useEffect(() => {
         loadData();
+        Promise.all([
+            positionService.getActiveNames(),
+            skillService.getActiveNames(),
+        ]).then(([posNames, sklNames]) => {
+            setActivePositions(posNames);
+            setActiveSkills(sklNames);
+        }).catch(() => {});
     }, [loadData]);
 
-    const handleDelete = async (id: string) => {
-        if (confirm('Apakah Anda yakin ingin menghapus karyawan ini?')) {
-            await manpowerService.delete(id);
+    // Modal state for delete confirmation
+    const [employeeToDelete, setEmployeeToDelete] = useState<{ id: string; name: string } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleConfirmDelete = async () => {
+        if (!employeeToDelete) return;
+        setIsDeleting(true);
+        try {
+            await manpowerService.delete(employeeToDelete.id);
+            showToast.success(`Karyawan "${employeeToDelete.name}" berhasil dihapus.`);
+            setEmployeeToDelete(null);
             await loadData();
+        } catch {
+            showToast.error(`Gagal menghapus karyawan "${employeeToDelete.name}".`);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -56,6 +84,16 @@ export default function ManpowerPage() {
         }
     };
 
+    // Extract options
+    const positionOptions = (activePositions.length > 0
+        ? activePositions
+        : Array.from(new Set(employees.map((e) => e.position).filter(Boolean)))
+    ).sort();
+    const skillOptions = (activeSkills.length > 0
+        ? activeSkills
+        : Array.from(new Set(employees.flatMap((e) => e.skills || []).filter(Boolean)))
+    ).sort();
+
     // Filter Data
     const filteredEmployees = employees.filter((emp) => {
         const matchesSearch =
@@ -63,9 +101,10 @@ export default function ManpowerPage() {
             (emp.email || '').toLowerCase().includes(search.toLowerCase()) ||
             emp.position.toLowerCase().includes(search.toLowerCase());
 
-        const matchesStatus = statusFilter ? emp.employmentStatus === statusFilter : true;
+        const matchesPosition = positionFilter ? emp.position === positionFilter : true;
+        const matchesSkill = skillFilter ? (emp.skills || []).includes(skillFilter) : true;
 
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesPosition && matchesSkill;
     });
 
     // Logika Pagination
@@ -83,39 +122,53 @@ export default function ManpowerPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search employee..."
+                        placeholder="Search by all..."
                         value={search}
                         onChange={(e) => {
                             setSearch(e.target.value);
                             setCurrentPage(1);
                         }}
-                        className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                        className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white"
                     />
                 </div>
 
-                {/* Filter Status Dropdown */}
+                {/* Filter Position Dropdown */}
                 <select
-                    value={statusFilter}
+                    value={positionFilter}
                     onChange={(e) => {
-                        setStatusFilter(e.target.value);
+                        setPositionFilter(e.target.value);
                         setCurrentPage(1);
                     }}
-                    className="w-full sm:w-44 py-2 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white text-gray-700"
+                    className="w-full sm:w-44 py-2 px-3 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white text-gray-700 cursor-pointer"
                 >
-                    <option value="">All Status</option>
-                    <option value="Fulltime">FULLTIME</option>
-                    <option value="Parttime">PARTTIME</option>
-                    <option value="Internship">INTERNSHIP</option>
-                    <option value="Freelance">FREELANCE</option>
+                    <option value="">All Position</option>
+                    {positionOptions.map((pos) => (
+                        <option key={pos} value={pos}>{pos}</option>
+                    ))}
                 </select>
 
-                {/* Button Tambah Karyawan (Diarahkan ke /manpower/new) */}
+                {/* Filter Skill Dropdown */}
+                <select
+                    value={skillFilter}
+                    onChange={(e) => {
+                        setSkillFilter(e.target.value);
+                        setCurrentPage(1);
+                    }}
+                    className="w-full sm:w-44 py-2 px-3 text-xs sm:text-sm border border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 bg-white text-gray-700 cursor-pointer"
+                >
+                    <option value="">All Skill</option>
+                    {skillOptions.map((sk) => (
+                        <option key={sk} value={sk}>{sk}</option>
+                    ))}
+                </select>
+
+                {/* Button Tambah Manpower */}
                 <Link
                     href="/manpower/new"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#0066ff] hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors whitespace-nowrap shadow-2xs"
                 >
                     <Plus className="w-4 h-4" />
-                    Add Employee
+                    Add Manpower
                 </Link>
             </div>
 
@@ -159,7 +212,20 @@ export default function ManpowerPage() {
                                                 </span>
                                             </td>
                                             <td className="py-4 px-6 text-gray-600">
-                                                {emp.skills.length > 0 ? emp.skills.join(', ') : '-'}
+                                                {emp.skills.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                                        {emp.skills.map((sk) => (
+                                                            <span
+                                                                key={sk}
+                                                                className="inline-block bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-medium"
+                                                            >
+                                                                {sk}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    '-'
+                                                )}
                                             </td>
                                             <td className="py-4 px-6 text-gray-600">{emp.position || '-'}</td>
                                             <td className="py-4 px-6 text-gray-600 whitespace-nowrap">
@@ -174,7 +240,11 @@ export default function ManpowerPage() {
                                                     <Link href={`/manpower/${emp.id}/edit`} className="text-amber-500 hover:text-amber-700">
                                                         <Edit className="w-4 h-4" />
                                                     </Link>
-                                                    <button onClick={() => handleDelete(emp.id)} className="text-rose-500 hover:text-rose-700">
+                                                    <button
+                                                        onClick={() => setEmployeeToDelete({ id: emp.id, name: emp.fullName })}
+                                                        className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                                                        title="Hapus Karyawan"
+                                                    >
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
@@ -235,6 +305,18 @@ export default function ManpowerPage() {
                     </div>
                 </div>
             )}
+
+            {/* CONFIRM DELETE MODAL */}
+            <ConfirmModal
+                isOpen={!!employeeToDelete}
+                onClose={() => setEmployeeToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title="Hapus Karyawan"
+                message={`Apakah Anda yakin ingin menghapus data karyawan "${employeeToDelete?.name}"? Tindakan ini tidak dapat dibatalkan.`}
+                confirmText="Hapus"
+                cancelText="Batal"
+                isLoading={isDeleting}
+            />
         </div>
     );
 }

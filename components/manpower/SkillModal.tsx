@@ -5,7 +5,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Skill, CreateSkillDTO } from '@/types/manpower';
-import { X, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 const skillSchema = z.object({
     name: z.string().min(1, 'Nama skill wajib diisi'),

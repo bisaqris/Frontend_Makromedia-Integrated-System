@@ -153,11 +153,15 @@ export const projectWorkflowService = {
 
   async createQuotation(
     projectId: string,
-    items: ProjectCostItem[]
+    items: ProjectCostItem[],
+    options?: { discountPercent?: number; taxAmount?: number; notes?: string }
   ): Promise<ProjectCostItem[]> {
     const response = await apiClient.post<BackendDocument>('/quotations', {
       projectId,
       quotationNumber: `QUO-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      discountPercent: options?.discountPercent ?? 0,
+      taxAmount: options?.taxAmount ?? 0,
+      notes: options?.notes,
       items: items.map((item) => ({
         item: item.description,
         description: item.executor,
@@ -170,10 +174,16 @@ export const projectWorkflowService = {
     return mapDocumentItems(response.data, projectId);
   },
 
-  async createInvoice(projectId: string, items: ProjectCostItem[]): Promise<ProjectCostItem[]> {
+  async createInvoice(
+    projectId: string,
+    items: ProjectCostItem[],
+    options?: { dueDate?: string; notes?: string }
+  ): Promise<ProjectCostItem[]> {
     const response = await apiClient.post<BackendDocument>('/invoices', {
       projectId,
       invoiceNumber: `INV-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      dueDate: options?.dueDate || undefined,
+      notes: options?.notes,
       items: items.map((item) => ({
         item: item.description,
         description: item.executor,
@@ -195,6 +205,7 @@ export const projectWorkflowService = {
       description: task.description,
       dueDate: task.dueDate || undefined,
       status: task.status,
+      assignedToId: task.assignedToId || undefined,
       progress: task.progress ?? (task.status === 'DONE' ? 100 : 0),
     });
     return mapTask(response.data);
@@ -206,6 +217,7 @@ export const projectWorkflowService = {
       description: task.description,
       dueDate: task.dueDate || undefined,
       status: task.status,
+      assignedToId: task.assignedToId || undefined,
     });
     return mapTask(response.data);
   },

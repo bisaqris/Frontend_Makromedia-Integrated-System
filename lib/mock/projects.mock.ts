@@ -35,7 +35,7 @@ export const mockProjects: Project[] = [
       {
         id: 'cost-1',
         projectId: 'proj-1',
-        category: '1. Fee SDM Internal',
+        category: 'Fee SDM Internal',
         description: 'Honor Project Manager & Technical Director (5 Hari)',
         quantity: 2,
         unit: 'Orang',
@@ -48,7 +48,7 @@ export const mockProjects: Project[] = [
       {
         id: 'cost-2',
         projectId: 'proj-1',
-        category: '2. Fee SDM External',
+        category: 'Fee SDM Internal',
         description: 'Honor Director of Photography & Cameraman (5 Hari)',
         quantity: 4,
         unit: 'Orang',
@@ -61,7 +61,7 @@ export const mockProjects: Project[] = [
       {
         id: 'cost-3',
         projectId: 'proj-1',
-        category: '3. Sewa Alat & Akomodasi',
+        category: 'Peralatan & Sewa',
         description: 'Sewa Kamera Sony FX6 Cine Set & Broadcast Switcher',
         quantity: 1,
         unit: 'Set',
@@ -143,7 +143,7 @@ export const mockProjects: Project[] = [
       {
         id: 'cost-4',
         projectId: 'proj-2',
-        category: '1. Fee SDM Internal',
+        category: 'Fee SDM Internal',
         description: 'Jasa Scriptwriter & Producer',
         quantity: 1,
         unit: 'Paket',
@@ -156,7 +156,7 @@ export const mockProjects: Project[] = [
       {
         id: 'cost-5',
         projectId: 'proj-2',
-        category: '3. Sewa Alat & Akomodasi',
+        category: 'Peralatan & Sewa',
         description: 'Sewa Teleprompter & Lighting Studio',
         quantity: 1,
         unit: 'Set',

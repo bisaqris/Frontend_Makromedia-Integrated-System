@@ -13,6 +13,9 @@ interface AddTaskModalProps {
   onSave: (task: Omit<ProjectTask, 'id'>) => void | Promise<void>;
   editTask?: ProjectTask;
   supportsPicName?: boolean;
+  projectStartDate?: string;
+  projectEndDate?: string;
+  assignees?: Array<{ id: string; name: string; role?: string }>;
 }
 
 const statusOptions = [
@@ -35,13 +38,19 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   onSave,
   editTask,
   supportsPicName = true,
+  projectStartDate,
+  projectEndDate,
+  assignees = [],
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState(getTodayDateString());
   const [picName, setPicName] = useState('');
+  const [assignedToId, setAssignedToId] = useState('');
+  const [isManualPic, setIsManualPic] = useState(false);
   const [status, setStatus] = useState<'TODO' | 'IN_PROGRESS' | 'DONE'>('TODO');
   const [titleError, setTitleError] = useState('');
+  const [dueDateError, setDueDateError] = useState('');
 
   // React 19 / Next 16 clean prop sync during render
   const [prevEditTask, setPrevEditTask] = useState<ProjectTask | undefined>(undefined);
@@ -52,6 +61,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
     setPrevEditTask(editTask);
     if (isOpen) {
       setTitleError('');
+      setDueDateError('');
       if (editTask) {
         setTitle(editTask.title || '');
         setDescription(editTask.description || '');
@@ -65,12 +75,16 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
         }
 
         setPicName(editTask.picName || '');
+        setAssignedToId(editTask.assignedToId || '');
+        setIsManualPic(!editTask.assignedToId && !!editTask.picName);
         setStatus(editTask.status || 'TODO');
       } else {
         setTitle('');
         setDescription('');
         setDueDate(getTodayDateString());
         setPicName('');
+        setAssignedToId('');
+        setIsManualPic(false);
         setStatus('TODO');
       }
     }
@@ -83,12 +97,18 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       return;
     }
 
+    if (projectStartDate && dueDate && dueDate < projectStartDate) {
+      setDueDateError(`Due date tidak boleh lebih awal dari tanggal mulai proyek (${projectStartDate}).`);
+      return;
+    }
+
     try {
       await onSave({
         title: title.trim(),
         description: description.trim(),
         dueDate: dueDate || getTodayDateString(),
         picName: picName.trim(),
+        assignedToId: assignedToId || undefined,
         status,
       });
       onClose();
@@ -138,17 +158,46 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           />
         </div>
 
-        {/* PIC Name */}
+        {/* PIC / Penugasan Tim Produksi */}
         {supportsPicName && (
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              PIC / Penanggung Jawab
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700">
+              PIC / Penanggung Jawab Tim Produksi
             </label>
-            <Input
-              placeholder="misal: Budi Santoso / Vendor Stage"
-              value={picName}
-              onChange={(e) => setPicName(e.target.value)}
-            />
+            {assignees.length > 0 && (
+              <Select
+                value={isManualPic ? 'manual' : (assignedToId || '')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'manual') {
+                    setIsManualPic(true);
+                    setAssignedToId('');
+                  } else {
+                    setIsManualPic(false);
+                    setAssignedToId(val);
+                    const found = assignees.find((a) => a.id === val);
+                    if (found) setPicName(found.name);
+                    else if (!val) setPicName('');
+                  }
+                }}
+                options={[
+                  { value: '', label: '-- Pilih Anggota Tim Produksi --' },
+                  ...assignees.map((a) => ({
+                    value: a.id,
+                    label: a.role ? `${a.name} (${a.role})` : a.name,
+                  })),
+                  { value: 'manual', label: '✍️ Ketik Manual / PIC Eksternal...' },
+                ]}
+                className="w-full"
+              />
+            )}
+            {(isManualPic || assignees.length === 0) && (
+              <Input
+                placeholder="misal: Budi Santoso / Vendor Stage"
+                value={picName}
+                onChange={(e) => setPicName(e.target.value)}
+              />
+            )}
           </div>
         )}
 
@@ -160,8 +209,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
             </label>
             <Input
               type="date"
+              min={projectStartDate || getTodayDateString()}
+              max={projectEndDate}
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              onChange={(e) => {
+                setDueDate(e.target.value);
+                if (dueDateError) setDueDateError('');
+              }}
+              error={dueDateError}
             />
           </div>
 

@@ -5,6 +5,7 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { PaymentHistoryItem } from '@/types/project';
+import { formatNominal } from '@/lib/utils';
 
 interface AddPaymentModalProps {
   isOpen: boolean;
@@ -105,15 +106,16 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
         />
         <Input
           label="Nominal (Rp)"
-          type="number"
-          value={amount}
+          type="text"
+          placeholder="0"
+          value={formatNominal(amount)}
           onChange={(e) => {
-            setAmount(e.target.value);
+            const raw = e.target.value.replace(/\D/g, '');
+            setAmount(raw);
             if (amountError) setAmountError('');
           }}
           error={amountError}
           required
-          min={1}
         />
         <Input
           label="Metode Pembayaran"

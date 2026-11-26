@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/apiClient';
-import { ProjectCategory } from '@/types/project';
+import { Project, ProjectCategory } from '@/types/project';
+import projectService from '@/lib/services/projectService';
 import {
   CalendarEvent,
   FinancialDashboardSummary,
@@ -59,7 +60,10 @@ const categoryFromApi = (category: string): ProjectCategory | undefined => {
 };
 
 export const dashboardService = {
-  getCalendarEvents: async (_params?: CalendarRangeParams): Promise<CalendarEvent[]> => {
+  getCalendarEvents: async (
+    params?: CalendarRangeParams,
+    userRole?: string
+  ): Promise<CalendarEvent[]> => {
     if (USE_MOCK) {
       return cloneMock(
         mockProjects.map((project) => {
@@ -78,17 +82,86 @@ export const dashboardService = {
       );
     }
 
-    const response = await apiClient.get<BackendCalendarEvent[]>('/calendar/events');
-    return response.data
-      .filter((event): event is BackendCalendarEvent & { date: string } => Boolean(event.date))
-      .map((event) => ({
-        id: event.id,
-        title: event.title,
-        startDate: event.date.slice(0, 10),
-        endDate: event.date.slice(0, 10),
-        type: event.type,
-        projectId: event.projectId,
-      }));
+    // 1. Fetch raw calendar events and project metadata in parallel
+    const [eventsResponse, projectsData] = await Promise.all([
+      apiClient
+        .get<BackendCalendarEvent[]>('/calendar/events', {
+          params:
+            params?.start && params?.end
+              ? { start: params.start, end: params.end }
+              : undefined,
+        })
+        .catch(() => ({ data: [] as BackendCalendarEvent[] })),
+      projectService.getProjects({ limit: 100 }).catch(() => ({ data: [] as Project[], total: 0 })),
+    ]);
+
+    const projectMap = new Map<string, Project>();
+    projectsData.data.forEach((p) => {
+      projectMap.set(p.id, p);
+    });
+
+    const isNonFinancialRole = userRole === 'PROJECT_MANAGER' || userRole === 'PRODUKSI';
+
+    const events: CalendarEvent[] = [];
+    const seenProjectEventIds = new Set<string>();
+
+    for (const raw of eventsResponse.data) {
+      if (!raw.date) continue;
+      // RBAC: Filter out financial invoice due dates for PM and Produksi
+      if (raw.type === 'INVOICE_DUE' && isNonFinancialRole) {
+        continue;
+      }
+
+      const proj = projectMap.get(raw.projectId);
+      const rawDateStr = raw.date.slice(0, 10);
+
+      if (raw.type === 'EVENT') {
+        seenProjectEventIds.add(raw.projectId);
+        const startDate = proj?.startDate || proj?.projectStarts || rawDateStr;
+        const endDate = proj?.endDate || proj?.deadline || startDate;
+
+        events.push({
+          id: raw.id,
+          title: raw.title,
+          startDate,
+          endDate,
+          type: 'EVENT',
+          projectId: raw.projectId,
+          category: proj?.category,
+        });
+      } else {
+        events.push({
+          id: raw.id,
+          title: raw.title,
+          startDate: rawDateStr,
+          endDate: rawDateStr,
+          type: raw.type,
+          projectId: raw.projectId,
+          category: proj?.category,
+        });
+      }
+    }
+
+    // Include projects that have no eventDate on the backend but have startDate & endDate
+    for (const proj of projectsData.data) {
+      if (!seenProjectEventIds.has(proj.id)) {
+        const startDate = proj.startDate || proj.projectStarts;
+        if (startDate) {
+          const endDate = proj.endDate || proj.deadline || startDate;
+          events.push({
+            id: `evt-${proj.id}`,
+            title: proj.name,
+            startDate,
+            endDate,
+            type: 'EVENT',
+            projectId: proj.id,
+            category: proj.category,
+          });
+        }
+      }
+    }
+
+    return events;
   },
 
   getCategoryCounts: async (): Promise<{

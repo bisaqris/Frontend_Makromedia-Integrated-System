@@ -42,6 +42,7 @@ interface BackendQuotation {
   totalValue: number | string;
   status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED';
   notes?: string | null;
+  statusNote?: string | null;
   createdAt: string;
   items: BackendLineItem[];
   project?: { id: string; name: string };
@@ -52,10 +53,11 @@ interface BackendInvoice {
   projectId: string;
   invoiceNumber: string;
   amount: number | string;
-  status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE';
+  status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'PAID' | 'OVERDUE';
   dueDate?: string | null;
   paymentInstruction?: string | null;
   notes?: string | null;
+  statusNote?: string | null;
   createdAt: string;
   items: BackendLineItem[];
   project?: { id: string; name: string };
@@ -110,7 +112,12 @@ const mapQuotation = (
   applicationDocument: 'Quotation',
   applicationDate: formatDate(quotation.createdAt),
   totalCost: toNumber(quotation.totalValue),
-  status: quotation.status,
+  status:
+    quotation.status === 'REJECTED'
+      ? 'Revise'
+      : quotation.status === 'APPROVED'
+        ? 'Approved'
+        : quotation.status,
   venue: project.venue ?? undefined,
   eventDate: formatDate(project.eventDate),
   mainClient: project.client?.company?.name ?? project.client?.name,
@@ -120,7 +127,7 @@ const mapQuotation = (
   lineItems: mapLineItems(quotation.items),
   discountPercent: toNumber(quotation.discountPercent),
   pph: toNumber(quotation.taxAmount),
-  notes: quotation.notes ?? undefined,
+  notes: quotation.statusNote ?? quotation.notes ?? undefined,
 });
 
 const mapInvoice = (
@@ -133,7 +140,12 @@ const mapInvoice = (
   applicationDocument: 'Invoice',
   applicationDate: formatDate(invoice.createdAt),
   totalCost: toNumber(invoice.amount),
-  status: invoice.status,
+  status:
+    invoice.status === 'REJECTED'
+      ? 'Revise'
+      : invoice.status === 'APPROVED'
+        ? 'Approved'
+        : invoice.status,
   venue: project.venue ?? undefined,
   eventDate: formatDate(project.eventDate),
   mainClient: project.client?.company?.name ?? project.client?.name,
@@ -144,7 +156,7 @@ const mapInvoice = (
     project.contractValue == null ? undefined : toNumber(project.contractValue),
   lineItems: mapLineItems(invoice.items),
   paymentInstruction: invoice.paymentInstruction ?? undefined,
-  notes: invoice.notes ?? undefined,
+  notes: invoice.statusNote ?? invoice.notes ?? undefined,
 });
 
 const mapProductionCost = (
@@ -267,7 +279,10 @@ async function loadBackendItems(): Promise<ApplicationCostItem[]> {
       const response = await apiClient.get<BackendProductionCost[]>(
         `/production-costs/project/${project.id}`
       );
-      return response.data.map((cost) => mapProductionCost(cost, project));
+      const raw = Array.isArray(response.data)
+        ? response.data
+        : (response.data as { data: BackendProductionCost[] })?.data || [];
+      return raw.map((cost) => mapProductionCost(cost, project));
     } catch {
       return [];
     }
@@ -310,31 +325,34 @@ export const applicationCostService = {
     id: string,
     documentType?: ApplicationCostDocType
   ): Promise<ApplicationCostItem | null> => {
+    let item: ApplicationCostItem | null = null;
     if (USE_MOCK) {
-      return cloneMock(getMockStore().find((item) => item.id === id) ?? null);
-    }
-
-    if (documentType === 'Production Cost') {
-      return (await loadBackendItems()).find((item) => item.id === id) ?? null;
-    }
-
-    if (documentType === 'Quotation') {
+      item = cloneMock(getMockStore().find((i) => i.id === id) ?? null);
+    } else if (documentType === 'Production Cost') {
+      item = (await loadBackendItems()).find((i) => i.id === id) ?? null;
+    } else if (documentType === 'Quotation') {
       const response = await apiClient.get<BackendQuotation>(`/quotations/${id}`);
       const projectResponse = await apiClient.get<BackendProject>(
         `/projects/${response.data.projectId}`
       );
-      return mapQuotation(response.data, projectResponse.data);
-    }
-
-    if (documentType === 'Invoice') {
+      item = mapQuotation(response.data, projectResponse.data);
+    } else if (documentType === 'Invoice') {
       const response = await apiClient.get<BackendInvoice>(`/invoices/${id}`);
       const projectResponse = await apiClient.get<BackendProject>(
         `/projects/${response.data.projectId}`
       );
-      return mapInvoice(response.data, projectResponse.data);
+      item = mapInvoice(response.data, projectResponse.data);
+    } else {
+      item = (await loadBackendItems()).find((i) => i.id === id) ?? null;
     }
 
-    return (await loadBackendItems()).find((item) => item.id === id) ?? null;
+    if (item && typeof window !== 'undefined') {
+      const savedNote = localStorage.getItem(`app_cost_notes_${id}`);
+      if (savedNote) {
+        item.notes = savedNote;
+      }
+    }
+    return item;
   },
 
   updateStatus: async (
@@ -343,6 +361,10 @@ export const applicationCostService = {
     status: ApplicationCostStatus,
     notes?: string
   ): Promise<void> => {
+    if (notes !== undefined && typeof window !== 'undefined') {
+      localStorage.setItem(`app_cost_notes_${id}`, notes);
+    }
+
     if (USE_MOCK) {
       const item = getMockStore().find((record) => record.id === id);
       if (!item) throw new Error(`Dokumen dengan id "${id}" tidak ditemukan.`);
@@ -356,12 +378,13 @@ export const applicationCostService = {
 
     if (documentType === 'Production Cost') {
       if (status === 'APPROVED' || status === 'Approved') {
-        await apiClient.patch(`/production-costs/${id}/approve`);
+        await apiClient.patch(`/production-costs/${id}/approve`, { note: notes });
         return;
       }
       if (status === 'REJECTED' || status === 'Revise') {
         await apiClient.patch(`/production-costs/${id}/reject`, {
           rejectionNote: notes ?? '',
+          note: notes,
         });
         return;
       }
@@ -370,20 +393,34 @@ export const applicationCostService = {
 
     if (documentType === 'Quotation') {
       const apiStatus =
-        status === 'Approved' ? 'APPROVED' :
-        status === 'Revise' ? 'REJECTED' :
+        status === 'Approved' || status === 'APPROVED' ? 'APPROVED' :
+        status === 'Revise' || status === 'REJECTED' ? 'REJECTED' :
         status;
-      if (!['SENT', 'APPROVED', 'REJECTED'].includes(apiStatus)) {
-        throw new Error(`Status "${status}" tidak didukung untuk quotation.`);
+      if (!['APPROVED', 'REJECTED'].includes(apiStatus)) {
+        throw new Error(`Status "${status}" tidak didukung untuk quotation (hanya APPROVED atau REJECTED).`);
       }
-      await apiClient.patch(`/quotations/${id}/status`, { status: apiStatus });
+      await apiClient.patch(`/quotations/${id}/status`, {
+        status: apiStatus,
+        note: notes,
+      });
       return;
     }
 
-    const apiStatus = status.toUpperCase();
-    if (!['SENT', 'PAID', 'OVERDUE'].includes(apiStatus)) {
-      throw new Error(`Status "${status}" tidak didukung untuk invoice.`);
+    // Invoice status handling (v2 workflow: DRAFT -> APPROVED|REJECTED -> PAID|OVERDUE)
+    let apiStatus: string = status;
+    if (status === 'Approved' || status === 'APPROVED') {
+      apiStatus = 'APPROVED';
+    } else if (status === 'Revise' || status === 'REJECTED') {
+      apiStatus = 'REJECTED';
+    } else if (status === 'PAID') {
+      apiStatus = 'PAID';
+    } else if (status === 'OVERDUE') {
+      apiStatus = 'OVERDUE';
     }
-    await apiClient.patch(`/invoices/${id}/status`, { status: apiStatus });
+
+    await apiClient.patch(`/invoices/${id}/status`, {
+      status: apiStatus,
+      note: notes,
+    });
   },
 };

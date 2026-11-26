@@ -85,6 +85,20 @@ export const clientService = {
     return response.data.map(mapCompany);
   },
 
+  getCompanyById: async (id: string): Promise<ClientCompany | null> => {
+    if (USE_MOCK) {
+      const company = getCompanies().find((c) => c.id === id);
+      return company ? cloneMock(company) : null;
+    }
+    try {
+      const response = await apiClient.get<BackendCompanyClient>(`/company-clients/${id}`);
+      return mapCompany(response.data);
+    } catch {
+      const all = await clientService.getCompanies();
+      return all.find((c) => c.id === id) ?? null;
+    }
+  },
+
   createCompany: async (data: CreateClientCompanyDTO): Promise<ClientCompany> => {
     if (USE_MOCK) {
       const companies = getCompanies();
@@ -97,6 +111,34 @@ export const clientService = {
       return cloneMock(newCompany);
     }
     const response = await apiClient.post<BackendCompanyClient>('/company-clients', {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      country: data.country,
+      province: data.province,
+      city: data.city,
+      subdistrict: data.subdistrict,
+      village: data.village,
+      postalCode: data.postalCode,
+    });
+    return mapCompany(response.data);
+  },
+
+  updateCompany: async (
+    id: string,
+    data: Partial<CreateClientCompanyDTO>
+  ): Promise<ClientCompany> => {
+    if (USE_MOCK) {
+      const companies = getCompanies();
+      const idx = companies.findIndex((c) => c.id === id);
+      if (idx !== -1) {
+        companies[idx] = { ...companies[idx], ...data };
+        return cloneMock(companies[idx]);
+      }
+      throw new Error('Company Client tidak ditemukan.');
+    }
+    const response = await apiClient.patch<BackendCompanyClient>(`/company-clients/${id}`, {
       name: data.name,
       email: data.email,
       phone: data.phone,
@@ -126,6 +168,20 @@ export const clientService = {
     return response.data.map(mapPIC);
   },
 
+  getPICById: async (id: string): Promise<ClientPIC | null> => {
+    if (USE_MOCK) {
+      const pic = getPICs().find((p) => p.id === id);
+      return pic ? cloneMock(pic) : null;
+    }
+    try {
+      const response = await apiClient.get<BackendClient>(`/clients/${id}`);
+      return mapPIC(response.data);
+    } catch {
+      const all = await clientService.getPICs();
+      return all.find((p) => p.id === id) ?? null;
+    }
+  },
+
   createPIC: async (data: CreateClientPICDTO): Promise<ClientPIC> => {
     if (USE_MOCK) {
       const company = getCompanies().find(
@@ -151,6 +207,41 @@ export const clientService = {
 
     const response = await apiClient.post<BackendClient>('/clients', {
       companyClientId: company.id,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      address: data.companyAddress,
+      country: data.country,
+      province: data.province,
+      city: data.city,
+      subdistrict: data.subdistrict,
+      village: data.village,
+      postalCode: data.postalCode,
+    });
+    return mapPIC(response.data);
+  },
+
+  updatePIC: async (
+    id: string,
+    data: Partial<CreateClientPICDTO>
+  ): Promise<ClientPIC> => {
+    if (USE_MOCK) {
+      const pics = getPICs();
+      const idx = pics.findIndex((p) => p.id === id);
+      if (idx !== -1) {
+        pics[idx] = { ...pics[idx], ...data };
+        return cloneMock(pics[idx]);
+      }
+      throw new Error('PIC Client tidak ditemukan.');
+    }
+    let companyClientId = data.clientId;
+    if (!companyClientId && data.company) {
+      const companies = await clientService.getCompanies();
+      const found = companies.find((c) => c.name === data.company || c.id === data.company);
+      if (found) companyClientId = found.id;
+    }
+    const response = await apiClient.patch<BackendClient>(`/clients/${id}`, {
+      ...(companyClientId && { companyClientId }),
       name: data.name,
       email: data.email,
       phone: data.phone,

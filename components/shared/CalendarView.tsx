@@ -41,13 +41,13 @@ const CATEGORY_COLORS: Record<
 };
 
 const DAY_NAMES = [
-  "Minggu",
-  "Senin",
-  "Selasa",
-  "Rabu",
-  "Kamis",
-  "Jumat",
-  "Sabtu",
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 const formatDateKey = (date: Date): string => {
@@ -200,13 +200,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     <div className="bg-white select-none border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
       <div className="overflow-x-auto scrollbar-thin">
         <div className="min-w-175">
-          <div className="grid grid-cols-7 border-b border-slate-300 bg-slate-50/70 text-center">
+          <div className="grid grid-cols-7 border-b border-slate-200 bg-white text-center">
             {DAY_NAMES.map((name, idx) => (
               <div
                 key={name}
                 className={clsx(
-                  "py-2.5 text-xs font-semibold tracking-wider uppercase",
-                  idx === 0 || idx === 6 ? "text-red-500" : "text-slate-600",
+                  "py-3 text-xs font-semibold",
+                  idx === 0 || idx === 6 ? "text-[#FF7A7A]" : "text-slate-600",
                 )}
               >
                 {name}
@@ -245,15 +245,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div className="flex items-center justify-between">
                           <span
                             className={clsx(
-                              "text-xs font-semibold w-6 h-6 rounded-full flex items-center justify-center pointer-events-auto",
+                              "text-xs font-normal pointer-events-auto",
                               day.isToday
-                                ? "bg-primary text-white font-bold shadow-xs"
+                                ? "bg-primary text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-xs"
                                 : day.isCurrentMonth
-                                  ? "text-slate-800"
-                                  : "text-slate-400",
+                                  ? (dayIdx === 0 || dayIdx === 6 ? "text-[#FF7A7A]" : "text-slate-600")
+                                  : "text-slate-300",
                             )}
                           >
-                            {day.date.getDate()}
+                            {String(day.date.getDate()).padStart(2, "0")}
                           </span>
                         </div>
                       </div>
@@ -264,13 +264,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     {placedEvents.map((evt) => {
                       const event = evt.event;
                       const colorStyle =
-                        CATEGORY_COLORS[event.category || ""] ||
-                        CATEGORY_COLORS["Default"];
+                        event.type === "TASK"
+                          ? { bg: "bg-purple-600", text: "text-white", border: "border-purple-700" }
+                          : event.type === "INVOICE_DUE"
+                            ? { bg: "bg-rose-600", text: "text-white", border: "border-rose-700" }
+                            : (CATEGORY_COLORS[event.category || ""] || CATEGORY_COLORS["Default"]);
+
+                      const getTargetUrl = () => {
+                        if (event.type === "TASK") return `/projects/${event.projectId}?tab=task`;
+                        if (event.type === "INVOICE_DUE") return `/projects/${event.projectId}?tab=payment&subtab=invoice`;
+                        return `/projects/${event.projectId}?tab=info`;
+                      };
 
                       return (
                         <div
                           key={`evt-${event.id}-w${weekIdx}`}
-                          onClick={() => router.push(`/projects/${event.projectId}`)}
+                          onClick={() => router.push(getTargetUrl())}
                           style={{
                             gridColumnStart: evt.startCol + 1,
                             gridColumnEnd: `span ${evt.span}`,

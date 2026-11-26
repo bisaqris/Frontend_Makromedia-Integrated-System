@@ -36,9 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const cachedToken = getToken();
     const cachedUser = getUser();
+    const storedAvatar = typeof window !== 'undefined' ? localStorage.getItem('makromedia_user_avatar') : null;
 
     startTransition(() => {
       if (cachedToken && cachedUser) {
+        if (storedAvatar && !cachedUser.avatarUrl) {
+          cachedUser.avatarUrl = storedAvatar;
+        }
         setTokenState(cachedToken);
         setUserState(cachedUser);
       }
@@ -50,6 +54,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveToken(newToken);
     if (newRefreshToken) {
       setRefreshToken(newRefreshToken);
+    }
+    const storedAvatar = typeof window !== 'undefined' ? localStorage.getItem('makromedia_user_avatar') : null;
+    if (storedAvatar && !newUser.avatarUrl) {
+      newUser.avatarUrl = storedAvatar;
     }
     saveUser(newUser);
     setTokenState(newToken);

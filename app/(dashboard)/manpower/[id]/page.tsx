@@ -121,9 +121,20 @@ export default function DetailManpowerPage({ params }: { params: Promise<{ id: s
 
           <div className="md:col-span-2">
             <p className="text-xs text-gray-400 font-medium">Skill & Expertise</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">
-              {data.skills && data.skills.length > 0 ? data.skills.join(', ') : '-'}
-            </p>
+            {data.skills && data.skills.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                {data.skills.map((sk) => (
+                  <span
+                    key={sk}
+                    className="bg-blue-50 text-blue-600 px-3 py-1 rounded-md text-xs font-medium"
+                  >
+                    {sk}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-gray-900 mt-1">-</p>
+            )}
           </div>
 
           <div>

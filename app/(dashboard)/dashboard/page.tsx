@@ -35,11 +35,7 @@ const EMPTY_FINANCIAL_TOTALS: FinancialDashboardSummary = {
 };
 
 const formatRupiah = (value: number) => {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return `Rp${(value || 0).toLocaleString('id-ID')}`;
 };
 
 const MONTH_OPTIONS = [
@@ -56,6 +52,11 @@ const MONTH_OPTIONS = [
   { value: "10", label: "November" },
   { value: "11", label: "Desember" },
 ];
+
+const YEAR_OPTIONS = Array.from({ length: 11 }, (_, i) => {
+  const y = new Date().getFullYear() - 3 + i;
+  return { value: y.toString(), label: y.toString() };
+});
 
 export default function DashboardPage() {
   const { role } = useAuth();
@@ -111,7 +112,7 @@ export default function DashboardPage() {
           0,
         ).toISOString();
 
-        setEvents(await dashboardService.getCalendarEvents({ start, end }));
+        setEvents(await dashboardService.getCalendarEvents({ start, end }, role || undefined));
       } catch {
         setEvents([]);
         showToast.error('Gagal memuat event kalender.');
@@ -121,7 +122,7 @@ export default function DashboardPage() {
     };
 
     fetchCalendarData();
-  }, [currentDate]);
+  }, [currentDate, role]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<ProjectCategory, number> = {
@@ -149,6 +150,11 @@ export default function DashboardPage() {
     setCurrentDate(new Date(currentDate.getFullYear(), selectedMonth, 1));
   };
 
+  const handleYearSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedYear = parseInt(e.target.value, 10);
+    setCurrentDate(new Date(selectedYear, currentDate.getMonth(), 1));
+  };
+
   const handlePrevMonth = () => {
     setCurrentDate(
       new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
@@ -167,10 +173,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white py-4 sm:py-5 border-y border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-1">
         <div>
-          <p className="text-lg sm:text-xl font-bold text-slate-900 leading-none">
-            {currentDate.toLocaleDateString("id-ID", {
+          <p className="text-xl sm:text-2xl font-bold text-slate-900 leading-none">
+            {currentDate.toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",
             })}
@@ -188,13 +194,13 @@ export default function DashboardPage() {
               onClick={handleToday}
               className="h-full px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
             >
-              Hari Ini
+              Today
             </button>
             <button
               type="button"
               onClick={handlePrevMonth}
               className="h-full w-9 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
-              title="Bulan Sebelumnya"
+              title="Previous Month"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -202,17 +208,26 @@ export default function DashboardPage() {
               type="button"
               onClick={handleNextMonth}
               className="h-full w-9 flex items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
-              title="Bulan Berikutnya"
+              title="Next Month"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="w-40 sm:w-32">
+          <div className="w-36">
             <Select
               value={currentDate.getMonth().toString()}
               onChange={handleMonthSelect}
               options={MONTH_OPTIONS}
+              className="h-9 py-0 text-xs bg-white border-slate-200 hover:border-slate-300 rounded-lg font-semibold leading-none flex items-center shadow-2xs"
+            />
+          </div>
+
+          <div className="w-28">
+            <Select
+              value={currentDate.getFullYear().toString()}
+              onChange={handleYearSelect}
+              options={YEAR_OPTIONS}
               className="h-9 py-0 text-xs bg-white border-slate-200 hover:border-slate-300 rounded-lg font-semibold leading-none flex items-center shadow-2xs"
             />
           </div>
@@ -221,56 +236,40 @@ export default function DashboardPage() {
 
       {isFinancialView ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-[#006AFF] text-white rounded-2xl p-5 shadow-xs border border-blue-700 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-blue-100">
-                Total Contract Value
-              </span>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
-                {formatRupiah(financialTotals.totalContractValue)}
-              </p>
-            </div>
+          <div className="bg-[#0066FF] text-white rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <span className="text-sm font-medium text-white/90 mb-3">
+              Total Contract Value
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-white">
+              {formatRupiah(financialTotals.totalContractValue)}
+            </p>
           </div>
 
-          <div className="bg-[#12B76A] text-white rounded-2xl p-5 shadow-xs border border-emerald-700 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-100">
-                Total Paid
-              </span>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
-                {formatRupiah(financialTotals.totalPaid)}
-              </p>
-            </div>
+          <div className="bg-[#00B074] text-white rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <span className="text-sm font-medium text-white/90 mb-3">
+              Total Paid
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-white">
+              {formatRupiah(financialTotals.totalPaid)}
+            </p>
           </div>
 
-          <div className="bg-[#EAB308] text-white rounded-2xl p-5 shadow-xs border border-amber-600 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-100">
-                Rest of the Bill
-              </span>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
-                {formatRupiah(financialTotals.restOfBill)}
-              </p>
-            </div>
+          <div className="bg-[#E5A800] text-white rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <span className="text-sm font-medium text-white/90 mb-3">
+              Rest of the Bill
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-white">
+              {formatRupiah(financialTotals.restOfBill)}
+            </p>
           </div>
 
-          <div className="bg-[#F97316] text-white rounded-2xl p-5 shadow-xs border border-orange-600 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-orange-100">
-                Total Project Cost
-              </span>
-            </div>
-            <div>
-              <p className="text-xl sm:text-2xl font-semibold tracking-tight">
-                {formatRupiah(financialTotals.totalProjectCost)}
-              </p>
-            </div>
+          <div className="bg-[#FF5B26] text-white rounded-xl p-5 shadow-xs flex flex-col justify-between">
+            <span className="text-sm font-medium text-white/90 mb-3">
+              Total Project Cost
+            </span>
+            <p className="text-2xl font-bold tracking-tight text-white">
+              {formatRupiah(financialTotals.totalProjectCost)}
+            </p>
           </div>
         </div>
       ) : (
