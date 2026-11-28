@@ -285,17 +285,25 @@ export default function ProfilePage() {
     try {
       // Cari positionId berdasarkan nama posisi yang dipilih
       const trimmedPosition = formData.position.trim();
-      const matchedPosition = positionsList.find(
+      let matchedPosition = positionsList.find(
         (p) => p.name.trim().toLowerCase() === trimmedPosition.toLowerCase()
       );
 
       let positionId: string | null = matchedPosition ? matchedPosition.id : null;
       if (!positionId && trimmedPosition) {
         try {
-          const newPos = await positionService.create({ name: trimmedPosition });
-          positionId = newPos.id;
-          setPositionsList((prev) => [...prev, newPos]);
-          setPositionOptions((prev) => [...prev, newPos.name]);
+          const freshPositions = await positionService.getAll();
+          const found = freshPositions.find(
+            (p) => p.name.trim().toLowerCase() === trimmedPosition.toLowerCase()
+          );
+          if (found) {
+            positionId = found.id;
+          } else {
+            const newPos = await positionService.create({ name: trimmedPosition });
+            positionId = newPos.id;
+            setPositionsList((prev) => [...prev, newPos]);
+            setPositionOptions((prev) => [...prev, newPos.name]);
+          }
         } catch {
           // Abaikan jika tidak diizinkan membuat posisi baru
         }

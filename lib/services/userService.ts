@@ -8,13 +8,64 @@ const getStoredAvatar = (): string | undefined => {
   return localStorage.getItem('makromedia_user_avatar') || undefined;
 };
 
+const USER_PROFILE_KEY = 'makromedia_user_profile';
+const ASSIGNED_POSITIONS_KEY = 'makromedia_user_assigned_positions';
+const ASSIGNED_SKILLS_KEY = 'makromedia_user_assigned_skills';
+
+const persistUserPosition = (email: string, position?: string, positionId?: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(ASSIGNED_POSITIONS_KEY) || '{}';
+    const map = JSON.parse(raw);
+    const key = email ? email.trim().toLowerCase() : 'current_user';
+    map[key] = {
+      position: position || '',
+      positionId: positionId || '',
+    };
+    localStorage.setItem(ASSIGNED_POSITIONS_KEY, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+};
+
+const persistUserSkills = (email: string, skills?: string[], skillIds?: string[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(ASSIGNED_SKILLS_KEY) || '{}';
+    const map = JSON.parse(raw);
+    const key = email ? email.trim().toLowerCase() : 'current_user';
+    map[key] = {
+      skills: Array.isArray(skills) ? skills : [],
+      skillIds: Array.isArray(skillIds) ? skillIds : [],
+    };
+    localStorage.setItem(ASSIGNED_SKILLS_KEY, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+};
+
 // Store in-memory untuk mode mock (direset saat halaman di-reload).
 let profileStore: UserProfile | null = null;
 const getProfileStore = (): UserProfile => {
-  const store = (profileStore ??= cloneMock(mockUserProfile));
+  if (!profileStore) {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem(USER_PROFILE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            profileStore = parsed;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    profileStore ??= cloneMock(mockUserProfile);
+  }
   const storedAvatar = getStoredAvatar();
-  if (storedAvatar) store.photoUrl = storedAvatar;
-  return store;
+  if (storedAvatar) profileStore.photoUrl = storedAvatar;
+  return profileStore;
 };
 
 interface BackendUserProfile {
@@ -93,6 +144,15 @@ export const userService = {
 
     if (USE_MOCK) {
       profileStore = mergeProfile(getProfileStore(), data);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profileStore));
+        } catch {
+          // ignore
+        }
+      }
+      persistUserPosition(data.email || profileStore.email, data.position, data.positionId);
+      persistUserSkills(data.email || profileStore.email, data.skills, data.skillIds);
       return cloneMock(profileStore);
     }
 
@@ -125,6 +185,17 @@ export const userService = {
       const response = await apiClient.patch<BackendUserProfile>('/auth/me', payload);
       const base = getProfileStore();
       profileStore = mapBackendProfile(response.data, base);
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(profileStore));
+        } catch {
+          // ignore
+        }
+      }
+      persistUserPosition(profileStore.email, profileStore.position, data.positionId);
+      persistUserSkills(profileStore.email, profileStore.skills, data.skillIds);
+
       return cloneMock(profileStore);
     } catch (err) {
       throw err;

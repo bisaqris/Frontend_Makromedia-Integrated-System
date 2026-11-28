@@ -53,6 +53,55 @@ interface BackendPosition {
   _count?: { users: number; manpower: number };
 }
 
+interface AssignedUserPosition {
+  position?: string;
+  positionId?: string;
+}
+
+const getAssignedUserPositions = (): AssignedUserPosition[] => {
+  if (typeof window === 'undefined') return [];
+  const results: AssignedUserPosition[] = [];
+  try {
+    const raw = localStorage.getItem('makromedia_user_assigned_positions');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'object' && parsed !== null) {
+        results.push(...(Object.values(parsed) as AssignedUserPosition[]));
+      }
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const rawProfile = localStorage.getItem('makromedia_user_profile');
+    if (rawProfile) {
+      const parsed = JSON.parse(rawProfile);
+      if (parsed && (parsed.position || parsed.positionId)) {
+        results.push({ position: parsed.position, positionId: parsed.positionId });
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return results;
+};
+
+const countAssignedPositions = (pId: string, pName: string, assigned: AssignedUserPosition[]): number => {
+  const pNameLower = pName.trim().toLowerCase();
+  return assigned.filter((u) => {
+    if (u.positionId && u.positionId === pId) return true;
+    const uPos = (u.position || '').trim().toLowerCase();
+    if (uPos && uPos === pNameLower) return true;
+    if (
+      (pNameLower === 'production' || pNameLower === 'produksi') &&
+      (uPos === 'production' || uPos === 'produksi')
+    ) {
+      return true;
+    }
+    return false;
+  }).length;
+};
+
 const mapBackendPosition = (item: BackendPosition): Position => ({
   id: item.id,
   name: item.name,
@@ -66,6 +115,7 @@ export const positionService = {
     if (USE_MOCK) {
       const store = getMockStore();
       const mockEmps = getMockManpowerStore();
+      const assignedUsers = getAssignedUserPositions();
       let mockUsersList: Array<{ role?: string; department?: string }> = [];
       try {
         const { mockUsers } = await import('@/lib/mock/users.mock');
@@ -108,7 +158,10 @@ export const positionService = {
             return false;
           }).length;
 
-          const dynamicCount = matchedEmps + matchedUsers;
+          // 3. Hitung user yang memilih posisi ini di halaman Profile (misalnya Sales memilih 'Actor')
+          const matchedAssigned = countAssignedPositions(p.id, p.name, assignedUsers);
+
+          const dynamicCount = matchedEmps + matchedUsers + matchedAssigned;
           const baseline = p.usedBy ?? 0;
 
           return {
@@ -143,6 +196,8 @@ export const positionService = {
           ? userRes.value.data
           : [];
 
+      const assignedUsers = getAssignedUserPositions();
+
       return rawPositions.map((item) => {
         const mapped = mapBackendPosition(item);
         const pNameLower = item.name.trim().toLowerCase();
@@ -170,7 +225,10 @@ export const positionService = {
             ? prodUsers.filter((u) => u.role === 'PRODUKSI' || !u.role).length
             : 0;
 
-        mapped.usedBy = Math.max(dbCount, matchedManpower + matchedProdUsers);
+        // 4. Count users that assigned this position in their Profile
+        const matchedAssigned = countAssignedPositions(item.id, item.name, assignedUsers);
+
+        mapped.usedBy = Math.max(dbCount, matchedManpower + matchedProdUsers + matchedAssigned);
         return mapped;
       });
     } catch {

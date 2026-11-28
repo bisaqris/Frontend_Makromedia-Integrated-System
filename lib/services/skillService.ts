@@ -53,6 +53,53 @@ interface BackendSkill {
   _count?: { manpower: number; users?: number };
 }
 
+interface AssignedUserSkill {
+  skills?: string[];
+  skillIds?: string[];
+}
+
+const getAssignedUserSkills = (): AssignedUserSkill[] => {
+  if (typeof window === 'undefined') return [];
+  const results: AssignedUserSkill[] = [];
+  try {
+    const raw = localStorage.getItem('makromedia_user_assigned_skills');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === 'object' && parsed !== null) {
+        results.push(...(Object.values(parsed) as AssignedUserSkill[]));
+      }
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const rawProfile = localStorage.getItem('makromedia_user_profile');
+    if (rawProfile) {
+      const parsed = JSON.parse(rawProfile);
+      if (parsed && (Array.isArray(parsed.skills) || Array.isArray(parsed.skillIds))) {
+        results.push({ skills: parsed.skills, skillIds: parsed.skillIds });
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return results;
+};
+
+const countAssignedSkills = (sId: string, sName: string, assigned: AssignedUserSkill[]): number => {
+  const sNameLower = sName.trim().toLowerCase();
+  return assigned.filter((u) => {
+    if (Array.isArray(u.skillIds) && u.skillIds.includes(sId)) return true;
+    if (Array.isArray(u.skills)) {
+      return u.skills.some((sk) => {
+        const skLower = (sk || '').trim().toLowerCase();
+        return skLower === sNameLower || sNameLower.includes(skLower) || skLower.includes(sNameLower);
+      });
+    }
+    return false;
+  }).length;
+};
+
 const mapBackendSkill = (item: BackendSkill): Skill => ({
   id: item.id,
   name: item.name,
@@ -66,6 +113,7 @@ export const skillService = {
     if (USE_MOCK) {
       const store = getMockStore();
       const mockEmps = getMockManpowerStore();
+      const assignedSkills = getAssignedUserSkills();
       return cloneMock(
         store.map((s) => {
           const sNameLower = s.name.trim().toLowerCase();
@@ -75,10 +123,12 @@ export const skillService = {
               return skLower === sNameLower || sNameLower.includes(skLower) || skLower.includes(sNameLower);
             })
           ).length;
+
+          const matchedAssigned = countAssignedSkills(s.id, s.name, assignedSkills);
           const baseline = s.usedBy ?? 0;
           return {
             ...s,
-            usedBy: Math.max(baseline, matchedEmps),
+            usedBy: Math.max(baseline, matchedEmps + matchedAssigned),
           };
         })
       );
@@ -102,6 +152,8 @@ export const skillService = {
           ? mpRes.value.data.data
           : [];
 
+      const assignedSkills = getAssignedUserSkills();
+
       return rawSkills.map((item) => {
         const mapped = mapBackendSkill(item);
         const sNameLower = item.name.trim().toLowerCase();
@@ -119,7 +171,9 @@ export const skillService = {
           return false;
         }).length;
 
-        mapped.usedBy = Math.max(dbCount, matchedManpower);
+        const matchedAssigned = countAssignedSkills(item.id, item.name, assignedSkills);
+
+        mapped.usedBy = Math.max(dbCount, matchedManpower + matchedAssigned);
         return mapped;
       });
     } catch {

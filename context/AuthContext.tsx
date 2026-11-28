@@ -64,18 +64,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserState(newUser);
   }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
     const refreshToken = getRefreshToken();
     if (refreshToken) {
-      try {
-        await apiClient.post('/auth/logout', { refreshToken });
-      } catch {
-        // Abaikan error jaringan saat logout
-      }
+      // Kirim pencabutan refresh token ke server di latar belakang (fire-and-forget) tanpa menahan navigasi
+      apiClient.post('/auth/logout', { refreshToken }).catch(() => {});
     }
     clearAuth();
     setTokenState(null);
     setUserState(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   }, []);
 
   const updateUser = useCallback((updated: Partial<User>) => {

@@ -46,14 +46,9 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
     );
   }
 
-  // Unauthenticated users -> display spinner while useEffect performs redirect
+  // Unauthenticated users -> return null while redirect is performed
   if (!isAuthenticated) {
-    return (
-      <div className="flex min-h-50 w-full items-center justify-center p-6 text-slate-400">
-        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-        <span className="text-sm font-medium">Mengalihkan ke halaman login...</span>
-      </div>
-    );
+    return null;
   }
 
   // Authenticated users lacking access to the allowed roles
