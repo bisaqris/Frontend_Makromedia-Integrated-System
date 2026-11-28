@@ -39,14 +39,31 @@ export default function InvoiceDetailPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
   const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
+    // Immediately hydrate latest invoice setting on client mount
+    setInvoiceSetting(invoiceSettingService.getSetting());
+
+    let isMounted = true;
+    invoiceSettingService
+      .fetchFromBackend()
+      .then((fresh) => {
+        if (isMounted && fresh) {
+          setInvoiceSetting(fresh);
+        }
+      })
+      .catch(() => {});
+
     const handleSettingUpdate = () => {
-      setInvoiceSetting(invoiceSettingService.getSetting());
+      if (isMounted) {
+        setInvoiceSetting(invoiceSettingService.getSetting());
+      }
     };
     window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
     window.addEventListener('storage', handleSettingUpdate);
     return () => {
+      isMounted = false;
       window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
       window.removeEventListener('storage', handleSettingUpdate);
     };
@@ -79,11 +96,22 @@ export default function InvoiceDetailPage() {
     message: string,
     tone: 'success' | 'info'
   ) => {
+    setIsSubmitting(true);
     try {
       await applicationCostService.updateStatus(id, 'Invoice', status, notes);
+      setItem((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: status === 'REJECTED' ? 'Revise' : status === 'APPROVED' ? 'Approved' : status,
+              notes,
+            }
+          : prev
+      );
       showToast[tone](message);
       router.push('/application-cost');
     } catch {
+      setIsSubmitting(false);
       showToast.error('Gagal memperbarui status pengajuan.');
     }
   };
@@ -125,6 +153,9 @@ export default function InvoiceDetailPage() {
   const previousPayment = item.previousPayment ?? 0;
   const contractVal = Math.max(0, subTotal - (subTotal * discountPercent) / 100 + effectivePph);
   const invoiceAmount = Math.max(0, contractVal - previousPayment);
+  const rawSignerName = invoiceSetting.signerName || item.projectOfficer || 'Budi Santoso';
+  const signerName = rawSignerName.replace(/\s*\([^)]*\)/g, '').trim();
+  const signerPosition = invoiceSetting.signerPosition || 'Penanggung Jawab';
   const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
     ? invoiceSetting.bankAccounts
     : (item.bankAccounts || []);
@@ -152,7 +183,8 @@ export default function InvoiceDetailPage() {
               Bill From
             </span>
             <h3 className="text-base font-bold text-slate-800">{profile?.name || '-'}</h3>
-            <p className="text-xs font-bold text-[#0066ff]">{item.projectOfficer || '-'}</p>
+            <p className="text-xs font-bold text-[#0066ff]">{signerName}</p>
+            <p className="text-[11px] text-slate-400 font-normal">{signerPosition}</p>
             <p className="text-xs text-slate-500 font-normal">{profile?.address || '-'}</p>
             <p className="text-xs text-slate-500 font-normal">{profile?.email || '-'}</p>
           </div>
@@ -365,23 +397,37 @@ export default function InvoiceDetailPage() {
       </div>
 
       {/* Card 8: Notes Textarea Box */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2 shadow-2xs">
-        <label htmlFor="invoice-notes" className="text-xs font-medium text-slate-500 block">
-          Notes
-        </label>
-        <textarea
-          id="invoice-notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={item.status === 'PAID' || item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise' ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
-          disabled={item.status === 'PAID' || item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise'}
-          className={`w-full min-h-[100px] border rounded-xl p-3.5 text-xs sm:text-sm resize-y transition-colors ${
-            item.status === 'PAID' || item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise'
-              ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
-              : 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary'
-          }`}
-        />
-      </div>
+      {(() => {
+        const isNotesDisabled =
+          !item ||
+          isSubmitting ||
+          item.status === 'PAID' ||
+          item.status === 'APPROVED' ||
+          item.status === 'Approved' ||
+          item.status === 'REJECTED' ||
+          item.status === 'Revise';
+
+        return (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2 shadow-2xs">
+            <label htmlFor="invoice-notes" className="text-xs font-medium text-slate-500 block">
+              Notes
+            </label>
+            <textarea
+              id="invoice-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={isNotesDisabled ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
+              disabled={isNotesDisabled}
+              readOnly={isNotesDisabled}
+              className={`w-full min-h-[100px] border rounded-xl p-3.5 text-xs sm:text-sm resize-y transition-colors ${
+                isNotesDisabled
+                  ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                  : 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-primary'
+              }`}
+            />
+          </div>
+        );
+      })()}
 
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
         <Button
@@ -400,10 +446,11 @@ export default function InvoiceDetailPage() {
               type="button"
               variant="outline"
               size="md"
-              className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-[#f97316] hover:bg-orange-50 font-semibold rounded-xl"
+              disabled={isSubmitting}
+              className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-[#f97316] hover:bg-orange-50 font-semibold rounded-xl disabled:opacity-50"
               onClick={() => handleStatusUpdate('REJECTED', `Invoice (${item?.projectName ?? ''}) perlu direvisi.`, 'info')}
             >
-              Revise
+              {isSubmitting ? 'Memproses...' : 'Revise'}
             </Button>
           )}
           <Button
@@ -421,10 +468,11 @@ export default function InvoiceDetailPage() {
               type="button"
               variant="primary"
               size="md"
-              className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
+              disabled={isSubmitting}
+              className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl disabled:opacity-50"
               onClick={() => handleStatusUpdate('APPROVED', `Invoice (${item?.projectName ?? ''}) berhasil disetujui!`, 'success')}
             >
-              Approve
+              {isSubmitting ? 'Memproses...' : 'Approve'}
             </Button>
           )}
         </div>

@@ -826,7 +826,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
             ]}
             activeTab={imageTab}
             onChange={(id) => setImageTab(id as 'upload' | 'url')}
-            variant="pills"
+            variant="line"
+            className="mb-4"
           />
 
           {imageTab === 'upload' ? (

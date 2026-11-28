@@ -23,18 +23,18 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   onSave,
   editItem,
 }) => {
-  const [masterCategories, setMasterCategories] = useState<string[]>(() => {
-    return costCategoryService.getActiveNamesSync();
-  });
+  const [masterCategories, setMasterCategories] = useState<string[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       costCategoryService
         .getActiveNames()
         .then((names) => {
-          if (names && names.length > 0) setMasterCategories(names);
+          setMasterCategories(names ?? []);
         })
-        .catch(() => {});
+        .catch(() => {
+          setMasterCategories([]);
+        });
     }
   }, [isOpen]);
 
@@ -50,7 +50,7 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
   const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
 
   const [category, setCategory] = useState(
-    editItem ? editItem.category || availableCategories[0] || '' : availableCategories[0] || ''
+    editItem ? editItem.category || '' : ''
   );
   const [description, setDescription] = useState(editItem ? editItem.description || '' : '');
   const [executor, setExecutor] = useState(editItem ? editItem.executor || '' : '');
@@ -69,7 +69,7 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
     if (isOpen) {
       setErrors({});
       if (editItem) {
-        setCategory(editItem.category || availableCategories[0] || '');
+        setCategory(editItem.category || '');
         setDescription(editItem.description || '');
         setExecutor(editItem.executor || '');
         setUnitCost(editItem.unitCost !== undefined ? String(editItem.unitCost) : '');
@@ -78,7 +78,7 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
         setFreq(editItem.freq !== undefined ? String(editItem.freq) : '1');
         setPeriod(editItem.period || '');
       } else {
-        setCategory(availableCategories[0] || '');
+        setCategory('');
         setDescription('');
         setExecutor('');
         setUnitCost('');
@@ -89,6 +89,13 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
       }
     }
   }
+
+  // Once categories load, if creating a new item and category is empty, default to the first available category if exists
+  useEffect(() => {
+    if (isOpen && !editItem && !category && availableCategories.length > 0) {
+      setCategory(availableCategories[0]);
+    }
+  }, [isOpen, editItem, category, availableCategories]);
 
   const categoryOptions = useMemo(
     () => availableCategories.map((c) => ({ value: c, label: c })),
@@ -152,8 +159,14 @@ export const AddCostItemModal: React.FC<AddCostItemModalProps> = ({
             setCategory(e.target.value);
             setErrors((prev) => ({ ...prev, category: '' }));
           }}
+          placeholder={categoryOptions.length === 0 ? 'Belum ada kategori biaya' : 'Pilih kategori...'}
           options={categoryOptions}
           error={errors.category}
+          helperText={
+            categoryOptions.length === 0
+              ? '*Belum ada kategori aktif. Silakan tambahkan kategori di menu Setting Category Cost terlebih dahulu.'
+              : undefined
+          }
         />
         <Input
           label="Deskripsi"

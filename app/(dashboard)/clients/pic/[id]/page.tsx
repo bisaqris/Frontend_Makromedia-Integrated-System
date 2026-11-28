@@ -96,46 +96,58 @@ export default function DetailPICClientPage({
             <p className="text-sm font-semibold text-gray-900 mt-1">{data.email || '-'}</p>
           </div>
 
-          <div className="md:col-span-2">
-            <p className="text-xs text-gray-400 font-medium">Company Address</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.companyAddress || '-'}</p>
-          </div>
+          {data.companyAddress && (
+            <>
+              <div className="md:col-span-2">
+                <p className="text-xs text-gray-400 font-medium">Company Address</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{data.companyAddress}</p>
+              </div>
 
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Country</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.country || 'Indonesia'}</p>
-          </div>
+              {data.country && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">Country</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">{data.country}</p>
+                </div>
+              )}
 
-          <div>
-            <p className="text-xs text-gray-400 font-medium">
-              {!data.country || data.country === 'Indonesia' ? 'Province' : 'State / Province'}
-            </p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.province || '-'}</p>
-          </div>
+              {data.province && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">
+                    {!data.country || data.country === 'Indonesia' ? 'Province' : 'State / Province'}
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">{data.province}</p>
+                </div>
+              )}
 
-          <div>
-            <p className="text-xs text-gray-400 font-medium">City</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.city || '-'}</p>
-          </div>
+              {data.city && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">City</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">{data.city}</p>
+                </div>
+              )}
 
-          {(!data.country || data.country === 'Indonesia' || (data.subdistrict && data.subdistrict !== '-')) && (
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Subdistrict</p>
-              <p className="text-sm font-semibold text-gray-900 mt-1">{data.subdistrict || '-'}</p>
-            </div>
+              {data.subdistrict && data.subdistrict !== '-' && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">Subdistrict</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">{data.subdistrict}</p>
+                </div>
+              )}
+
+              {data.village && data.village !== '-' && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">Village</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">{data.village}</p>
+                </div>
+              )}
+
+              {data.postalCode && (
+                <div>
+                  <p className="text-xs text-gray-400 font-medium">Postal Code</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1">{data.postalCode}</p>
+                </div>
+              )}
+            </>
           )}
-
-          {(!data.country || data.country === 'Indonesia' || (data.village && data.village !== '-')) && (
-            <div>
-              <p className="text-xs text-gray-400 font-medium">Village</p>
-              <p className="text-sm font-semibold text-gray-900 mt-1">{data.village || '-'}</p>
-            </div>
-          )}
-
-          <div>
-            <p className="text-xs text-gray-400 font-medium">Postal Code</p>
-            <p className="text-sm font-semibold text-gray-900 mt-1">{data.postalCode || '-'}</p>
-          </div>
         </div>
       </div>
 

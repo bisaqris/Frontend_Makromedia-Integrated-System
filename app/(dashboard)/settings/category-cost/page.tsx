@@ -237,10 +237,10 @@ function CategoryCostContent() {
                           </td>
                           <td className="px-4 py-3.5 text-center">
                             <span
-                              className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold border ${
+                              className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold border ${
                                 cat.status === 'INACTIVE'
-                                  ? 'border-zinc-300 bg-zinc-50 text-zinc-400'
-                                  : 'border-emerald-400 bg-emerald-50 text-emerald-600'
+                                  ? 'border-slate-200 bg-slate-100 text-slate-500'
+                                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               }`}
                             >
                               {cat.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'}
@@ -260,6 +260,12 @@ function CategoryCostContent() {
                               </button>
                               <button
                                 onClick={() => {
+                                  if ((cat.usedCount ?? 0) > 0) {
+                                    toast.error(
+                                      `Kategori "${cat.name}" sedang digunakan oleh ${cat.usedCount} item biaya produksi dan tidak dapat dihapus. Silakan ubah status menjadi INACTIVE sebagai alternatif.`
+                                    );
+                                    return;
+                                  }
                                   setDeletingCategory(cat);
                                   setIsDeleteOpen(true);
                                 }}
@@ -287,10 +293,10 @@ function CategoryCostContent() {
                           {cat.name}
                         </span>
                         <span
-                          className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                          className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
                             cat.status === 'INACTIVE'
-                              ? 'border-zinc-300 bg-zinc-50 text-zinc-400'
-                              : 'border-emerald-400 bg-emerald-50 text-emerald-600'
+                              ? 'border-slate-200 bg-slate-100 text-slate-500'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                           }`}
                         >
                           {cat.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'}
@@ -308,6 +314,12 @@ function CategoryCostContent() {
                           </button>
                           <button
                             onClick={() => {
+                              if ((cat.usedCount ?? 0) > 0) {
+                                toast.error(
+                                  `Kategori "${cat.name}" sedang digunakan oleh ${cat.usedCount} item biaya produksi dan tidak dapat dihapus. Silakan ubah status menjadi INACTIVE sebagai alternatif.`
+                                );
+                                return;
+                              }
                               setDeletingCategory(cat);
                               setIsDeleteOpen(true);
                             }}
@@ -402,16 +414,16 @@ function CategoryCostContent() {
                       onClick={() => field.onChange('ACTIVE')}
                       className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-all ${
                         field.value === 'ACTIVE'
-                          ? 'border-blue-500 bg-blue-50/20 ring-1 ring-blue-500'
-                          : 'border-zinc-200 bg-white hover:border-zinc-300'
+                          ? 'border-primary bg-primary-50/30 ring-1 ring-primary'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
                       <div className="mt-0.5">
                         <div
                           className={`h-4 w-4 rounded-full border flex items-center justify-center ${
                             field.value === 'ACTIVE'
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-zinc-300 bg-white'
+                              ? 'border-primary bg-primary'
+                              : 'border-slate-300 bg-white'
                           }`}
                         >
                           {field.value === 'ACTIVE' && (
@@ -420,10 +432,10 @@ function CategoryCostContent() {
                         </div>
                       </div>
                       <div>
-                        <span className="block text-xs font-semibold text-zinc-900">
+                        <span className="block text-xs font-semibold text-slate-800">
                           Active
                         </span>
-                        <span className="block text-[10px] text-zinc-400 mt-0.5 leading-tight">
+                        <span className="block text-[10px] text-slate-400 mt-0.5 leading-tight">
                           Bisa dipakai di proyek
                         </span>
                       </div>
@@ -433,16 +445,16 @@ function CategoryCostContent() {
                       onClick={() => field.onChange('INACTIVE')}
                       className={`relative flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-all ${
                         field.value === 'INACTIVE'
-                          ? 'border-blue-500 bg-blue-50/20 ring-1 ring-blue-500'
-                          : 'border-zinc-200 bg-white hover:border-zinc-300'
+                          ? 'border-primary bg-primary-50/30 ring-1 ring-primary'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
                       <div className="mt-0.5">
                         <div
                           className={`h-4 w-4 rounded-full border flex items-center justify-center ${
                             field.value === 'INACTIVE'
-                              ? 'border-blue-600 bg-blue-600'
-                              : 'border-zinc-300 bg-white'
+                              ? 'border-primary bg-primary'
+                              : 'border-slate-300 bg-white'
                           }`}
                         >
                           {field.value === 'INACTIVE' && (
@@ -451,10 +463,10 @@ function CategoryCostContent() {
                         </div>
                       </div>
                       <div>
-                        <span className="block text-xs font-semibold text-zinc-900">
+                        <span className="block text-xs font-semibold text-slate-800">
                           Inactive
                         </span>
-                        <span className="block text-[10px] text-zinc-400 mt-0.5 leading-tight">
+                        <span className="block text-[10px] text-slate-400 mt-0.5 leading-tight">
                           Tidak muncul di pilihan
                         </span>
                       </div>
@@ -467,14 +479,14 @@ function CategoryCostContent() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
                 >
                   Reset
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-primary-700 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? (
                     <>
@@ -511,7 +523,7 @@ function CategoryCostContent() {
 
 export default function CategoryCostPage() {
   return (
-    <RoleGuard allowed={['DIREKTUR', 'SALES', 'FINANCE', 'PROJECT_MANAGER']} fallbackMode="redirect" redirectTo="/dashboard">
+    <RoleGuard allowed={['DIREKTUR', 'FINANCE']} fallbackMode="redirect" redirectTo="/dashboard">
       <CategoryCostContent />
     </RoleGuard>
   );

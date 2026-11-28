@@ -1,4 +1,6 @@
 import { InvoiceSetting } from '@/types/invoice-setting';
+import { apiClient } from '@/lib/apiClient';
+import { USE_MOCK } from './mockFlag';
 
 const STORAGE_KEY = 'makromedia_invoice_setting';
 
@@ -68,7 +70,10 @@ export const invoiceSettingService = {
               : DEFAULT_INVOICE_SETTING.bankAccounts,
           signerName: sanitizedSignerName,
           signerPosition: parsed.signerPosition || DEFAULT_INVOICE_SETTING.signerPosition,
-          signerSignatureUrl: parsed.signerSignatureUrl ?? DEFAULT_INVOICE_SETTING.signerSignatureUrl,
+          signerSignatureUrl:
+            parsed.signerSignatureUrl !== undefined
+              ? parsed.signerSignatureUrl
+              : DEFAULT_INVOICE_SETTING.signerSignatureUrl,
           signerUserId: parsed.signerUserId ?? DEFAULT_INVOICE_SETTING.signerUserId,
         };
         if (parsed.signerName !== sanitizedSignerName) {
@@ -102,11 +107,136 @@ export const invoiceSettingService = {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-        window.dispatchEvent(new CustomEvent('makromedia:invoice-setting-updated', { detail: updated }));
+      } catch (e) {
+        console.warn('Failed to save invoice setting to localStorage, attempting fallback:', e);
+        try {
+          // If storage limit reached, try storing without oversized signature image
+          const fallback = { ...updated, signerSignatureUrl: '' };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback));
+        } catch {
+          // localStorage completely full
+        }
+      }
+      try {
+        window.dispatchEvent(
+          new CustomEvent('makromedia:invoice-setting-updated', { detail: updated })
+        );
       } catch {
-        // quota exceeded or SSR
+        // ignore
+      }
+
+      // Sync to backend asynchronously if not in mock mode
+      if (!USE_MOCK) {
+        const payload = {
+          pphPercent: updated.pphPercent,
+          termsOfCondition: updated.termsOfCondition,
+          paymentInstruction: updated.paymentInstruction,
+          bankAccounts: updated.bankAccounts,
+          signerName: updated.signerName,
+          signerPosition: updated.signerPosition,
+          signerSignatureUrl: updated.signerSignatureUrl,
+          signerUserId: updated.signerUserId,
+        };
+        apiClient.patch('/invoice-settings', payload).catch(() => {
+          apiClient.put('/settings/invoice', updated).catch(() => {
+            // keep local setting on network failure
+          });
+        });
       }
     }
     return updated;
+  },
+
+  saveSetting: async (updates: Partial<InvoiceSetting>): Promise<InvoiceSetting> => {
+    const updated = invoiceSettingService.updateSetting(updates);
+    if (!USE_MOCK) {
+      const payload = {
+        pphPercent: updated.pphPercent,
+        termsOfCondition: updated.termsOfCondition,
+        paymentInstruction: updated.paymentInstruction,
+        bankAccounts: updated.bankAccounts,
+        signerName: updated.signerName,
+        signerPosition: updated.signerPosition,
+        signerSignatureUrl: updated.signerSignatureUrl,
+        signerUserId: updated.signerUserId,
+      };
+      try {
+        await apiClient.patch('/invoice-settings', payload);
+      } catch {
+        try {
+          await apiClient.put('/settings/invoice', updated);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return updated;
+  },
+
+  fetchFromBackend: async (): Promise<InvoiceSetting> => {
+    if (USE_MOCK) return invoiceSettingService.getSetting();
+    try {
+      // Try upstream endpoint /invoice-settings first
+      let rawData: any = null;
+      try {
+        const res = await apiClient.get<any>('/invoice-settings');
+        rawData = res.data?.data || res.data;
+      } catch {
+        const res = await apiClient.get<any>('/settings/invoice');
+        rawData = res.data?.data || res.data;
+      }
+
+      if (rawData && typeof rawData.pphPercent === 'number') {
+        const merged: InvoiceSetting = {
+          ...DEFAULT_INVOICE_SETTING,
+          ...rawData,
+          signerName: cleanSignerName(rawData.signerName) || DEFAULT_INVOICE_SETTING.signerName,
+          termsOfCondition:
+            Array.isArray(rawData.termsOfCondition) && rawData.termsOfCondition.length > 0
+              ? rawData.termsOfCondition
+              : DEFAULT_INVOICE_SETTING.termsOfCondition,
+          paymentInstruction:
+            rawData.paymentInstruction !== undefined && rawData.paymentInstruction !== null
+              ? rawData.paymentInstruction
+              : DEFAULT_INVOICE_SETTING.paymentInstruction,
+          bankAccounts:
+            Array.isArray(rawData.bankAccounts) && rawData.bankAccounts.length > 0
+              ? rawData.bankAccounts
+              : DEFAULT_INVOICE_SETTING.bankAccounts,
+        };
+        memorySetting = merged;
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          } catch {
+            // ignore
+          }
+          try {
+            window.dispatchEvent(
+              new CustomEvent('makromedia:invoice-setting-updated', { detail: merged })
+            );
+          } catch {
+            // ignore
+          }
+        }
+        return merged;
+      }
+    } catch {
+      // fallback to local
+    }
+    return invoiceSettingService.getSetting();
+  },
+
+  getTerms: async (): Promise<string[]> => {
+    if (USE_MOCK) return invoiceSettingService.getSetting().termsOfCondition;
+    try {
+      const setting = await invoiceSettingService.fetchFromBackend();
+      if (Array.isArray(setting.termsOfCondition) && setting.termsOfCondition.length > 0) {
+        return setting.termsOfCondition;
+      }
+    } catch {
+      // fallback
+    }
+    return invoiceSettingService.getSetting().termsOfCondition;
   },
 };

@@ -2,15 +2,35 @@ import { apiClient } from '@/lib/apiClient';
 import { CreateManpowerDTO, ManpowerRecord, UpdateManpowerDTO } from '@/types/manpower';
 import { mockManpowerRecords } from '@/lib/mock/manpower.mock';
 import { USE_MOCK, cloneMock } from './mockFlag';
+import { skillService } from './skillService';
+import { positionService } from './positionService';
 
 // Store in-memory untuk mode mock (direset saat halaman di-reload).
 let mockStore: ManpowerRecord[] | null = null;
-const getMockStore = (): ManpowerRecord[] => (mockStore ??= cloneMock(mockManpowerRecords));
+export const getMockManpowerStore = (): ManpowerRecord[] => (mockStore ??= cloneMock(mockManpowerRecords));
+const getMockStore = (): ManpowerRecord[] => getMockManpowerStore();
+
+const sanitizeManpower = (
+  record: ManpowerRecord,
+  activeSkills?: Set<string>,
+  activePositions?: Set<string>
+): ManpowerRecord => ({
+  ...record,
+  position:
+    activePositions && record.position && !activePositions.has(record.position.trim())
+      ? ''
+      : record.position,
+  skills:
+    activeSkills && Array.isArray(record.skills)
+      ? record.skills.filter((sk) => activeSkills.has(sk.trim()))
+      : record.skills,
+});
 
 interface BackendManpower {
   id: string;
   name: string;
   position?: string | null;
+  positionRef?: { id: string; name: string; isActive?: boolean } | null;
   email?: string | null;
   phone?: string | null;
   skill?: string | null;
@@ -26,7 +46,7 @@ interface BackendManpower {
   bankAccountNo?: string | null;
   accountHolder?: string | null;
   createdAt?: string;
-  skills?: Array<{ skill: { name: string } }>;
+  skills?: Array<{ skill: { name: string; isActive?: boolean } }>;
 }
 
 interface BackendPaginatedManpower {
@@ -55,10 +75,12 @@ const mapManpower = (record: BackendManpower): ManpowerRecord => ({
   email: record.email ?? undefined,
   gender: record.gender === 'FEMALE' ? 'Female' : record.gender === 'MALE' ? 'Male' : undefined,
   dateOfBirth: record.dateOfBirth ? record.dateOfBirth.slice(0, 10) : '',
-  position: record.position ?? '',
+  position: (record.positionRef && record.positionRef.isActive === false) ? '' : (record.position ?? ''),
   employmentStatus: employmentStatusFromApi(record.employmentStatus),
   skills:
-    record.skills?.map(({ skill }) => skill.name) ??
+    record.skills
+      ?.filter(({ skill }) => skill.isActive !== false)
+      .map(({ skill }) => skill.name) ??
     (record.skill ? record.skill.split(',').map((name) => name.trim()).filter(Boolean) : []),
   province: record.province ?? '',
   city: record.city ?? '',
@@ -96,19 +118,48 @@ const manpowerToApi = (record: Partial<CreateManpowerDTO>) => ({
 
 export const manpowerService = {
   getAll: async (): Promise<ManpowerRecord[]> => {
-    if (USE_MOCK) return cloneMock(getMockStore());
-    const response = await apiClient.get<BackendPaginatedManpower>('/manpower', {
-      params: { page: 1, limit: 100 },
-    });
-    return response.data.data.map(mapManpower);
+    let records: ManpowerRecord[];
+    if (USE_MOCK) {
+      records = cloneMock(getMockStore());
+    } else {
+      const response = await apiClient.get<BackendPaginatedManpower>('/manpower', {
+        params: { page: 1, limit: 100 },
+      });
+      records = response.data.data.map(mapManpower);
+    }
+    try {
+      const [actSkills, actPositions] = await Promise.all([
+        skillService.getActiveNames(),
+        positionService.getActiveNames(),
+      ]);
+      const skillSet = new Set(actSkills.map((s) => s.trim()));
+      const posSet = new Set(actPositions.map((p) => p.trim()));
+      return records.map((r) => sanitizeManpower(r, skillSet, posSet));
+    } catch {
+      return records;
+    }
   },
 
   getById: async (id: string): Promise<ManpowerRecord | null> => {
+    let record: ManpowerRecord | null = null;
     if (USE_MOCK) {
-      return cloneMock(getMockStore().find((m) => m.id === id) ?? null);
+      record = cloneMock(getMockStore().find((m) => m.id === id) ?? null);
+    } else {
+      const response = await apiClient.get<BackendManpower>(`/manpower/${id}`);
+      record = mapManpower(response.data);
     }
-    const response = await apiClient.get<BackendManpower>(`/manpower/${id}`);
-    return mapManpower(response.data);
+    if (!record) return null;
+    try {
+      const [actSkills, actPositions] = await Promise.all([
+        skillService.getActiveNames(),
+        positionService.getActiveNames(),
+      ]);
+      const skillSet = new Set(actSkills.map((s) => s.trim()));
+      const posSet = new Set(actPositions.map((p) => p.trim()));
+      return sanitizeManpower(record, skillSet, posSet);
+    } catch {
+      return record;
+    }
   },
 
   create: async (data: CreateManpowerDTO): Promise<ManpowerRecord> => {

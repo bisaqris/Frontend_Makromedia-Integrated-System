@@ -26,12 +26,28 @@ export default function QuotationPreviewPage() {
   const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
 
   useEffect(() => {
+    // Immediately hydrate latest invoice settings on client mount
+    setInvoiceSetting(invoiceSettingService.getSetting());
+
+    let isMounted = true;
+    invoiceSettingService
+      .fetchFromBackend()
+      .then((fresh) => {
+        if (isMounted && fresh) {
+          setInvoiceSetting(fresh);
+        }
+      })
+      .catch(() => {});
+
     const handleSettingUpdate = () => {
-      setInvoiceSetting(invoiceSettingService.getSetting());
+      if (isMounted) {
+        setInvoiceSetting(invoiceSettingService.getSetting());
+      }
     };
     window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
     window.addEventListener('storage', handleSettingUpdate);
     return () => {
+      isMounted = false;
       window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
       window.removeEventListener('storage', handleSettingUpdate);
     };
@@ -153,15 +169,22 @@ export default function QuotationPreviewPage() {
   const rawSignerName = invoiceSetting.signerName || item.projectOfficer || 'Budi Santoso';
   const signerName = rawSignerName.replace(/\s*\([^)]*\)/g, '').trim();
   const signerPosition = invoiceSetting.signerPosition || 'Sales Manager';
-  const signatureUrl = invoiceSetting.signerSignatureUrl || item.signatureUrl;
+  const signatureUrl =
+    invoiceSetting.signerSignatureUrl !== undefined && invoiceSetting.signerSignatureUrl !== ''
+      ? invoiceSetting.signerSignatureUrl
+      : (item.signatureUrl || '');
 
   const contractVal = item.contractValue ?? 0;
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
   const discountPercent = item.discountPercent ?? 0;
-  const pph = item.pph ?? 0;
-  const pphPercent = pph > 0 && subTotal > 0 ? Math.round((pph / subTotal) * 100 * 10) / 10 : 0;
-  const grandTotal = subTotal - (subTotal * discountPercent) / 100 + pph;
+  const effectivePphPercent = (item.pph !== undefined && item.pph > 0 && subTotal > 0)
+    ? Math.round((item.pph / subTotal) * 100 * 10) / 10
+    : invoiceSetting.pphPercent;
+  const effectivePph = (item.pph !== undefined && item.pph > 0)
+    ? item.pph
+    : (subTotal * effectivePphPercent) / 100;
+  const grandTotal = Math.max(0, subTotal - (subTotal * discountPercent) / 100 + effectivePph);
   const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
     ? invoiceSetting.bankAccounts
     : (item.bankAccounts || []);
@@ -499,8 +522,8 @@ export default function QuotationPreviewPage() {
                   <span className="font-bold text-slate-800">{discountPercent}%</span>
                 </div>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
-                  <span>PPH {pphPercent > 0 ? `(${pphPercent}%)` : ''}</span>
-                  <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
+                  <span>PPH ({effectivePphPercent}%)</span>
+                  <span className="font-bold text-slate-800">+{formatRupiahWithSpace(effectivePph)}</span>
                 </div>
               </div>
 

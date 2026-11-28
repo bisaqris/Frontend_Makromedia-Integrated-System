@@ -34,6 +34,36 @@ export default function QuotationApprovalDetailPage() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
+
+  useEffect(() => {
+    // Hydrate latest setting on client mount
+    setInvoiceSetting(invoiceSettingService.getSetting());
+
+    let isMounted = true;
+    invoiceSettingService
+      .fetchFromBackend()
+      .then((fresh) => {
+        if (isMounted && fresh) {
+          setInvoiceSetting(fresh);
+        }
+      })
+      .catch(() => {});
+
+    const handleSettingUpdate = () => {
+      if (isMounted) {
+        setInvoiceSetting(invoiceSettingService.getSetting());
+      }
+    };
+    window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+    window.addEventListener('storage', handleSettingUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+      window.removeEventListener('storage', handleSettingUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -62,11 +92,22 @@ export default function QuotationApprovalDetailPage() {
     message: string,
     tone: 'success' | 'info'
   ) => {
+    setIsSubmitting(true);
     try {
       await applicationCostService.updateStatus(id, 'Quotation', status, notes);
+      setItem((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: status === 'REJECTED' ? 'Revise' : 'Approved',
+              notes,
+            }
+          : prev
+      );
       showToast[tone](message);
       router.push('/application-cost');
     } catch (err: unknown) {
+      setIsSubmitting(false);
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || 'Gagal memperbarui status pengajuan.';
@@ -101,14 +142,17 @@ export default function QuotationApprovalDetailPage() {
     );
   }
 
-  const contractVal = item.contractValue ?? 0;
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
   const discountPercent = item.discountPercent ?? 0;
-  const pph = item.pph ?? 0;
-  const pphPercent = pph > 0 && subTotal > 0 ? Math.round((pph / subTotal) * 100 * 10) / 10 : 0;
-  const grandTotal = subTotal - (subTotal * discountPercent) / 100 + pph;
-  const invoiceSetting = invoiceSettingService.getSetting();
+  const effectivePphPercent = (item.pph !== undefined && item.pph > 0 && subTotal > 0)
+    ? Math.round((item.pph / subTotal) * 100 * 10) / 10
+    : invoiceSetting.pphPercent;
+  const effectivePph = (item.pph !== undefined && item.pph > 0)
+    ? item.pph
+    : (subTotal * effectivePphPercent) / 100;
+  const grandTotal = Math.max(0, subTotal - (subTotal * discountPercent) / 100 + effectivePph);
+  const contractVal = item.contractValue && item.contractValue > 0 ? item.contractValue : grandTotal;
   const bankAccounts = (invoiceSetting.bankAccounts && invoiceSetting.bankAccounts.length > 0)
     ? invoiceSetting.bankAccounts
     : (item.bankAccounts ?? []);
@@ -255,8 +299,8 @@ export default function QuotationApprovalDetailPage() {
           </div>
 
           <div className="flex justify-between items-center text-xs sm:text-sm text-slate-600 font-medium">
-            <span>PPH {pphPercent > 0 ? `(${pphPercent}%)` : ''}</span>
-            <span className="font-bold text-slate-800">{formatRupiahWithSpace(pph)}</span>
+            <span>PPH ({effectivePphPercent}%)</span>
+            <span className="font-bold text-slate-800">+{formatRupiahWithSpace(effectivePph)}</span>
           </div>
         </div>
 
@@ -315,21 +359,34 @@ export default function QuotationApprovalDetailPage() {
       </div>
 
       {/* Notes Box Section */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2 shadow-2xs">
-        <label className="block text-xs font-semibold text-slate-700">Notes</label>
-        <textarea
-          rows={3}
-          placeholder={item.status === 'APPROVED' || item.status === 'REJECTED' ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          disabled={item.status === 'APPROVED' || item.status === 'REJECTED'}
-          className={`w-full border rounded-xl p-4 text-xs sm:text-sm resize-none transition-colors ${
-            item.status === 'APPROVED' || item.status === 'REJECTED'
-              ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
-              : 'border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary'
-          }`}
-        />
-      </div>
+      {(() => {
+        const isNotesDisabled =
+          !item ||
+          isSubmitting ||
+          item.status === 'APPROVED' ||
+          item.status === 'Approved' ||
+          item.status === 'REJECTED' ||
+          item.status === 'Revise';
+
+        return (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2 shadow-2xs">
+            <label className="block text-xs font-semibold text-slate-700">Notes</label>
+            <textarea
+              rows={3}
+              placeholder={isNotesDisabled ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={isNotesDisabled}
+              readOnly={isNotesDisabled}
+              className={`w-full border rounded-xl p-4 text-xs sm:text-sm resize-none transition-colors ${
+                isNotesDisabled
+                  ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                  : 'border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary'
+              }`}
+            />
+          </div>
+        );
+      })()}
 
       {/* Action Buttons Row (Cancel, Revise, Preview, Approve) */}
       <div className="flex items-center justify-between pt-4">
@@ -351,10 +408,11 @@ export default function QuotationApprovalDetailPage() {
               type="button"
               variant="outline"
               size="md"
-              className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
+              disabled={isSubmitting}
+              className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl disabled:opacity-50"
               onClick={handleReject}
             >
-              Revise
+              {isSubmitting ? 'Memproses...' : 'Revise'}
             </Button>
           )}
 
@@ -374,10 +432,11 @@ export default function QuotationApprovalDetailPage() {
               type="button"
               variant="primary"
               size="md"
-              className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl"
+              disabled={isSubmitting}
+              className="min-w-[130px] sm:min-w-[150px] px-8 bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl disabled:opacity-50"
               onClick={handleApprove}
             >
-              Approve
+              {isSubmitting ? 'Memproses...' : 'Approve'}
             </Button>
           )}
         </div>

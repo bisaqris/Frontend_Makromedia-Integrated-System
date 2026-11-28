@@ -129,13 +129,14 @@ export default function ListClientCompanyPage() {
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
-          <Link href="/clients/company/new">
+          <Link href="/clients/company/new" className="shrink-0 inline-block">
             <Button
               variant="primary"
-              className="bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl px-5 whitespace-nowrap shadow-2xs"
+              size="md"
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="bg-[#0066ff] hover:bg-blue-700 text-white font-semibold rounded-xl px-5 whitespace-nowrap shadow-2xs flex-row items-center inline-flex"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
-              <span>Add New Company</span>
+              Add New Company
             </Button>
           </Link>
         </div>

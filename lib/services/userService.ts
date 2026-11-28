@@ -168,4 +168,25 @@ export const userService = {
       }
     }
   },
+
+  /** User dengan role PRODUKSI aktif, untuk assign task produksi. */
+  getProductionTeam: async (): Promise<User[]> => {
+    if (USE_MOCK) return cloneMock(mockUsers.filter((u) => u.role === 'PRODUKSI'));
+
+    try {
+      const response = await apiClient.get<User[]>('/users/production-team');
+      if (Array.isArray(response.data)) {
+        return response.data;
+      }
+      return [];
+    } catch {
+      try {
+        const response = await apiClient.get<User[]>('/users');
+        const list = Array.isArray(response.data) ? response.data : [];
+        return list.filter((u) => u.role === 'PRODUKSI');
+      } catch {
+        return cloneMock(mockUsers.filter((u) => u.role === 'PRODUKSI'));
+      }
+    }
+  },
 };

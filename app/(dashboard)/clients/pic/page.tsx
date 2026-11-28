@@ -9,6 +9,7 @@ import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientCompany, ClientPIC } from '@/types/client';
 import ErrorState from '@/components/shared/ErrorState';
+import Combobox, { ComboboxOption } from '@/components/ui/Combobox';
 
 export default function DataPicClientPage() {
   const [data, setData] = useState<ClientPIC[]>([]);
@@ -56,6 +57,14 @@ export default function DataPicClientPage() {
         ])
       ).sort(),
     [data, companies]
+  );
+
+  const companyComboboxOptions: ComboboxOption[] = useMemo(
+    () => [
+      { value: 'All Company', label: 'All Company' },
+      ...companyOptions.map((company) => ({ value: company, label: company })),
+    ],
+    [companyOptions]
   );
 
   const filteredData = data.filter((item) => {
@@ -116,26 +125,20 @@ export default function DataPicClientPage() {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <div className="relative">
-            <select
+          <div className="w-52 sm:w-64 shrink-0">
+            <Combobox
+              options={companyComboboxOptions}
               value={selectedCompanyFilter}
-              onChange={(e) => {
-                setSelectedCompanyFilter(e.target.value);
+              onChange={(value) => {
+                setSelectedCompanyFilter(value);
                 setCurrentPage(1);
               }}
-              className="appearance-none bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 pr-10 text-xs sm:text-sm font-medium text-slate-700 focus:outline-none focus:border-primary transition-colors cursor-pointer shadow-2xs"
-            >
-              <option value="All Company">All Company</option>
-              {companyOptions.map((company) => (
-                <option key={company} value={company}>
-                  {company}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              placeholder="All Company"
+              emptyText="Company tidak ditemukan"
+            />
           </div>
 
-          <Link href="/clients/pic/new">
+          <Link href="/clients/pic/new" className="shrink-0">
             <Button
               type="button"
               variant="primary"

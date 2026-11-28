@@ -62,10 +62,9 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
         if (!isMounted) return;
 
         const posNames = positions.map((p) => p.name);
-        if (record?.position && !posNames.includes(record.position)) {
-          posNames.unshift(record.position);
-        }
         setPositionOptions(posNames);
+        const activeSkillNames = new Set(skills.map((s) => s.name));
+        const validSkills = (record?.skills || []).filter((sk) => activeSkillNames.has(sk));
         setSkillOptions(skills.map((s) => s.name));
 
         if (!record) {
@@ -85,12 +84,12 @@ export default function EditManpowerPage({ params }: { params: Promise<{ id: str
           village: record.village || '',
           detailAddress: record.detailAddress || '',
           employmentStatus: record.employmentStatus || 'Fulltime',
-          position: record.position || '',
+          position: posNames.includes(record.position || '') ? (record.position || '') : '',
           bankAccount: record.bankName || '',
           accountNumber: record.accountNumber || '',
           accountHolder: record.accountHolder || '',
         });
-        setSelectedSkills(record.skills || []);
+        setSelectedSkills(validSkills);
       } catch {
         if (isMounted) setNotFound(true);
       } finally {

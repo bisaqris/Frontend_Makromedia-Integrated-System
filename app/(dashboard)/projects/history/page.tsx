@@ -25,6 +25,11 @@ const formatRupiah = (val: number) => {
 
 const formatEventDate = (start?: string, end?: string) => {
   if (!start) return '-';
+  return formatDateID(start);
+};
+
+const getEventDateFull = (start?: string, end?: string) => {
+  if (!start) return '-';
   if (!end || start === end) return formatDateID(start);
   return `${formatDateID(start)} s/d ${formatDateID(end)}`;
 };
@@ -194,43 +199,60 @@ export default function HistoryProjectPage() {
         ) : (
           <>
             {/* 1. TAMPILAN DESKTOP (TABLE) */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="hidden md:block w-full overflow-hidden">
+              <table className="w-full table-fixed text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-slate-100 text-xs font-semibold text-slate-500 bg-white">
-                    <th className="py-3.5 px-4">Project Name</th>
-                    <th className="py-3.5 px-4 text-center">Category</th>
-                    <th className="py-3.5 px-4">Project Manager</th>
-                    <th className="py-3.5 px-4 text-right">Contract Value</th>
-                    <th className="py-3.5 px-4 text-center">Status</th>
-                    <th className="py-3.5 px-4">Event Date</th>
-                    <th className="py-3.5 px-4 text-center">Action</th>
+                  <tr className="border-b border-slate-100 text-xs font-semibold text-slate-800 bg-white">
+                    <th className="py-3.5 pl-4 pr-2 text-left w-[26%]">Project Name</th>
+                    <th className="py-3.5 px-2 text-center w-[15%]">Category</th>
+                    <th className="py-3.5 px-2 text-center w-[15%]">Project Manager</th>
+                    <th className="py-3.5 px-2 text-center w-[15%]">Contract Value</th>
+                    <th className="py-3.5 px-2 text-center w-[13%]">Event Date</th>
+                    <th className="py-3.5 px-2 text-center w-[10%]">Status</th>
+                    <th className="py-3.5 pl-2 pr-4 text-center w-[6%] min-w-[75px]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
                   {projects.map((proj) => (
                     <tr key={proj.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-4 px-4 text-slate-800">
-                        {proj.name}
+                      <td className="py-3.5 pl-4 pr-2 text-left">
+                        <Link
+                          href={`/projects/${proj.id}`}
+                          className="font-semibold text-slate-800 hover:text-primary transition-colors block truncate"
+                          title={proj.name}
+                        >
+                          {proj.name}
+                        </Link>
                       </td>
-                      <td className="py-4 px-4 text-center">
-                        <Badge variant={getCategoryBadgeVariant(proj.category)} size="sm">
+                      <td className="py-3.5 px-2 text-center">
+                        <Badge
+                          variant={getCategoryBadgeVariant(proj.category)}
+                          size="sm"
+                          className="whitespace-nowrap uppercase tracking-wider text-[11px] font-bold"
+                        >
                           {proj.category || 'Event'}
                         </Badge>
                       </td>
-                      <td className="py-4 px-4 font-medium text-slate-600">
-                        {proj.projectManagerName || '-'}
+                      <td className="py-3.5 px-2 text-center font-medium text-slate-600">
+                        <span className="block truncate" title={proj.projectManagerName || '-'}>
+                          {proj.projectManagerName || '-'}
+                        </span>
                       </td>
-                      <td className="py-4 px-4 text-right text-slate-800">
+                      <td className="py-3.5 px-2 text-center text-slate-800 font-semibold whitespace-nowrap">
                         {formatRupiah(proj.budget || 0)}
                       </td>
-                      <td className="py-4 px-4 text-center">
-                        <Badge variant="success" size="sm">DONE</Badge>
-                      </td>
-                      <td className="py-4 px-4 text-slate-600 font-medium whitespace-nowrap">
+                      <td
+                        className="py-3.5 px-2 text-center text-slate-600 font-medium whitespace-nowrap"
+                        title={getEventDateFull(proj.startDate, proj.endDate)}
+                      >
                         {formatEventDate(proj.startDate, proj.endDate)}
                       </td>
-                      <td className="py-4 px-4 text-center">
+                      <td className="py-3.5 px-2 text-center">
+                        <Badge variant="success" size="sm" className="whitespace-nowrap font-bold">
+                          DONE
+                        </Badge>
+                      </td>
+                      <td className="py-3.5 pl-2 pr-4 text-center">
                         <div className="flex items-center justify-center">
                           <Link
                             href={`/projects/${proj.id}`}

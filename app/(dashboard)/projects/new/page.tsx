@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import RoleGuard from '@/components/auth/RoleGuard';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import Combobox from '@/components/ui/Combobox';
 import Button from '@/components/ui/Button';
 import DatePickerInput from '@/components/ui/DatePickerInput';
 import projectService from '@/lib/services/projectService';
@@ -92,14 +93,20 @@ export default function AddProjectPage() {
       if (companyList.length > 0) {
         const firstComp = companyList[0];
         setCompanyId(firstComp.id);
-        const relatedPics = picList.filter((p) => p.clientId === firstComp.id);
-        if (relatedPics.length > 0) {
-          setPicId(relatedPics[0].id);
-        } else if (picList.length > 0) {
-          setPicId(picList[0].id);
+        const relatedPic =
+          picList.find((p) => p.clientId === firstComp.id) ||
+          firstComp.pics?.[0] ||
+          picList.find(
+            (p) =>
+              p.company &&
+              firstComp.name &&
+              p.company.trim().toLowerCase() === firstComp.name.trim().toLowerCase()
+          );
+        if (relatedPic) {
+          setPicId(relatedPic.id);
+        } else {
+          setPicId('');
         }
-      } else if (picList.length > 0) {
-        setPicId(picList[0].id);
       }
       if (pmList.length > 0) setPmId(pmList[0].id);
     };
@@ -125,10 +132,18 @@ export default function AddProjectPage() {
   const [additionalLinks, setAdditionalLinks] = useState<AdditionalLinkItem[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Selected company and filtered PICs
+  // Selected company and auto-fetched PIC Client
   const selectedCompany = companies.find((c) => c.id === companyId);
-  const filteredPics = pics.filter((p) => p.clientId === companyId);
-  const selectedPic = pics.find((p) => p.id === picId) || filteredPics[0];
+  const selectedPic =
+    pics.find((p) => p.clientId === companyId) ||
+    selectedCompany?.pics?.[0] ||
+    pics.find(
+      (p) =>
+        p.company &&
+        selectedCompany?.name &&
+        p.company.trim().toLowerCase() === selectedCompany.name.trim().toLowerCase()
+    ) ||
+    pics.find((p) => p.id === picId);
   const selectedPM = projectManagers.find((pm) => pm.id === pmId);
 
   const handleAddLink = () => {
@@ -187,7 +202,7 @@ export default function AddProjectPage() {
     }
 
     if (!selectedPic) {
-      errs.picId = 'Pilih PIC Client yang terhubung.';
+      errs.picId = 'Company yang dipilih belum memiliki data PIC Client.';
     }
 
     if (!eventDate) {
@@ -244,9 +259,9 @@ export default function AddProjectPage() {
   };
 
   const handleCreateProject = async (status: 'NEW' | 'DRAFT' = 'NEW') => {
-    const effectivePic = selectedPic || filteredPics[0] || pics[0];
+    const effectivePic = selectedPic;
     if (!effectivePic) {
-      showToast.error('Pilih PIC client yang terhubung dengan perusahaan ini.');
+      showToast.error('Pilih Company client yang memiliki PIC terdaftar.');
       return;
     }
 
@@ -385,43 +400,63 @@ export default function AddProjectPage() {
                   options={PARTNERSHIP_OPTIONS}
                   required
                 />
-                <Select
+                <Combobox
                   label="Company Name"
                   value={companyId}
                   error={fieldErrors.companyId}
-                  onChange={(e) => {
-                    const nextCompanyId = e.target.value;
+                  onChange={(nextCompanyId) => {
                     setCompanyId(nextCompanyId);
-                    const relatedPics = pics.filter((p) => p.clientId === nextCompanyId);
-                    setPicId(relatedPics.length > 0 ? relatedPics[0].id : (pics[0]?.id || ''));
+                    if (fieldErrors.companyId) {
+                      setFieldErrors((prev) => ({ ...prev, companyId: '' }));
+                    }
+                    const nextComp = companies.find((c) => c.id === nextCompanyId);
+                    const relatedPic =
+                      pics.find((p) => p.clientId === nextCompanyId) ||
+                      nextComp?.pics?.[0] ||
+                      pics.find(
+                        (p) =>
+                          p.company &&
+                          nextComp?.name &&
+                          p.company.trim().toLowerCase() === nextComp.name.trim().toLowerCase()
+                      );
+                    if (relatedPic) {
+                      setPicId(relatedPic.id);
+                      setFieldErrors((prev) => ({ ...prev, picId: '' }));
+                    } else {
+                      setPicId('');
+                    }
                   }}
                   options={
                     companies.length > 0
                       ? companies.map((c) => ({ value: c.id, label: c.name }))
                       : [{ value: '', label: 'Memuat Company...' }]
                   }
+                  placeholder="Pilih atau cari Company Client..."
+                  emptyText="Company tidak ditemukan"
                   required
                 />
-                <Select
-                  label="PIC Client"
-                  value={picId}
-                  error={fieldErrors.picId}
-                  onChange={(e) => setPicId(e.target.value)}
-                  options={
-                    filteredPics.length > 0
-                      ? filteredPics.map((p) => ({
-                          value: p.id,
-                          label: p.position ? `${p.name} (${p.position})` : p.name,
-                        }))
-                      : pics.length > 0
-                        ? pics.map((p) => ({
-                            value: p.id,
-                            label: p.position ? `${p.name} (${p.position})` : p.name,
-                          }))
-                        : [{ value: '', label: 'Pilih PIC Client' }]
-                  }
-                  required
-                />
+                <div className="flex flex-col">
+                  <Input
+                    label="PIC Client"
+                    value={
+                      selectedPic
+                        ? `${selectedPic.name}${selectedPic.position ? ` (${selectedPic.position})` : ''}`
+                        : companyId
+                          ? 'Belum ada PIC terdaftar untuk perusahaan ini'
+                          : ''
+                    }
+                    disabled
+                    readOnly
+                    placeholder={companyId ? 'Memuat data PIC...' : 'Otomatis terisi setelah memilih Company'}
+                    error={fieldErrors.picId}
+                    className="bg-slate-50 text-slate-700 cursor-not-allowed font-medium text-xs sm:text-sm h-10"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {selectedPic
+                      ? `Auto-fetched • ${selectedPic.name}${selectedPic.phone ? ` • ${selectedPic.phone}` : ''}${selectedPic.email ? ` • ${selectedPic.email}` : ''}`
+                      : 'Otomatis terisi dari PIC yang terhubung dengan Company Client.'}
+                  </p>
+                </div>
               </div>
             </div>
 

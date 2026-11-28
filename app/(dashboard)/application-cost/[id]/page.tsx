@@ -21,6 +21,7 @@ export default function ApplicationCostDetailPage() {
   const [item, setItem] = useState<ApplicationCostItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -45,11 +46,14 @@ export default function ApplicationCostDetailPage() {
   }, [id]);
 
   const handleStatusUpdate = async (status: ApplicationCostStatus, message: string) => {
+    setIsSubmitting(true);
     try {
       await applicationCostService.updateStatus(id, 'Production Cost', status, notes);
+      setItem((prev) => (prev ? { ...prev, status, notes } : prev));
       showToast.success(message);
       router.push('/application-cost');
     } catch (err: unknown) {
+      setIsSubmitting(false);
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
           ?.message || 'Gagal memperbarui status pengajuan.';
@@ -261,21 +265,34 @@ export default function ApplicationCostDetailPage() {
       </div>
 
       {/* Notes Box Section */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2 shadow-2xs">
-        <label className="block text-xs font-semibold text-slate-700">Notes</label>
-        <textarea
-          rows={3}
-          placeholder={item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise' ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          disabled={item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise'}
-          className={`w-full border rounded-xl p-4 text-xs sm:text-sm resize-none transition-colors ${
-            item.status === 'APPROVED' || item.status === 'Approved' || item.status === 'REJECTED' || item.status === 'Revise'
-              ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed'
-              : 'border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary'
-          }`}
-        />
-      </div>
+      {(() => {
+        const isNotesDisabled =
+          !item ||
+          isSubmitting ||
+          item.status === 'APPROVED' ||
+          item.status === 'Approved' ||
+          item.status === 'REJECTED' ||
+          item.status === 'Revise';
+
+        return (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 space-y-2 shadow-2xs">
+            <label className="block text-xs font-semibold text-slate-700">Notes</label>
+            <textarea
+              rows={3}
+              placeholder={isNotesDisabled ? 'Tidak ada catatan tambahan.' : 'Notes approval...'}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              disabled={isNotesDisabled}
+              readOnly={isNotesDisabled}
+              className={`w-full border rounded-xl p-4 text-xs sm:text-sm resize-none transition-colors ${
+                isNotesDisabled
+                  ? 'bg-slate-50 text-slate-500 border-slate-200 cursor-not-allowed select-none'
+                  : 'border-slate-200 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary'
+              }`}
+            />
+          </div>
+        );
+      })()}
 
       {/* Action Buttons Row (Cancel, Revise, Approve) WITHOUT Preview Button */}
       <div className="flex items-center justify-between pt-4">
@@ -294,19 +311,21 @@ export default function ApplicationCostDetailPage() {
             type="button"
             variant="outline"
             size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl"
+            disabled={isSubmitting}
+            className="min-w-[130px] sm:min-w-[150px] px-8 border-orange-300 text-orange-500 hover:bg-orange-50 font-semibold rounded-xl disabled:opacity-50"
             onClick={handleRevise}
           >
-            Reject
+            {isSubmitting ? 'Memproses...' : 'Reject'}
           </Button>
           <Button
             type="button"
             variant="primary"
             size="md"
-            className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl"
+            disabled={isSubmitting}
+            className="min-w-[130px] sm:min-w-[150px] px-8 bg-primary text-white font-semibold rounded-xl disabled:opacity-50"
             onClick={handleApprove}
           >
-            Approve
+            {isSubmitting ? 'Memproses...' : 'Approve'}
           </Button>
         </div>
       </div>

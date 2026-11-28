@@ -2,9 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown } from 'lucide-react';
-import AddressRegionFields from '@/components/shared/AddressRegionFields';
-import CountrySelect from '@/components/shared/CountrySelect';
+import Combobox from '@/components/ui/Combobox';
 import { showToast } from '@/components/ui/Toast';
 import { clientService } from '@/lib/services/clientService';
 import { ClientCompany } from '@/types/client';
@@ -26,13 +24,6 @@ export default function EditPICClientPage({
     company: '',
     phone: '',
     email: '',
-    companyAddress: '',
-    country: 'Indonesia',
-    province: '',
-    city: '',
-    subdistrict: '',
-    village: '',
-    postalCode: '',
   });
 
   useEffect(() => {
@@ -57,13 +48,6 @@ export default function EditPICClientPage({
             company: matchedCompany?.id || record.clientId || '',
             phone: record.phone || '',
             email: record.email || '',
-            companyAddress: record.companyAddress || '',
-            country: record.country || 'Indonesia',
-            province: record.province || '',
-            city: record.city || '',
-            subdistrict: record.subdistrict || '',
-            village: record.village || '',
-            postalCode: record.postalCode || '',
           });
         }
       } catch {
@@ -97,17 +81,6 @@ export default function EditPICClientPage({
     }
   };
 
-  const handleRegionChange = (values: Partial<typeof formData>) => {
-    setFormData((prev) => ({ ...prev, ...values }));
-    setErrors((prev) => {
-      const next = { ...prev };
-      for (const key of Object.keys(values) as (keyof typeof formData)[]) {
-        if (next[key]) next[key] = '';
-      }
-      return next;
-    });
-  };
-
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -130,18 +103,6 @@ export default function EditPICClientPage({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       newErrors.email = 'Format email tidak valid (contoh: user@gmail.com).';
     }
-
-    if (!formData.companyAddress.trim()) {
-      newErrors.companyAddress = 'Alamat perusahaan wajib diisi.';
-    }
-    if (!formData.country.trim()) newErrors.country = 'Country (Negara) wajib dipilih.';
-    if (!formData.province) newErrors.province = 'Province / State wajib dipilih.';
-    if (!formData.city) newErrors.city = 'City wajib dipilih.';
-    if (formData.country === 'Indonesia') {
-      if (!formData.subdistrict) newErrors.subdistrict = 'Subdistrict (Kecamatan) wajib dipilih.';
-      if (!formData.village) newErrors.village = 'Village (Kelurahan) wajib dipilih.';
-    }
-    if (!formData.postalCode.trim()) newErrors.postalCode = 'Postal Code wajib diisi.';
 
     setErrors(newErrors);
 
@@ -167,17 +128,10 @@ export default function EditPICClientPage({
         company: selectedCompany?.name || '',
         phone: formData.phone.trim(),
         email: formData.email.trim(),
-        companyAddress: formData.companyAddress.trim(),
-        country: formData.country.trim(),
-        province: formData.province,
-        city: formData.city,
-        subdistrict: formData.subdistrict || '-',
-        village: formData.village || '-',
-        postalCode: formData.postalCode.trim(),
       });
 
-      showToast.success(`Data PIC "${formData.name.trim()}" berhasil diperbarui!`);
-      router.push(`/clients/pic/${resolvedParams.id}`);
+      showToast.success(`PIC Client "${formData.name.trim()}" berhasil diperbarui!`);
+      router.push('/clients/pic');
     } catch {
       showToast.error('Gagal memperbarui PIC Client.');
     } finally {
@@ -215,7 +169,7 @@ export default function EditPICClientPage({
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                placeholder="e.g. Q3 Marketing Campaign"
+                placeholder="Name"
                 className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
                   errors.name ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
                 }`}
@@ -224,37 +178,25 @@ export default function EditPICClientPage({
             </div>
 
             <div className="md:col-span-6">
-              <label htmlFor="company" className="text-xs font-semibold text-slate-700 block mb-1.5">
-                Company <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  id="company"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleInputChange}
-                  className={`w-full h-[42px] appearance-none bg-white border ${
-                    errors.company ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                  } rounded-xl px-3.5 py-2 pr-10 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors cursor-pointer`}
-                >
-                  <option value="" disabled hidden>
-                    Company
-                  </option>
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              </div>
-              {errors.company ? (
-                <p className="text-xs text-red-500 font-medium mt-1">{errors.company}</p>
-              ) : (
-                <p className="text-[11px] text-slate-400 font-normal mt-1">
-                  *jika data company tidak ada silakan tambahkan dulu di menu List Company Client
-                </p>
-              )}
+              <Combobox
+                label="Company"
+                placeholder="Pilih atau cari Company..."
+                options={companies.map((company) => ({
+                  value: company.id,
+                  label: company.name,
+                }))}
+                value={formData.company}
+                onChange={(val) => {
+                  setFormData((prev) => ({ ...prev, company: val }));
+                  if (errors.company) {
+                    setErrors((prev) => ({ ...prev, company: '' }));
+                  }
+                }}
+                error={errors.company}
+                helperText="*jika data company tidak ada silakan tambahkan dulu di menu List Company Client"
+                required
+                emptyText="Company tidak ditemukan"
+              />
             </div>
 
             <div className="md:col-span-6">
@@ -293,79 +235,13 @@ export default function EditPICClientPage({
               />
               {errors.email && <p className="text-xs text-red-500 font-medium mt-1">{errors.email}</p>}
             </div>
-
-            <div className="md:col-span-12">
-              <label htmlFor="companyAddress" className="text-xs font-semibold text-slate-700 block mb-1.5">
-                Company Address <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="companyAddress"
-                name="companyAddress"
-                value={formData.companyAddress}
-                onChange={handleInputChange}
-                placeholder="Jl. Simpang Sulfat..."
-                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
-                  errors.companyAddress ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                }`}
-              />
-              {errors.companyAddress && (
-                <p className="text-xs text-red-500 font-medium mt-1">{errors.companyAddress}</p>
-              )}
-            </div>
-
-            <CountrySelect
-              value={formData.country}
-              onChange={(val) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  country: val,
-                  province: '',
-                  city: '',
-                  subdistrict: val.toLowerCase() === 'indonesia' ? '' : '-',
-                  village: val.toLowerCase() === 'indonesia' ? '' : '-',
-                }));
-                if (errors.country) setErrors((prev) => ({ ...prev, country: '' }));
-              }}
-              error={errors.country}
-              className="md:col-span-6"
-            />
-
-            {/* Wilayah berjenjang: Indonesia (wilayah.id) atau Global (country-state-city) */}
-            <AddressRegionFields
-              country={formData.country}
-              value={formData}
-              onChange={handleRegionChange}
-              fieldClassName="md:col-span-6"
-              errors={errors}
-            />
-
-            <div className="md:col-span-6">
-              <label htmlFor="postalCode" className="text-xs font-semibold text-slate-700 block mb-1.5">
-                Postal Code <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                id="postalCode"
-                name="postalCode"
-                value={formData.postalCode}
-                onChange={handleInputChange}
-                placeholder="Postal Code"
-                className={`w-full h-[42px] px-3.5 py-2 border rounded-xl text-xs sm:text-sm focus:outline-none transition-colors ${
-                  errors.postalCode ? 'border-red-500 focus:border-red-500' : 'border-slate-200 focus:border-primary'
-                }`}
-              />
-              {errors.postalCode && (
-                <p className="text-xs text-red-500 font-medium mt-1">{errors.postalCode}</p>
-              )}
-            </div>
           </div>
         </div>
 
         <div className="flex items-center justify-between gap-4 pt-2">
           <button
             type="button"
-            onClick={() => router.push(`/clients/pic/${resolvedParams.id}`)}
+            onClick={() => router.push('/clients/pic')}
             className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 text-xs sm:text-sm font-semibold transition cursor-pointer"
           >
             Cancel
@@ -375,7 +251,7 @@ export default function EditPICClientPage({
             disabled={isSubmitting}
             className="px-6 py-2.5 bg-primary text-white rounded-xl hover:bg-primary-700 text-xs sm:text-sm font-semibold transition disabled:opacity-50 cursor-pointer shadow-xs"
           >
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+            {isSubmitting ? 'Saving...' : 'Submit'}
           </button>
         </div>
       </form>

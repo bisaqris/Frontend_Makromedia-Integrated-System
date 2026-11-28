@@ -41,7 +41,7 @@ export const Tabs: React.FC<TabsProps> = ({
                 isActive
                   ? 'bg-primary text-white font-bold'
                   : 'bg-primary-50 text-primary hover:bg-primary-100',
-                idx === 0 && 'rounded-tl-2xl'
+                idx === 0 && !className?.includes('mt-') && 'rounded-tl-2xl'
               )}
             >
               {tab.icon}

@@ -36,6 +36,7 @@ import {
   Upload,
   Clock,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 
 const formatRupiah = (val: number) => {
@@ -66,7 +67,7 @@ const formatDateID = (dateStr?: string) => {
     if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
       const date = new Date(year, month, day);
       return date.toLocaleDateString('id-ID', {
-        day: 'numeric',
+        day: '2-digit',
         month: 'long',
         year: 'numeric',
       });
@@ -75,12 +76,19 @@ const formatDateID = (dateStr?: string) => {
   const parsed = new Date(cleanStr);
   if (!isNaN(parsed.getTime())) {
     return parsed.toLocaleDateString('id-ID', {
-      day: 'numeric',
+      day: '2-digit',
       month: 'long',
       year: 'numeric',
     });
   }
   return cleanStr;
+};
+
+const isTaskOverdue = (dateStr?: string) => {
+  if (!dateStr) return false;
+  const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+  const today = new Date().toISOString().split('T')[0];
+  return clean < today;
 };
 
 const formatEventDate = (start?: string, end?: string) => {
@@ -104,15 +112,21 @@ interface DetailProjectTabsProps {
 export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, role, onTabChange }) => {
   const isProduksi = role === 'PRODUKSI';
   const isPM = role === 'PROJECT_MANAGER';
+  const isSales = role === 'SALES';
   const isFinancialRole = role === 'DIREKTUR' || role === 'FINANCE' || role === 'SALES';
+
+  const isProjectDone = project.status === 'DONE' || project.status === 'COMPLETED';
+
   const canManageTasks =
-    USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR';
+    !isProjectDone && (USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR' || role === 'SALES');
   const canUpdateTaskProgress =
-    USE_MOCK || role === 'PROJECT_MANAGER' || role === 'PRODUKSI' || role === 'DIREKTUR';
-  const canRecordPayment = USE_MOCK || role === 'FINANCE' || role === 'DIREKTUR';
+    !isProjectDone && (USE_MOCK || role === 'PROJECT_MANAGER' || role === 'PRODUKSI' || role === 'DIREKTUR');
+  const canRecordPayment = !isProjectDone && (USE_MOCK || role === 'FINANCE' || role === 'DIREKTUR' || role === 'SALES');
   const canManageProductionCost =
-    USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR';
-  const canCreateInvoice = USE_MOCK || role === 'FINANCE' || role === 'DIREKTUR';
+    !isProjectDone && (USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR' || role === 'SALES');
+  const canCreateInvoice = !isProjectDone && (USE_MOCK || role === 'FINANCE' || role === 'DIREKTUR' || role === 'SALES');
+  const canManageLinks =
+    !isProjectDone && (USE_MOCK || role === 'PROJECT_MANAGER' || role === 'FINANCE' || role === 'DIREKTUR' || role === 'SALES' || role === 'PRODUKSI');
 
   // Determine Tab List per Role
   const mainTabOptions = React.useMemo(() => {
@@ -199,10 +213,11 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   useEffect(() => {
     let isMounted = true;
-    userService.getUsers().then((users) => {
+    userService.getProductionTeam().then((users) => {
       if (isMounted && Array.isArray(users)) {
+        const produksiOnly = users.filter((u) => !u.role || u.role === 'PRODUKSI');
         setAssigneeOptions(
-          users.map((u) => ({
+          produksiOnly.map((u) => ({
             id: u.id,
             name: u.name,
             role: u.role,
@@ -285,7 +300,29 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   });
 
   // Invoice PPh rate is centrally determined by Setting and locked from manual edit in project
-  const invoicePph = invoiceSettingService.getSetting().pphPercent;
+  const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
+  const invoicePph = invoiceSetting.pphPercent;
+
+  useEffect(() => {
+    let isMounted = true;
+    invoiceSettingService
+      .fetchFromBackend()
+      .then((fresh) => {
+        if (isMounted && fresh) setInvoiceSetting(fresh);
+      })
+      .catch(() => {});
+
+    const handleSettingUpdate = () => {
+      if (isMounted) setInvoiceSetting(invoiceSettingService.getSetting());
+    };
+    window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+    window.addEventListener('storage', handleSettingUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+      window.removeEventListener('storage', handleSettingUpdate);
+    };
+  }, []);
 
   const [invoiceDueDate, setInvoiceDueDate] = useState<string>(() => {
     if (typeof window !== 'undefined') {
@@ -371,10 +408,46 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   useEffect(() => {
     let isMounted = true;
+    if (typeof window !== 'undefined') {
+      const savedDeliverable = localStorage.getItem(`project_deliverables_${project.id}`);
+      if (savedDeliverable) {
+        setDeliverablesLinkState(savedDeliverable);
+      }
+      const savedLinks = localStorage.getItem(`project_links_${project.id}`);
+      if (savedLinks) {
+        try {
+          const parsed = JSON.parse(savedLinks);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProjectLinks((prev) => {
+              const map = new Map<string, ProjectLink>();
+              prev.forEach((l) => map.set(l.id, l));
+              parsed.forEach((l) => map.set(l.id, l));
+              return Array.from(map.values());
+            });
+          }
+        } catch {}
+      }
+    }
+
     if (!USE_MOCK && project.id) {
       projectWorkflowService.getLinks(project.id).then((links) => {
         if (isMounted && Array.isArray(links)) {
-          setProjectLinks(links);
+          const deliverable = links.find(
+            (l) => (l as any).type === 'DELIVERABLE' || l.label === 'Deliverables Link'
+          );
+          if (deliverable && deliverable.url) {
+            setDeliverablesLinkState(deliverable.url);
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(`project_deliverables_${project.id}`, deliverable.url);
+            }
+          }
+          const additional = links.filter(
+            (l) => (l as any).type !== 'DELIVERABLE' && l.label !== 'Deliverables Link'
+          );
+          setProjectLinks(additional);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`project_links_${project.id}`, JSON.stringify(additional));
+          }
         }
       });
     }
@@ -384,21 +457,53 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   }, [project.id]);
 
   const handleAddLink = async () => {
-    if (!newLinkUrl.trim()) {
+    const trimmed = newLinkUrl.trim();
+    if (!trimmed) {
       showToast.error('URL link wajib diisi.');
       return;
     }
-    if (!isValidUrl(newLinkUrl)) {
-      showToast.error('Format URL tidak valid. Harus diawali dengan http:// atau https://');
+    const cleanUrl = normalizeUrl(trimmed);
+    if (!isValidUrl(cleanUrl)) {
+      showToast.error('Format URL tidak valid. Contoh: drive.google.com/...');
       return;
     }
     try {
       setIsSubmittingLink(true);
-      const created = await projectWorkflowService.createLink(project.id, {
-        label: newLinkLabel.trim() || 'Link',
-        url: normalizeUrl(newLinkUrl.trim()),
+      let created: ProjectLink;
+      if (!USE_MOCK) {
+        try {
+          created = await projectWorkflowService.createLink(project.id, {
+            label: newLinkLabel.trim() || 'Link',
+            url: cleanUrl,
+            type: 'ADDITIONAL',
+          });
+        } catch {
+          created = {
+            id: `link-${Date.now()}`,
+            projectId: project.id,
+            label: newLinkLabel.trim() || 'Link',
+            url: cleanUrl,
+            type: 'ADDITIONAL',
+            createdAt: new Date().toISOString(),
+          } as ProjectLink;
+        }
+      } else {
+        created = {
+          id: `link-${Date.now()}`,
+          projectId: project.id,
+          label: newLinkLabel.trim() || 'Link',
+          url: cleanUrl,
+          type: 'ADDITIONAL',
+          createdAt: new Date().toISOString(),
+        } as ProjectLink;
+      }
+      setProjectLinks((prev) => {
+        const next = [...prev, created];
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`project_links_${project.id}`, JSON.stringify(next));
+        }
+        return next;
       });
-      setProjectLinks((prev) => [...prev, created]);
       setNewLinkLabel('');
       setNewLinkUrl('');
       setIsAddLinkOpen(false);
@@ -411,17 +516,47 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   };
 
   const handleSaveDeliverables = async () => {
-    if (deliverablesInput.trim() && !isValidUrl(deliverablesInput)) {
-      showToast.error('Format URL tidak valid. Harus diawali dengan http:// atau https://');
+    const trimmed = deliverablesInput.trim();
+    const cleanUrl = trimmed ? normalizeUrl(trimmed) : '';
+    if (cleanUrl && !isValidUrl(cleanUrl)) {
+      showToast.error('Format URL tidak valid. Contoh: drive.google.com/...');
       return;
     }
     setIsSavingDeliverables(true);
     try {
-      const url = deliverablesInput.trim();
       if (typeof window !== 'undefined') {
-        localStorage.setItem(`project_deliverables_${project.id}`, url);
+        if (cleanUrl) {
+          localStorage.setItem(`project_deliverables_${project.id}`, cleanUrl);
+        } else {
+          localStorage.removeItem(`project_deliverables_${project.id}`);
+        }
       }
-      setDeliverablesLinkState(url);
+
+      if (!USE_MOCK && cleanUrl) {
+        try {
+          const allLinks = await projectWorkflowService.getLinks(project.id);
+          const existingDeliverable = allLinks.find(
+            (l) => (l as any).type === 'DELIVERABLE' || l.label === 'Deliverables Link'
+          );
+          if (existingDeliverable) {
+            await projectWorkflowService.updateLink(project.id, existingDeliverable.id, {
+              url: cleanUrl,
+              label: 'Deliverables Link',
+              type: 'DELIVERABLE',
+            });
+          } else {
+            await projectWorkflowService.createLink(project.id, {
+              label: 'Deliverables Link',
+              url: cleanUrl,
+              type: 'DELIVERABLE',
+            });
+          }
+        } catch {
+          // localStorage has saved it
+        }
+      }
+
+      setDeliverablesLinkState(cleanUrl);
       setIsEditingDeliverables(false);
       showToast.success('Deliverables link berhasil disimpan!');
     } catch {
@@ -433,8 +568,18 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   const handleDeleteLink = async (linkId: string) => {
     try {
-      await projectWorkflowService.deleteLink(project.id, linkId);
-      setProjectLinks((prev) => prev.filter((l) => l.id !== linkId));
+      if (!USE_MOCK) {
+        try {
+          await projectWorkflowService.deleteLink(project.id, linkId);
+        } catch {}
+      }
+      setProjectLinks((prev) => {
+        const next = prev.filter((l) => l.id !== linkId);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`project_links_${project.id}`, JSON.stringify(next));
+        }
+        return next;
+      });
       showToast.success('Link berhasil dihapus.');
     } catch {
       showToast.error('Gagal menghapus link.');
@@ -442,6 +587,12 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
   };
 
   const handleSaveBrief = async (newBrief: string) => {
+    if (isProjectDone || isProduksi || isSales) {
+      if (isProjectDone) {
+        showToast.error('Proyek telah selesai. Seluruh data terkunci (read-only).');
+      }
+      return;
+    }
     try {
       if (typeof window !== 'undefined') {
         try {
@@ -750,11 +901,21 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-2xs overflow-hidden space-y-6">
+      {isProjectDone && (
+        <div className="flex items-center gap-2.5 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-600 mb-6">
+          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-200 text-slate-700 uppercase tracking-wider">
+            DONE
+          </span>
+          <span>Proyek ini telah selesai. Seluruh data terkunci (read-only).</span>
+        </div>
+      )}
+
       <Tabs
         tabs={mainTabOptions}
         activeTab={activeMainTab}
         onChange={handleSelectMainTab}
         variant="pills"
+        className={isProjectDone ? 'mt-4 -mx-6 mb-6' : undefined}
       />
 
       {activeMainTab === 'info' && (
@@ -840,7 +1001,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
                 Progress Link
               </h3>
-              {canManageTasks && (
+              {canManageLinks && (
                 <button
                   type="button"
                   onClick={() => setIsAddLinkOpen((prev) => !prev)}
@@ -864,7 +1025,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                 <div>
                   <input
                     type="url"
-                    placeholder="URL link (https://...)"
+                    placeholder="URL link (contoh: drive.google.com/... atau https://...)"
                     value={newLinkUrl}
                     onChange={(e) => setNewLinkUrl(e.target.value)}
                     className={`w-full px-2.5 py-1.5 border rounded bg-white text-xs focus:outline-none transition-colors ${
@@ -875,7 +1036,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   />
                   {newLinkUrl.trim() && !isValidUrl(newLinkUrl) && (
                     <p className="text-[10px] text-red-500 mt-0.5 font-medium">
-                      Format URL tidak valid. Harus diawali dengan http:// atau https://
+                      Format URL tidak valid. Contoh: drive.google.com/...
                     </p>
                   )}
                 </div>
@@ -907,7 +1068,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-slate-400 font-medium">Deliverables Link</span>
-                  {canManageTasks && !isEditingDeliverables && (
+                  {canManageLinks && !isEditingDeliverables && (
                     <button
                       type="button"
                       onClick={() => {
@@ -926,11 +1087,20 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-xl my-2">
                     <input
                       type="url"
-                      placeholder="https://drive.google.com/..."
+                      placeholder="drive.google.com/... atau https://..."
                       value={deliverablesInput}
                       onChange={(e) => setDeliverablesInput(e.target.value)}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                      className={`w-full px-3 py-1.5 border rounded-lg bg-white text-xs text-slate-800 focus:outline-none transition-colors ${
+                        deliverablesInput.trim() && !isValidUrl(deliverablesInput)
+                          ? 'border-red-500 focus:border-red-500'
+                          : 'border-slate-200 focus:border-blue-500'
+                      }`}
                     />
+                    {deliverablesInput.trim() && !isValidUrl(deliverablesInput) && (
+                      <p className="text-[10px] text-red-500 mt-0.5 font-medium">
+                        Format URL tidak valid. Contoh: drive.google.com/...
+                      </p>
+                    )}
                     <div className="flex justify-end gap-2">
                       <Button
                         type="button"
@@ -954,7 +1124,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   </div>
                 ) : deliverablesLinkState ? (
                   <a
-                    href={deliverablesLinkState}
+                    href={normalizeUrl(deliverablesLinkState)}
                     target="_blank"
                     rel="noreferrer"
                     className="text-accent hover:underline text-sm font-bold underline flex items-center gap-1.5 break-all"
@@ -973,7 +1143,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   {projectLinks.map((link) => (
                     <div key={link.id} className="flex items-center justify-between gap-2 py-1">
                       <a
-                        href={link.url}
+                        href={normalizeUrl(link.url)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-accent hover:underline text-sm font-bold flex items-center gap-1 break-all"
@@ -981,7 +1151,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         <span>{link.label || link.title || link.url}</span>
                         <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                       </a>
-                      {canManageTasks && (
+                      {canManageLinks && (
                         <button
                           type="button"
                           onClick={() => handleDeleteLink(link.id)}
@@ -1157,7 +1327,6 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         size="sm"
                         leftIcon={<Plus className="w-3.5 h-3.5" />}
                         onClick={() => setIsAddCostModalOpen(true)}
-                        disabled={USE_MOCK && costSubmissionStatus === 'PENDING'}
                       >
                         Add
                       </Button>
@@ -1182,10 +1351,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       items={costItems}
                       onEdit={(item) => setEditingCostItem(item)}
                       onDelete={(id) => setDeleteCostItemId(id)}
-                      readOnly={
-                        !canManageProductionCost ||
-                        (USE_MOCK && costSubmissionStatus === 'PENDING')
-                      }
+                      readOnly={!canManageProductionCost}
                     />
 
                     <div className="pt-4">
@@ -1224,38 +1390,40 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {USE_MOCK ? (
+                  {canManageProductionCost && (
+                    <div className="flex items-center gap-2">
+                      {USE_MOCK ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-accent text-accent hover:bg-orange-50"
+                          leftIcon={<Upload className="w-3.5 h-3.5" />}
+                          onClick={handleSubmitCost}
+                          disabled={costSubmissionStatus === 'PENDING' || quotationItems.length === 0}
+                        >
+                          Ajukan Cost
+                        </Button>
+                      ) : (
+                        <Button
+                          variant={quotationPersisted ? 'outline' : 'primary'}
+                          size="sm"
+                          leftIcon={<Upload className="w-3.5 h-3.5" />}
+                          onClick={handleCreateQuotation}
+                          disabled={quotationItems.length === 0 || isUpdatingQuotation}
+                        >
+                          {quotationPersisted ? 'Perbarui Quotation' : 'Buat Quotation'}
+                        </Button>
+                      )}
                       <Button
-                        variant="outline"
+                        variant="primary"
                         size="sm"
-                        className="border-accent text-accent hover:bg-orange-50"
-                        leftIcon={<Upload className="w-3.5 h-3.5" />}
-                        onClick={handleSubmitCost}
-                        disabled={costSubmissionStatus === 'PENDING' || quotationItems.length === 0}
+                        leftIcon={<Plus className="w-3.5 h-3.5" />}
+                        onClick={() => setIsAddQuotationModalOpen(true)}
                       >
-                        Ajukan Cost
+                        Add
                       </Button>
-                    ) : (
-                      <Button
-                        variant={quotationPersisted ? 'outline' : 'primary'}
-                        size="sm"
-                        leftIcon={<Upload className="w-3.5 h-3.5" />}
-                        onClick={handleCreateQuotation}
-                        disabled={quotationItems.length === 0 || isUpdatingQuotation}
-                      >
-                        {quotationPersisted ? 'Perbarui Quotation' : 'Buat Quotation'}
-                      </Button>
-                    )}
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={<Plus className="w-3.5 h-3.5" />}
-                      onClick={() => setIsAddQuotationModalOpen(true)}
-                    >
-                      Add
-                    </Button>
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1286,7 +1454,9 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Freq</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Periode</th>
                             <th className="py-3 px-4 text-center font-medium text-slate-600">Sub Total</th>
-                            <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                            {canManageProductionCost && (
+                              <th className="py-3 px-4 text-center font-medium text-slate-600">Action</th>
+                            )}
                           </tr>
                         </thead>
                         <tbody className="text-xs sm:text-sm text-slate-700">
@@ -1299,26 +1469,28 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                               <td className="py-4 px-4 text-center font-normal">{item.freq || 1}</td>
                               <td className="py-4 px-4 text-center text-slate-600 font-normal">{item.period || 'hari'}</td>
                               <td className="py-4 px-4 text-center font-normal whitespace-nowrap">{formatRupiahWithSpace(item.totalCost)}</td>
-                              <td className="py-4 px-4 text-center whitespace-nowrap">
-                                <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => setEditingQuotationItem(item)}
-                                  className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
-                                  title="Edit Item"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeleteQuotationItemId(item.id)}
-                                  className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                                  title="Hapus Item"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                                </div>
-                              </td>
+                              {canManageProductionCost && (
+                                <td className="py-4 px-4 text-center whitespace-nowrap">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingQuotationItem(item)}
+                                    className="p-1 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors cursor-pointer"
+                                    title="Edit Item"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDeleteQuotationItemId(item.id)}
+                                    className="p-1 rounded-lg text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                    title="Hapus Item"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                  </div>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -1339,6 +1511,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                           min="0"
                           max="100"
                           value={quotationDiscount}
+                          disabled={!canManageProductionCost}
                           onChange={(e) => {
                             const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
                             setQuotationDiscount(val);
@@ -1364,6 +1537,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                           min="0"
                           max="100"
                           value={quotationPph}
+                          disabled={!canManageProductionCost}
                           onChange={(e) => {
                             const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
                             setQuotationPph(val);
@@ -1428,15 +1602,16 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                         {invoicePersisted ? 'Perbarui Invoice' : 'Buat Invoice'}
                       </Button>
                     ) : null}
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={<Plus className="w-3.5 h-3.5" />}
-                      onClick={() => setIsAddInvoiceModalOpen(true)}
-                      disabled={!canCreateInvoice}
-                    >
-                      Add
-                    </Button>
+                    {canCreateInvoice && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Plus className="w-3.5 h-3.5" />}
+                        onClick={() => setIsAddInvoiceModalOpen(true)}
+                      >
+                        Add
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -1533,6 +1708,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                           min="0"
                           max="100"
                           value={invoiceDiscount}
+                          disabled={!canCreateInvoice}
                           onChange={(e) => {
                             const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
                             setInvoiceDiscount(val);
@@ -1554,10 +1730,11 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span
-                          className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 min-w-16"
-                          title="Tarif PPh diatur secara terpusat pada menu Setting"
+                          className="inline-flex items-center gap-1.5 justify-center px-2.5 py-1 rounded-lg bg-slate-100/80 border border-slate-200 text-xs font-bold text-slate-600 min-w-16 select-none cursor-default"
+                          title="Tarif PPh diatur secara terpusat pada menu Setting dan tidak dapat diubah per invoice"
                         >
-                          {invoicePph}%
+                          <Lock className="w-3 h-3 text-slate-400" />
+                          <span>{invoicePph}%</span>
                         </span>
                       </div>
                     </div>
@@ -1622,29 +1799,30 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
-                {costItems.length > 0 && (
+              {canManageProductionCost && (
+                <div className="flex items-center gap-2">
+                  {costItems.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-accent text-accent hover:bg-orange-50"
+                      leftIcon={<Upload className="w-3.5 h-3.5" />}
+                      onClick={handleSubmitCost}
+                      disabled={costSubmissionStatus === 'PENDING' || costItems.length === 0}
+                    >
+                      Ajukan Cost
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
+                    variant="primary"
                     size="sm"
-                    className="border-accent text-accent hover:bg-orange-50"
-                    leftIcon={<Upload className="w-3.5 h-3.5" />}
-                    onClick={handleSubmitCost}
-                    disabled={costSubmissionStatus === 'PENDING' || costItems.length === 0}
+                    leftIcon={<Plus className="w-3.5 h-3.5" />}
+                    onClick={() => setIsAddCostModalOpen(true)}
                   >
-                    Ajukan Cost
+                    Add
                   </Button>
-                )}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<Plus className="w-3.5 h-3.5" />}
-                  onClick={() => setIsAddCostModalOpen(true)}
-                  disabled={costSubmissionStatus === 'PENDING'}
-                >
-                  Add
-                </Button>
-              </div>
+                </div>
+              )}
             </div>
 
             {costItems.length === 0 ? (
@@ -1664,7 +1842,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                   items={costItems}
                   onEdit={(item) => setEditingCostItem(item)}
                   onDelete={(id) => setDeleteCostItemId(id)}
-                  readOnly={costSubmissionStatus === 'PENDING'}
+                  readOnly={!canManageProductionCost}
                 />
 
                 <div className="pt-4">
@@ -1787,22 +1965,21 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
                             </p>
                           )}
 
-                          <div className={`flex items-center gap-3 pt-1 text-xs ${isDone ? 'text-slate-300' : 'text-slate-400'}`}>
-                            <span className="flex items-center gap-1">
+                          <div className={`flex flex-wrap items-center gap-3 pt-1 text-xs ${isDone ? 'text-slate-300' : 'text-slate-400'}`}>
+                            <span className="flex items-center gap-1.5 font-medium text-slate-600">
                               <CalendarIcon className={`w-3.5 h-3.5 ${isDone ? 'text-slate-300' : 'text-slate-400'}`} />
                               <span>{formatDateID(task.dueDate)}</span>
                             </span>
 
-                            {idx === 2 && !isDone && (
-                              <span className="flex items-center gap-1.5 text-red-500 font-semibold bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
-                                <Clock className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                                <span>1 November</span>
-                                <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                            {isTaskOverdue(task.dueDate) && !isDone && (
+                              <span className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                                <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                                <span>Terlambat</span>
                               </span>
                             )}
 
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                              isDone ? 'bg-blue-50/50 text-blue-300' : 'bg-blue-50 text-blue-600'
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                              isDone ? 'bg-slate-50 text-slate-400 border-slate-200/50' : 'bg-slate-100 text-slate-600 border-slate-200/60'
                             }`}>
                               {task.picName || '-'}
                             </span>
@@ -1848,7 +2025,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
 
             <RichTextEditor
               value={generalBrief}
-              readOnly={isProduksi}
+              readOnly={isProjectDone || isProduksi || isSales}
               onSave={handleSaveBrief}
             />
           </div>
@@ -1933,7 +2110,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         onSave={handleSaveTask}
         supportsPicName={true}
         projectStartDate={project.startDate || project.projectStarts}
-        projectEndDate={project.endDate || project.deadline}
+        projectEndDate={project.deadline || project.endDate}
         assignees={assigneeOptions}
       />
 
@@ -1944,7 +2121,7 @@ export const DetailProjectTabs: React.FC<DetailProjectTabsProps> = ({ project, r
         editTask={editingTask || undefined}
         supportsPicName={true}
         projectStartDate={project.startDate || project.projectStarts}
-        projectEndDate={project.endDate || project.deadline}
+        projectEndDate={project.deadline || project.endDate}
         assignees={assigneeOptions}
       />
 

@@ -1,6 +1,8 @@
 import { CostCategory, CreateCostCategoryDTO } from '@/types/cost-category';
 import { apiClient } from '@/lib/apiClient';
 import { USE_MOCK } from './mockFlag';
+import { mockProjects } from '@/lib/mock/projects.mock';
+import { mockProductionCosts } from '@/lib/mock/production-cost.mock';
 
 const STORAGE_KEY = 'makromedia_cost_categories';
 
@@ -17,6 +19,7 @@ const INITIAL_CATEGORIES: CostCategory[] = [
 let memoryCategories: CostCategory[] = [...INITIAL_CATEGORIES];
 
 const loadFromStorage = (): CostCategory[] => {
+  if (!USE_MOCK) return [];
   if (typeof window === 'undefined') return memoryCategories;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -34,6 +37,15 @@ const loadFromStorage = (): CostCategory[] => {
   }
   return memoryCategories;
 };
+
+// Bersihkan data dummy di localStorage jika tidak dalam mode MOCK
+if (typeof window !== 'undefined' && !USE_MOCK) {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 const saveToStorage = (categories: CostCategory[]) => {
   memoryCategories = categories;
@@ -66,16 +78,29 @@ const mapBackendCategory = (item: BackendCostCategory): CostCategory => ({
 
 export const costCategoryService = {
   getAll: async (): Promise<CostCategory[]> => {
-    if (USE_MOCK) return loadFromStorage();
+    if (USE_MOCK) {
+      const list = loadFromStorage();
+      const projectCostCategories = [
+        ...mockProductionCosts.map((pc) => pc.category),
+        ...mockProjects.flatMap((p) => (p.costItems || []).map((ci) => ci.category)),
+      ].filter(Boolean);
+
+      return list.map((cat) => ({
+        ...cat,
+        usedCount: projectCostCategories.filter(
+          (c) => c.trim().toLowerCase() === cat.name.trim().toLowerCase()
+        ).length,
+      }));
+    }
     try {
       const response = await apiClient.get<BackendCostCategory[]>('/production-cost-categories');
       if (Array.isArray(response.data)) {
         return response.data.map(mapBackendCategory);
       }
     } catch {
-      // Fallback to local storage if endpoint is not implemented on BE
+      // API error or offline
     }
-    return loadFromStorage();
+    return [];
   },
 
   getActiveNames: async (): Promise<string[]> => {
@@ -88,8 +113,11 @@ export const costCategoryService = {
   },
 
   getActiveNamesSync: (): string[] => {
-    const list = loadFromStorage();
-    return list.filter((c) => c.status === 'ACTIVE').map((c) => c.name);
+    if (USE_MOCK) {
+      const list = loadFromStorage();
+      return list.filter((c) => c.status === 'ACTIVE').map((c) => c.name);
+    }
+    return [];
   },
 
   create: async (data: CreateCostCategoryDTO): Promise<CostCategory> => {

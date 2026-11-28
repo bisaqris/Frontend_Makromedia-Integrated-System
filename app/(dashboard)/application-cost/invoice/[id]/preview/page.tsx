@@ -26,12 +26,28 @@ export default function InvoicePreviewPage() {
   const [invoiceSetting, setInvoiceSetting] = useState(() => invoiceSettingService.getSetting());
 
   useEffect(() => {
+    // Immediately hydrate latest invoice settings on client mount
+    setInvoiceSetting(invoiceSettingService.getSetting());
+
+    let isMounted = true;
+    invoiceSettingService
+      .fetchFromBackend()
+      .then((fresh) => {
+        if (isMounted && fresh) {
+          setInvoiceSetting(fresh);
+        }
+      })
+      .catch(() => {});
+
     const handleSettingUpdate = () => {
-      setInvoiceSetting(invoiceSettingService.getSetting());
+      if (isMounted) {
+        setInvoiceSetting(invoiceSettingService.getSetting());
+      }
     };
     window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
     window.addEventListener('storage', handleSettingUpdate);
     return () => {
+      isMounted = false;
       window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
       window.removeEventListener('storage', handleSettingUpdate);
     };
@@ -156,7 +172,10 @@ export default function InvoicePreviewPage() {
   const rawSignerName = invoiceSetting.signerName || item.projectOfficer || 'Budi Santoso';
   const signerName = rawSignerName.replace(/\s*\([^)]*\)/g, '').trim();
   const signerPosition = invoiceSetting.signerPosition || 'Penanggung Jawab';
-  const signatureUrl = invoiceSetting.signerSignatureUrl || item.signatureUrl;
+  const signatureUrl =
+    invoiceSetting.signerSignatureUrl !== undefined && invoiceSetting.signerSignatureUrl !== ''
+      ? invoiceSetting.signerSignatureUrl
+      : (item.signatureUrl || '');
   const lineItems = item.lineItems ?? [];
   const subTotal = lineItems.reduce((sum, lineItem) => sum + lineItem.subTotal, 0);
   const discountPercent = item.discountPercent ?? 0;
@@ -364,7 +383,8 @@ export default function InvoicePreviewPage() {
                     Bill From
                   </span>
                   <h3 className="text-sm sm:text-base font-bold text-slate-800">{profile?.name || '-'}</h3>
-                  <p className="text-xs font-bold text-[#0066ff]">{item.projectOfficer || '-'}</p>
+                  <p className="text-xs font-bold text-[#0066ff]">{signerName}</p>
+                  <p className="text-[11px] text-slate-400 font-normal">{signerPosition}</p>
                   <p className="text-xs text-slate-500 font-normal">{profile?.address || '-'}</p>
                   <p className="text-xs text-slate-500 font-normal">{profile?.email || '-'}</p>
                 </div>

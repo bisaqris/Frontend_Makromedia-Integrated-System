@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, X, Search, Check, Eye, EyeOff, Camera, Upload, Trash2 } from 'lucide-react';
+import { ChevronDown, X, Search, Check, Eye, EyeOff, Camera, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -101,20 +101,25 @@ export default function ProfilePage() {
         bankName: profile.bankName || '',
         accountNumber: profile.accountNumber || '',
       };
-      setFormData(loadedForm);
-      setInitialFormData(loadedForm);
-      setSkills(profile.skills);
-      setInitialSkills(profile.skills || []);
+      const posNames = positions.map((p) => p.name);
+      setPositionOptions(posNames);
+
+      const activeSkillNames = new Set(masterSkills.map((s) => s.name));
+      const validSkills = (profile.skills || []).filter((sk) => activeSkillNames.has(sk));
+      setSkills(validSkills);
+      setInitialSkills(validSkills);
+
       setPhotoPreview(profile.photoUrl || '');
       setInitialPhoto(profile.photoUrl || '');
       setPositionsList(positions);
       setSkillsList(masterSkills);
-      const posNames = positions.map((p) => p.name);
-      if (profile.position && !posNames.includes(profile.position)) {
-        posNames.unshift(profile.position);
-      }
-      setPositionOptions(posNames);
       setSkillOptions(masterSkills.map((s) => s.name));
+
+      if (loadedForm.position && !posNames.includes(loadedForm.position)) {
+        loadedForm.position = '';
+      }
+      setFormData(loadedForm);
+      setInitialFormData(loadedForm);
     };
 
     loadData().catch(() => {
@@ -493,29 +498,18 @@ export default function ProfilePage() {
             </div>
 
             {/* Action Buttons & Format Helper */}
-            <div className="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="text-xs font-semibold text-primary hover:text-primary-700 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-primary-50"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Pilih Foto</span>
-              </button>
-              {photoPreview && (
-                <>
-                  <span className="text-slate-300">&bull;</span>
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Hapus</span>
-                  </button>
-                </>
-              )}
-            </div>
+            {photoPreview && (
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer flex items-center gap-1.5 px-2.5 py-1 rounded-lg hover:bg-red-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Foto</span>
+                </button>
+              </div>
+            )}
             <span className="text-[11px] text-slate-400">Format: JPG, PNG, WebP (Maks. 10MB)</span>
           </div>
         </div>

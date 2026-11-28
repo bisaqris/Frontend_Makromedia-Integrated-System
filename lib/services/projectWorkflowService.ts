@@ -260,7 +260,7 @@ export const projectWorkflowService = {
 
   async createLink(
     projectId: string,
-    link: { label: string; url: string }
+    link: { label: string; url: string; type?: 'DELIVERABLE' | 'ADDITIONAL' }
   ): Promise<ProjectLink> {
     const response = await apiClient.post<ProjectLink>(`/projects/${projectId}/links`, link);
     return response.data;
@@ -269,7 +269,7 @@ export const projectWorkflowService = {
   async updateLink(
     projectId: string,
     linkId: string,
-    link: { label?: string; url?: string }
+    link: { label?: string; url?: string; type?: 'DELIVERABLE' | 'ADDITIONAL' }
   ): Promise<ProjectLink> {
     const response = await apiClient.patch<ProjectLink>(
       `/projects/${projectId}/links/${linkId}`,

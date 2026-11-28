@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import { Position, CreatePositionDTO, UpdatePositionDTO } from '@/types/manpower';
 import { mockPositions } from '@/lib/mock/manpower.mock';
 import { USE_MOCK, cloneMock } from './mockFlag';
+import { getMockManpowerStore } from './manpowerService';
 
 const STORAGE_KEY = 'makromedia_positions';
 
@@ -62,7 +63,16 @@ const mapBackendPosition = (item: BackendPosition): Position => ({
 
 export const positionService = {
   async getAll(): Promise<Position[]> {
-    if (USE_MOCK) return cloneMock(getMockStore());
+    if (USE_MOCK) {
+      const store = getMockStore();
+      const mockEmps = getMockManpowerStore();
+      return cloneMock(
+        store.map((p) => ({
+          ...p,
+          usedBy: mockEmps.filter((e) => e.position === p.name).length,
+        }))
+      );
+    }
     const response = await apiClient.get<BackendPosition[]>('/positions');
     return Array.isArray(response.data) ? response.data.map(mapBackendPosition) : [];
   },

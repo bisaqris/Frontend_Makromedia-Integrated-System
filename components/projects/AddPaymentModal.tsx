@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import DatePickerInput from '@/components/ui/DatePickerInput';
 import { PaymentHistoryItem } from '@/types/project';
 import { formatNominal } from '@/lib/utils';
 
@@ -93,17 +94,22 @@ export const AddPaymentModal: React.FC<AddPaymentModalProps> = ({
       maxWidth="md"
     >
       <div className="space-y-4">
-        <Input
-          label="Tanggal"
-          type="date"
-          value={date}
-          onChange={(e) => {
-            setDate(e.target.value);
-            if (dateError) setDateError('');
-          }}
-          error={dateError}
-          required
-        />
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            Tanggal Pembayaran <span className="text-red-500">*</span>
+          </label>
+          <DatePickerInput
+            value={date}
+            onChange={(e) => {
+              setDate(e.target.value);
+              if (dateError) setDateError('');
+            }}
+            error={dateError}
+            required
+            placeholder="Pilih tanggal pembayaran..."
+          />
+          {dateError && <p className="text-xs text-red-500 font-medium mt-1">{dateError}</p>}
+        </div>
         <Input
           label="Nominal (Rp)"
           type="text"

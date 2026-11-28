@@ -99,8 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen: propIsOpen, onClose: p
         },
       ];
 
-      // Setting section accessible by DIREKTUR, SALES, FINANCE, PROJECT_MANAGER
-      if (['DIREKTUR', 'SALES', 'FINANCE', 'PROJECT_MANAGER'].includes(userRole)) {
+      // Setting section accessible by DIREKTUR & FINANCE
+      if (userRole === 'DIREKTUR' || userRole === 'FINANCE') {
         sections.push({
           title: 'setting',
           items: [

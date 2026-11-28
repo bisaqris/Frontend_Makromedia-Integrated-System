@@ -8,7 +8,6 @@ import { Project } from '@/types/project';
 import projectService from '@/lib/services/projectService';
 import DetailProjectTabs from '@/components/projects/DetailProjectTabs';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import { showToast } from '@/components/ui/Toast';
 import { Loader2, Pencil, CheckCircle2 } from 'lucide-react';
@@ -67,21 +66,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     }
   };
 
-  const getStatusBadge = (status?: string) => {
-    switch (status) {
-      case 'DRAFT':
-        return <Badge variant="default">DRAFT</Badge>;
-      case 'COMPLETED':
-      case 'DONE':
-        return <Badge variant="success">DONE</Badge>;
-      case 'IN_PROGRESS':
-        return <Badge variant="warning">ON PROGRESS</Badge>;
-      case 'NEW':
-      default:
-        return <Badge variant="info">NEW</Badge>;
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px] text-slate-400">
@@ -107,12 +91,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   return (
     <div className="space-y-6">
-      {/* Top Header Card with Title & Status */}
-      <div className="flex items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-base sm:text-lg font-bold text-slate-800">{project.name}</h2>
-          <div>{getStatusBadge(project.status)}</div>
-        </div>
+      {/* Top Header Card */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <h2 className="text-base sm:text-lg font-bold text-slate-800">{project.name}</h2>
       </div>
 
       {/* Role-Specific Detail Tabs Component */}
@@ -130,7 +111,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         </Button>
 
         <div className="flex items-center gap-2.5">
-          {canManageProject && (
+          {canManageProject && !isProjectDone && (
             <button
               type="button"
               onClick={() => router.push(`/projects/${id}/edit`)}
@@ -143,9 +124,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
           {canManageProject && (
             isProjectDone ? (
-              <span className="min-w-[130px] px-5 py-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-2 select-none shadow-2xs">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span className="whitespace-nowrap">Project Selesai (DONE)</span>
+              <span className="min-w-[130px] px-5 py-2.5 rounded-xl bg-slate-100 text-slate-600 border border-slate-200 text-xs sm:text-sm font-medium inline-flex items-center justify-center gap-2 select-none">
+                <CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" />
+                <span className="whitespace-nowrap">Project Selesai</span>
               </span>
             ) : (
               <button

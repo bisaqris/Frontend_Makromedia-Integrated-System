@@ -25,6 +25,7 @@ import {
   PenTool,
   Upload,
   FileCheck,
+  Info,
 } from 'lucide-react';
 
 const formatRupiahWithSpace = (val: number) => {
@@ -74,7 +75,26 @@ function InvoiceSettingContent() {
   const [newTermInput, setNewTermInput] = useState('');
 
   useEffect(() => {
+    // Hydrate latest invoice setting from localStorage on client mount
+    const saved = invoiceSettingService.getSetting();
+    setSetting({
+      ...saved,
+      signerName: cleanSignerName(saved.signerName),
+    });
+
     let isMounted = true;
+    invoiceSettingService
+      .fetchFromBackend()
+      .then((fresh) => {
+        if (isMounted && fresh) {
+          setSetting({
+            ...fresh,
+            signerName: cleanSignerName(fresh.signerName),
+          });
+        }
+      })
+      .catch(() => {});
+
     userService
       .getUsers()
       .then((users) => {
@@ -86,8 +106,23 @@ function InvoiceSettingContent() {
       .finally(() => {
         if (isMounted) setIsLoadingUsers(false);
       });
+
+    const handleSettingUpdate = () => {
+      const latest = invoiceSettingService.getSetting();
+      if (isMounted) {
+        setSetting({
+          ...latest,
+          signerName: cleanSignerName(latest.signerName),
+        });
+      }
+    };
+    window.addEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+    window.addEventListener('storage', handleSettingUpdate);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('makromedia:invoice-setting-updated', handleSettingUpdate);
+      window.removeEventListener('storage', handleSettingUpdate);
     };
   }, []);
 
@@ -102,7 +137,20 @@ function InvoiceSettingContent() {
   const handleSelectUser = (userId: string) => {
     const selected = userList.find((u) => u.id === userId);
     if (!selected) {
-      setSetting((prev) => ({ ...prev, signerUserId: '' }));
+      setSetting((prev) => {
+        const next = {
+          ...prev,
+          signerUserId: '',
+          signerName: '',
+          signerPosition: '',
+        };
+        invoiceSettingService.updateSetting({
+          signerUserId: '',
+          signerName: '',
+          signerPosition: '',
+        });
+        return next;
+      });
       return;
     }
     if (!ALLOWED_SIGNER_ROLES.includes(selected.role)) {
@@ -110,13 +158,22 @@ function InvoiceSettingContent() {
       return;
     }
     const cleanName = selected.name.replace(/\s*\([^)]*\)/g, '').trim();
-    setSetting((prev) => ({
-      ...prev,
-      signerUserId: selected.id,
-      signerName: cleanName,
-      signerPosition: formatRoleTitle(selected.role),
-    }));
-    showToast.info(`Nama (${cleanName}) dan jabatan (${formatRoleTitle(selected.role)}) diterapkan.`);
+    const position = formatRoleTitle(selected.role);
+    setSetting((prev) => {
+      const next = {
+        ...prev,
+        signerUserId: selected.id,
+        signerName: cleanName,
+        signerPosition: position,
+      };
+      invoiceSettingService.updateSetting({
+        signerUserId: selected.id,
+        signerName: cleanName,
+        signerPosition: position,
+      });
+      return next;
+    });
+    showToast.info(`Nama (${cleanName}) dan jabatan (${position}) diterapkan.`);
   };
 
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,39 +194,99 @@ function InvoiceSettingContent() {
 
     const reader = new FileReader();
     reader.onload = () => {
-      setSetting((prev) => ({
-        ...prev,
-        signerSignatureUrl: reader.result as string,
-      }));
-      showToast.success('Tanda tangan berhasil diunggah.');
+      const rawDataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxWidth = 500;
+          const maxHeight = 250;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/png');
+            setSetting((prev) => {
+              const next = {
+                ...prev,
+                signerSignatureUrl: compressed,
+              };
+              invoiceSettingService.updateSetting({ signerSignatureUrl: compressed });
+              return next;
+            });
+            showToast.success('Tanda tangan berhasil diunggah.');
+            return;
+          }
+        } catch {
+          // fallback
+        }
+        setSetting((prev) => {
+          const next = {
+            ...prev,
+            signerSignatureUrl: rawDataUrl,
+          };
+          invoiceSettingService.updateSetting({ signerSignatureUrl: rawDataUrl });
+          return next;
+        });
+        showToast.success('Tanda tangan berhasil diunggah.');
+      };
+      img.onerror = () => {
+        showToast.error('Gagal memproses file gambar tanda tangan.');
+      };
+      img.src = rawDataUrl;
     };
     reader.readAsDataURL(file);
   };
 
   const handleRemoveSignature = () => {
-    setSetting((prev) => ({
-      ...prev,
-      signerSignatureUrl: '',
-    }));
+    setSetting((prev) => {
+      const next = {
+        ...prev,
+        signerSignatureUrl: '',
+      };
+      invoiceSettingService.updateSetting({ signerSignatureUrl: '' });
+      return next;
+    });
     if (fileInputRef.current) fileInputRef.current.value = '';
     showToast.info('Tanda tangan dihapus.');
   };
 
   const handleAddTerm = () => {
     if (!newTermInput.trim()) return;
-    setSetting((prev) => ({
-      ...prev,
-      termsOfCondition: [...(prev.termsOfCondition || []), newTermInput.trim()],
-    }));
+    const itemToAdd = newTermInput.trim();
+    setSetting((prev) => {
+      const updatedTerms = [...(prev.termsOfCondition || []), itemToAdd];
+      const next = {
+        ...prev,
+        termsOfCondition: updatedTerms,
+      };
+      invoiceSettingService.updateSetting({ termsOfCondition: updatedTerms });
+      return next;
+    });
     setNewTermInput('');
     showToast.success('Poin syarat & ketentuan ditambahkan.');
   };
 
   const handleRemoveTerm = (index: number) => {
-    setSetting((prev) => ({
-      ...prev,
-      termsOfCondition: (prev.termsOfCondition || []).filter((_, i) => i !== index),
-    }));
+    setSetting((prev) => {
+      const updatedTerms = (prev.termsOfCondition || []).filter((_, i) => i !== index);
+      const next = {
+        ...prev,
+        termsOfCondition: updatedTerms,
+      };
+      invoiceSettingService.updateSetting({ termsOfCondition: updatedTerms });
+      return next;
+    });
     showToast.info('Poin syarat & ketentuan dihapus.');
   };
 
@@ -199,22 +316,32 @@ function InvoiceSettingContent() {
     }
 
     if (editingBankId) {
-      setSetting((prev) => ({
-        ...prev,
-        bankAccounts: prev.bankAccounts.map((b) =>
+      setSetting((prev) => {
+        const updatedAccounts = prev.bankAccounts.map((b) =>
           b.id === editingBankId ? { ...b, ...bankForm } : b
-        ),
-      }));
+        );
+        const next = {
+          ...prev,
+          bankAccounts: updatedAccounts,
+        };
+        invoiceSettingService.updateSetting({ bankAccounts: updatedAccounts });
+        return next;
+      });
       showToast.success('Rekening bank berhasil diperbarui.');
     } else {
       const newAcc: InvoiceBankAccount = {
         id: `acc-${Date.now()}`,
         ...bankForm,
       };
-      setSetting((prev) => ({
-        ...prev,
-        bankAccounts: [...prev.bankAccounts, newAcc],
-      }));
+      setSetting((prev) => {
+        const updatedAccounts = [...prev.bankAccounts, newAcc];
+        const next = {
+          ...prev,
+          bankAccounts: updatedAccounts,
+        };
+        invoiceSettingService.updateSetting({ bankAccounts: updatedAccounts });
+        return next;
+      });
       showToast.success('Rekening bank baru berhasil ditambahkan.');
     }
     setIsBankModalOpen(false);
@@ -225,10 +352,15 @@ function InvoiceSettingContent() {
       showToast.error('Minimal harus ada 1 rekening terdaftar pada invoice.');
       return;
     }
-    setSetting((prev) => ({
-      ...prev,
-      bankAccounts: prev.bankAccounts.filter((b) => b.id !== id),
-    }));
+    setSetting((prev) => {
+      const updatedAccounts = prev.bankAccounts.filter((b) => b.id !== id);
+      const next = {
+        ...prev,
+        bankAccounts: updatedAccounts,
+      };
+      invoiceSettingService.updateSetting({ bankAccounts: updatedAccounts });
+      return next;
+    });
     showToast.success('Rekening bank berhasil dihapus.');
   };
 
@@ -237,7 +369,7 @@ function InvoiceSettingContent() {
     showToast.info('Pengaturan dikembalikan ke default.');
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
     try {
       setIsSaving(true);
       const cleaned: InvoiceSetting = {
@@ -245,7 +377,7 @@ function InvoiceSettingContent() {
         signerName: cleanSignerName(setting.signerName),
       };
       setSetting(cleaned);
-      invoiceSettingService.updateSetting(cleaned);
+      await invoiceSettingService.saveSetting(cleaned);
       showToast.success('Pengaturan Invoice & Quotation berhasil disimpan.');
     } catch {
       showToast.error('Gagal menyimpan pengaturan.');
@@ -290,6 +422,14 @@ function InvoiceSettingContent() {
             {isSaving ? 'Menyimpan...' : 'Simpan Pengaturan'}
           </Button>
         </div>
+      </div>
+
+      {/* Reminder Banner */}
+      <div className="flex items-start sm:items-center gap-3 px-4 py-3 bg-blue-50/70 border border-blue-200/60 rounded-xl text-xs text-blue-800">
+        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5 sm:mt-0" />
+        <p className="leading-relaxed">
+          <strong className="font-semibold text-blue-900">Perhatian:</strong> Apabila ada perubahan pada tarif PPh, penanggung jawab, rekening bank, atau syarat & ketentuan, pastikan untuk menekan tombol <strong className="font-semibold text-blue-900">&quot;Simpan Pengaturan&quot;</strong> di pojok kanan atas agar perubahan tersimpan permanen ke server dan otomatis tersinkronisasi ke seluruh dokumen Invoice & Quotation.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -384,9 +524,10 @@ function InvoiceSettingContent() {
                   <Input
                     type="text"
                     value={cleanSignerName(setting.signerName)}
-                    onChange={(e) => setSetting((prev) => ({ ...prev, signerName: cleanSignerName(e.target.value) }))}
-                    placeholder="e.g. Budi Santoso"
-                    className="text-xs h-9.5"
+                    disabled
+                    readOnly
+                    placeholder="Otomatis terisi dari pilihan di atas"
+                    className="text-xs h-9.5 bg-slate-50 text-slate-600 cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -396,9 +537,10 @@ function InvoiceSettingContent() {
                   <Input
                     type="text"
                     value={setting.signerPosition || ''}
-                    onChange={(e) => setSetting((prev) => ({ ...prev, signerPosition: e.target.value }))}
-                    placeholder="e.g. Direktur Utama / Sales Manager"
-                    className="text-xs h-9.5"
+                    disabled
+                    readOnly
+                    placeholder="Otomatis terisi dari pilihan di atas"
+                    className="text-xs h-9.5 bg-slate-50 text-slate-600 cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -764,7 +906,7 @@ function InvoiceSettingContent() {
 
 export default function InvoiceSettingPage() {
   return (
-    <RoleGuard allowed={['DIREKTUR', 'SALES', 'FINANCE', 'PROJECT_MANAGER']} fallbackMode="redirect" redirectTo="/dashboard">
+    <RoleGuard allowed={['DIREKTUR', 'FINANCE']} fallbackMode="redirect" redirectTo="/dashboard">
       <InvoiceSettingContent />
     </RoleGuard>
   );

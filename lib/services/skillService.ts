@@ -2,6 +2,7 @@ import { apiClient } from '@/lib/apiClient';
 import { Skill, CreateSkillDTO, UpdateSkillDTO } from '@/types/manpower';
 import { mockSkills } from '@/lib/mock/manpower.mock';
 import { USE_MOCK, cloneMock } from './mockFlag';
+import { getMockManpowerStore } from './manpowerService';
 
 const STORAGE_KEY = 'makromedia_skills';
 
@@ -49,20 +50,29 @@ interface BackendSkill {
   isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
-  _count?: { manpower: number };
+  _count?: { manpower: number; users?: number };
 }
 
 const mapBackendSkill = (item: BackendSkill): Skill => ({
   id: item.id,
   name: item.name,
   status: item.isActive ? 'ACTIVE' : 'INACTIVE',
-  usedBy: item._count?.manpower ?? 0,
+  usedBy: (item._count?.manpower ?? 0) + (item._count?.users ?? 0),
   createdAt: item.createdAt,
 });
 
 export const skillService = {
   async getAll(): Promise<Skill[]> {
-    if (USE_MOCK) return cloneMock(getMockStore());
+    if (USE_MOCK) {
+      const store = getMockStore();
+      const mockEmps = getMockManpowerStore();
+      return cloneMock(
+        store.map((s) => ({
+          ...s,
+          usedBy: mockEmps.filter((e) => (e.skills || []).includes(s.name)).length,
+        }))
+      );
+    }
     const response = await apiClient.get<BackendSkill[]>('/manpower/skills');
     return Array.isArray(response.data) ? response.data.map(mapBackendSkill) : [];
   },
