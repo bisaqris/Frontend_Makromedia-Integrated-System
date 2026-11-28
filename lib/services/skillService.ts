@@ -67,14 +67,65 @@ export const skillService = {
       const store = getMockStore();
       const mockEmps = getMockManpowerStore();
       return cloneMock(
-        store.map((s) => ({
-          ...s,
-          usedBy: mockEmps.filter((e) => (e.skills || []).includes(s.name)).length,
-        }))
+        store.map((s) => {
+          const sNameLower = s.name.trim().toLowerCase();
+          const matchedEmps = mockEmps.filter((e) =>
+            (e.skills || []).some((sk) => {
+              const skLower = sk.trim().toLowerCase();
+              return skLower === sNameLower || sNameLower.includes(skLower) || skLower.includes(sNameLower);
+            })
+          ).length;
+          const baseline = s.usedBy ?? 0;
+          return {
+            ...s,
+            usedBy: Math.max(baseline, matchedEmps),
+          };
+        })
       );
     }
-    const response = await apiClient.get<BackendSkill[]>('/manpower/skills');
-    return Array.isArray(response.data) ? response.data.map(mapBackendSkill) : [];
+
+    try {
+      const [skillRes, mpRes] = await Promise.allSettled([
+        apiClient.get<BackendSkill[]>('/manpower/skills'),
+        apiClient.get<{ data: Array<{ id: string; skill?: string; skills?: Array<{ skill: { id: string; name: string } }> }> }>('/manpower', {
+          params: { page: 1, limit: 100 },
+        }),
+      ]);
+
+      const rawSkills: BackendSkill[] =
+        skillRes.status === 'fulfilled' && Array.isArray(skillRes.value.data)
+          ? skillRes.value.data
+          : [];
+
+      const manpowerList =
+        mpRes.status === 'fulfilled' && Array.isArray(mpRes.value.data?.data)
+          ? mpRes.value.data.data
+          : [];
+
+      return rawSkills.map((item) => {
+        const mapped = mapBackendSkill(item);
+        const sNameLower = item.name.trim().toLowerCase();
+
+        const dbCount = (item._count?.manpower ?? 0) + (item._count?.users ?? 0);
+
+        const matchedManpower = manpowerList.filter((m) => {
+          if (m.skills && m.skills.some((sk) => sk.skill?.id === item.id || sk.skill?.name?.trim().toLowerCase() === sNameLower)) {
+            return true;
+          }
+          if (m.skill) {
+            const parts = m.skill.split(',').map((x) => x.trim().toLowerCase());
+            return parts.some((part) => part === sNameLower || sNameLower.includes(part) || part.includes(sNameLower));
+          }
+          return false;
+        }).length;
+
+        mapped.usedBy = Math.max(dbCount, matchedManpower);
+        return mapped;
+      });
+    } catch {
+      const response = await apiClient.get<BackendSkill[]>('/manpower/skills');
+      return Array.isArray(response.data) ? response.data.map(mapBackendSkill) : [];
+    }
   },
 
   async getActive(): Promise<Skill[]> {

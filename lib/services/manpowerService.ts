@@ -93,9 +93,10 @@ const mapManpower = (record: BackendManpower): ManpowerRecord => ({
   joinDate: record.createdAt?.slice(0, 10) ?? '',
 });
 
-const manpowerToApi = (record: Partial<CreateManpowerDTO>) => ({
+const manpowerToApi = (record: Partial<CreateManpowerDTO> & { positionId?: string }) => ({
   ...(record.fullName !== undefined && { name: record.fullName }),
   ...(record.position !== undefined && { position: record.position }),
+  ...(record.positionId !== undefined && { positionId: record.positionId }),
   ...(record.email !== undefined && { email: record.email || undefined }),
   ...(record.phoneNumber !== undefined && { phone: record.phoneNumber }),
   ...(record.employmentStatus !== undefined && { employmentStatus: record.employmentStatus }),
@@ -172,8 +173,40 @@ export const manpowerService = {
       getMockStore().unshift(newRecord);
       return cloneMock(newRecord);
     }
-    const response = await apiClient.post<BackendManpower>('/manpower', manpowerToApi(data));
-    return mapManpower(response.data);
+
+    const payload: ReturnType<typeof manpowerToApi> = manpowerToApi(data);
+    if (!payload.positionId && data.position) {
+      try {
+        const positions = await positionService.getAll();
+        const matched = positions.find(
+          (p) => p.name.trim().toLowerCase() === data.position?.trim().toLowerCase()
+        );
+        if (matched) {
+          payload.positionId = matched.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const response = await apiClient.post<BackendManpower>('/manpower', payload);
+    const created = mapManpower(response.data);
+
+    if (Array.isArray(data.skills) && data.skills.length > 0) {
+      try {
+        const allSkills = await skillService.getAll();
+        const skillIds = data.skills
+          .map((skName) => allSkills.find((s) => s.name.trim().toLowerCase() === skName.trim().toLowerCase())?.id)
+          .filter(Boolean) as string[];
+        if (skillIds.length > 0) {
+          await apiClient.put(`/manpower/${created.id}/skills`, { skillIds });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return created;
   },
 
   update: async (id: string, data: UpdateManpowerDTO): Promise<ManpowerRecord> => {
@@ -184,11 +217,41 @@ export const manpowerService = {
       store[index] = { ...store[index], ...data };
       return cloneMock(store[index]);
     }
+
+    const payload: ReturnType<typeof manpowerToApi> = manpowerToApi(data);
+    if (!payload.positionId && data.position) {
+      try {
+        const positions = await positionService.getAll();
+        const matched = positions.find(
+          (p) => p.name.trim().toLowerCase() === data.position?.trim().toLowerCase()
+        );
+        if (matched) {
+          payload.positionId = matched.id;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     const response = await apiClient.patch<BackendManpower>(
       `/manpower/${id}`,
-      manpowerToApi(data)
+      payload
     );
-    return mapManpower(response.data);
+    const updated = mapManpower(response.data);
+
+    if (Array.isArray(data.skills)) {
+      try {
+        const allSkills = await skillService.getAll();
+        const skillIds = data.skills
+          .map((skName) => allSkills.find((s) => s.name.trim().toLowerCase() === skName.trim().toLowerCase())?.id)
+          .filter(Boolean) as string[];
+        await apiClient.put(`/manpower/${id}/skills`, { skillIds });
+      } catch {
+        // ignore
+      }
+    }
+
+    return updated;
   },
 
   delete: async (id: string): Promise<void> => {

@@ -66,15 +66,117 @@ export const positionService = {
     if (USE_MOCK) {
       const store = getMockStore();
       const mockEmps = getMockManpowerStore();
+      let mockUsersList: Array<{ role?: string; department?: string }> = [];
+      try {
+        const { mockUsers } = await import('@/lib/mock/users.mock');
+        mockUsersList = mockUsers;
+      } catch {
+        // ignore
+      }
+
       return cloneMock(
-        store.map((p) => ({
-          ...p,
-          usedBy: mockEmps.filter((e) => e.position === p.name).length,
-        }))
+        store.map((p) => {
+          const pNameLower = p.name.trim().toLowerCase();
+
+          // 1. Hitung karyawan di mock manpower
+          const matchedEmps = mockEmps.filter((e) => {
+            const ePos = (e.position || '').trim().toLowerCase();
+            if (ePos === pNameLower) return true;
+            if (
+              (pNameLower === 'production' || pNameLower === 'produksi') &&
+              (ePos === 'production' || ePos === 'produksi')
+            ) {
+              return true;
+            }
+            return false;
+          }).length;
+
+          // 2. Hitung user internal di mock users (khususnya tim Produksi atau role terkait)
+          const matchedUsers = mockUsersList.filter((u) => {
+            const uRole = (u.role || '').toLowerCase();
+            const uDept = (u.department || '').toLowerCase();
+            if (
+              (pNameLower === 'production' || pNameLower === 'produksi') &&
+              (uRole === 'produksi' || uDept.includes('produksi'))
+            ) {
+              return true;
+            }
+            if (pNameLower === 'director' && uRole === 'direktur') return true;
+            if (pNameLower === 'finance' && uRole === 'finance') return true;
+            if (pNameLower === 'sales' && uRole === 'sales') return true;
+            if (pNameLower === 'project manager' && uRole === 'project_manager') return true;
+            return false;
+          }).length;
+
+          const dynamicCount = matchedEmps + matchedUsers;
+          const baseline = p.usedBy ?? 0;
+
+          return {
+            ...p,
+            usedBy: Math.max(baseline, dynamicCount),
+          };
+        })
       );
     }
-    const response = await apiClient.get<BackendPosition[]>('/positions');
-    return Array.isArray(response.data) ? response.data.map(mapBackendPosition) : [];
+
+    try {
+      const [posRes, mpRes, userRes] = await Promise.allSettled([
+        apiClient.get<BackendPosition[]>('/positions'),
+        apiClient.get<{ data: Array<{ id: string; position?: string; positionId?: string }> }>('/manpower', {
+          params: { page: 1, limit: 100 },
+        }),
+        apiClient.get<Array<{ id: string; role?: string; positionId?: string }>>('/users/production-team'),
+      ]);
+
+      const rawPositions: BackendPosition[] =
+        posRes.status === 'fulfilled' && Array.isArray(posRes.value.data)
+          ? posRes.value.data
+          : [];
+
+      const manpowerList =
+        mpRes.status === 'fulfilled' && Array.isArray(mpRes.value.data?.data)
+          ? mpRes.value.data.data
+          : [];
+
+      const prodUsers =
+        userRes.status === 'fulfilled' && Array.isArray(userRes.value.data)
+          ? userRes.value.data
+          : [];
+
+      return rawPositions.map((item) => {
+        const mapped = mapBackendPosition(item);
+        const pNameLower = item.name.trim().toLowerCase();
+
+        // 1. Prisma backend foreign-key count
+        const dbCount = (item._count?.users ?? 0) + (item._count?.manpower ?? 0);
+
+        // 2. Manpower matching by positionId or string position
+        const matchedManpower = manpowerList.filter((m) => {
+          if (m.positionId && m.positionId === item.id) return true;
+          const mPos = (m.position || '').trim().toLowerCase();
+          if (mPos === pNameLower) return true;
+          if (
+            (pNameLower === 'production' || pNameLower === 'produksi') &&
+            (mPos === 'production' || mPos === 'produksi')
+          ) {
+            return true;
+          }
+          return false;
+        }).length;
+
+        // 3. Count production team users for "Production" / "Produksi"
+        const matchedProdUsers =
+          pNameLower === 'production' || pNameLower === 'produksi'
+            ? prodUsers.filter((u) => u.role === 'PRODUKSI' || !u.role).length
+            : 0;
+
+        mapped.usedBy = Math.max(dbCount, matchedManpower + matchedProdUsers);
+        return mapped;
+      });
+    } catch {
+      const response = await apiClient.get<BackendPosition[]>('/positions');
+      return Array.isArray(response.data) ? response.data.map(mapBackendPosition) : [];
+    }
   },
 
   async getActive(): Promise<Position[]> {
